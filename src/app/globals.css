@@ -1,0 +1,54 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #FAFAF9;
+  --surface: #F5F5F4;
+  --surface-raised: #FFFFFF;
+  --border: #E5E5E3;
+  --text-primary: #1C1C1A;
+  --text-muted: #6B6B66;
+  --accent: #1F6F54;
+  --accent-tint: #EBF5F1;
+}
+
+body {
+  color: var(--text-primary);
+  background-color: var(--bg);
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  overflow-x: hidden;
+  margin: 0;
+  padding: 0;
+}
+
+/* MapLibre Canvas and Popup Styles */
+.maplibregl-canvas {
+  outline: none;
+}
+
+.maplibregl-ctrl-attrib {
+  font-size: 11px !important;
+  background-color: rgba(255, 255, 255, 0.9) !important;
+  padding: 2px 6px !important;
+  border-radius: 4px !important;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #D6D6D2;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #A8A8A2;
+}

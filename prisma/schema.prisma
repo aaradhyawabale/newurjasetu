@@ -1,0 +1,85 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String      @id @default(uuid())
+  email        String      @unique
+  passwordHash String
+  name         String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  scenarios    Scenario[]
+  placements   Placement[]
+  analyses     Analysis[]
+
+  @@index([email])
+}
+
+model Scenario {
+  id         String      @id @default(uuid())
+  userId     String
+  name       String
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  placements Placement[]
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model Placement {
+  id         String     @id @default(uuid())
+  scenarioId String
+  userId     String
+  type       String     // Hospital, School, Park, Road, Bridge, Water Canal, Building, Transit Station, Drainage, Solar Farm
+  lat        Float
+  lng        Float
+  lengthM    Float
+  widthM     Float
+  bearingDeg Float      @default(0)
+  params     String     @default("{}") // JSON string of type-specific parameters
+  label      String?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scenario   Scenario   @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  analyses   Analysis[]
+
+  @@index([userId])
+  @@index([scenarioId])
+  @@index([createdAt])
+}
+
+model Analysis {
+  id            String    @id @default(uuid())
+  placementId   String
+  userId        String
+  engineVersion String    @default("1.0.0")
+  overallScore  Float
+  scoreBand     String    // High Suitability, Moderate Suitability, Low Suitability, Highly Constrained, Unsuitable
+  input         String    // JSON snapshot of placement and site conditions
+  result        String    // Full JSON analysis result object
+  createdAt     DateTime  @default(now())
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  placement     Placement @relation(fields: [placementId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([placementId])
+  @@index([createdAt])
+}
+
+model ProviderCache {
+  key       String   @id
+  response  String   // JSON string
+  fetchedAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}
