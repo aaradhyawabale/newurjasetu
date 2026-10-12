@@ -260,9 +260,42 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
 
         {/* Evidence Verification Log */}
         <div className="flex flex-col gap-2">
-          <h4 className="text-xs font-mono uppercase tracking-wider font-semibold text-stone-500">
-            Evidence Verification Log ({evidence.length} queries)
-          </h4>
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <h4 className="text-xs font-mono uppercase tracking-wider font-semibold text-stone-500">
+              Evidence Verification Log ({evidence.length} queries)
+            </h4>
+
+            {report.dataSources && report.dataSources.length > 0 && (
+              <div className="flex items-center flex-wrap gap-1.5">
+                {report.dataSources.map((ds, idx) => (
+                  <span
+                    key={idx}
+                    className={`px-2 py-0.5 rounded text-[10px] font-mono border flex items-center gap-1 ${
+                      ds.status === "ok"
+                        ? "bg-emerald-50/70 border-emerald-200 text-emerald-800"
+                        : ds.status === "empty"
+                        ? "bg-amber-50/70 border-amber-200 text-amber-800"
+                        : "bg-red-50/70 border-red-200 text-red-800"
+                    }`}
+                  >
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full ${
+                        ds.status === "ok"
+                          ? "bg-emerald-600"
+                          : ds.status === "empty"
+                          ? "bg-amber-600"
+                          : "bg-red-600"
+                      }`}
+                    />
+                    <span>{ds.provider}</span>
+                    {ds.featureCount !== undefined && (
+                      <span className="opacity-75">({ds.featureCount})</span>
+                    )}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
 
           <div className="divide-y divide-stone-100 rounded-panel border border-stone-200 bg-white">
             {evidence.map((ev) => (

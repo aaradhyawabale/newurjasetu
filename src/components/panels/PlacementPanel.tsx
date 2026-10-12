@@ -12,7 +12,11 @@ import {
   Loader2,
   ShieldCheck,
 } from "lucide-react";
-import { InfrastructureTypeId, INFRASTRUCTURE_TYPES } from "@/config/infra-types";
+import {
+  InfrastructureTypeId,
+  INFRASTRUCTURE_TYPES,
+  INFRASTRUCTURE_SEPARATION_RULES,
+} from "@/config/infra-types";
 import { NumberField } from "../ui/NumberField";
 import { StatusBadge } from "../ui/StatusBadge";
 import { ValidationResult } from "@/server/analysis-engine/validation";
@@ -170,7 +174,11 @@ export const PlacementPanel: React.FC<PlacementPanelProps> = ({
               Location-Specific Limits
             </span>
             <span className="text-[10px] font-mono text-stone-600 font-medium">
-              {config ? `${config.minAreaM2.toLocaleString()} – ${config.maxAreaM2.toLocaleString()} m²` : ""}
+              {validationResult?.allowedAreaRange
+                ? `${validationResult.allowedAreaRange.minM2.toLocaleString()} – ${validationResult.allowedAreaRange.maxM2.toLocaleString()} m²`
+                : config
+                ? `${config.minAreaM2.toLocaleString()} – ${config.maxAreaM2.toLocaleString()} m²`
+                : ""}
             </span>
           </div>
 
@@ -178,6 +186,22 @@ export const PlacementPanel: React.FC<PlacementPanelProps> = ({
             {validationResult?.allowedAreaRange?.reason ||
               `Standard envelope for ${config?.label || "siting"}. Backend validates spatial constraints dynamically.`}
           </p>
+
+          {INFRASTRUCTURE_SEPARATION_RULES[placement.type] && (
+            <div className="pt-1.5 mt-0.5 border-t border-stone-200/80 flex flex-col gap-1">
+              <div className="flex items-center justify-between text-[10px] font-mono text-stone-500">
+                <span>Hazard / Rail / Hwy Buffer:</span>
+                <span className="font-semibold text-stone-700">
+                  {INFRASTRUCTURE_SEPARATION_RULES[placement.type].minHazardBufferM}m /{" "}
+                  {INFRASTRUCTURE_SEPARATION_RULES[placement.type].minRailwayBufferM}m /{" "}
+                  {INFRASTRUCTURE_SEPARATION_RULES[placement.type].minMotorwayBufferM}m
+                </span>
+              </div>
+              <span className="text-[9px] font-mono text-stone-400 truncate">
+                Ref: {INFRASTRUCTURE_SEPARATION_RULES[placement.type].standardReference}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Type-Specific Parameters */}
@@ -309,6 +333,19 @@ export const PlacementPanel: React.FC<PlacementPanelProps> = ({
                     <span>{conf.label}</span>
                   </div>
                   <p className="text-[11px] mt-0.5 opacity-90 leading-tight">{conf.description}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {validationResult && validationResult.messages.length > 0 && (
+            <div className="flex flex-col gap-1 mt-1">
+              {validationResult.messages.map((msg, idx) => (
+                <div
+                  key={idx}
+                  className="p-2 rounded text-[11px] bg-stone-100 border border-stone-200 text-stone-700 leading-tight"
+                >
+                  {msg}
                 </div>
               ))}
             </div>
