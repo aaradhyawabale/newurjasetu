@@ -297,7 +297,86 @@ export async function generateReportPdf(
     y -= 16;
   }
 
-  y -= 15;
+  const ensureSpace = (neededHeight: number) => {
+    if (y - neededHeight < 45) {
+      page = pdfDoc.addPage([595.28, 841.89]);
+      y = height - 45;
+    }
+  };
+
+  // Engineering & Planning Recommendations
+  if (report.recommendations && report.recommendations.length > 0) {
+    y -= 12;
+    ensureSpace(65);
+    page.drawText("ENGINEERING & PLANNING RECOMMENDATIONS", {
+      x: 30,
+      y,
+      size: 9,
+      font: boldFont,
+      color: rgb(0.12, 0.44, 0.33),
+    });
+    y -= 12;
+
+    for (const rec of report.recommendations.slice(0, 4)) {
+      const recLines = wrapText(`• ${rec}`, 95);
+      ensureSpace(recLines.length * 10 + 4);
+      for (const rLine of recLines) {
+        page.drawText(rLine, {
+          x: 34,
+          y,
+          size: 7.5,
+          font: timesRoman,
+          color: rgb(0.18, 0.18, 0.18),
+        });
+        y -= 10;
+      }
+    }
+  }
+
+  // Calculation Assumptions & Evidence Provenance
+  if (report.assumptions && report.assumptions.length > 0) {
+    y -= 10;
+    ensureSpace(55);
+    page.drawText("CALCULATION ASSUMPTIONS & EVIDENCE PROVENANCE", {
+      x: 30,
+      y,
+      size: 8.5,
+      font: boldFont,
+      color: rgb(0.3, 0.3, 0.3),
+    });
+    y -= 11;
+
+    for (const assump of report.assumptions.slice(0, 3)) {
+      const aLines = wrapText(`- ${assump}`, 100);
+      ensureSpace(aLines.length * 9 + 4);
+      for (const aLine of aLines) {
+        page.drawText(aLine, {
+          x: 34,
+          y,
+          size: 7,
+          font: timesRoman,
+          color: rgb(0.35, 0.35, 0.35),
+        });
+        y -= 9;
+      }
+    }
+
+    for (const ev of report.evidence.slice(0, 4)) {
+      ensureSpace(12);
+      const evLine = `[${ev.id}] ${ev.provider} (${ev.qualityStatus || "verified"}) — ${ev.summary}`;
+      page.drawText(evLine.substring(0, 108), {
+        x: 34,
+        y,
+        size: 6.5,
+        font: timesRoman,
+        color: rgb(0.4, 0.4, 0.4),
+      });
+      y -= 9;
+    }
+  }
+
+  y -= 10;
+  ensureSpace(55);
 
   // Limitations and Statutory Disclaimer at bottom
   page.drawText("METHODOLOGY & STATUTORY DISCLAIMER", {

@@ -8,27 +8,31 @@ UrjaSetu performs **multi-criteria decision analysis (MCDA)** to evaluate the sp
 
 ---
 
-## 2. Multi-Criteria Evaluation Pipeline
-The assessment pipeline executes in eight deterministic stages:
+## 2. Multi-Criteria Evaluation Pipeline (Engine v1.2.0)
+The assessment pipeline executes in ten deterministic stages:
 ```mermaid
 flowchart TD
-    A["1. Footprint Generation & Conflict Validation"] --> B["2. Search Radius Ingestion (R1 & R2)"]
-    B --> C["3. Digital Elevation Model (DEM) & 3x3 Slope Sample"]
-    C --> D["4. Climate & Solar Resource Ingestion"]
-    D --> E["5. Criteria Piecewise Scoring (0 - 100)"]
-    E --> F["6. Weighted Multi-Criteria Aggregation"]
-    F --> G["7. Conflict Penalty & Confidence Calibration"]
-    G --> H["8. Verifiable Evidence Logging & Snapshot Persistence"]
+    A["1. Request & Input Schema Validation"] --> B["2. Coordinate, Footprint Geometry & Parameter Feasibility"]
+    B --> C["3. Concurrent Geographic Evidence Retrieval (Single-Pass Overpass R2, DEM, ERA5, NASA POWER)"]
+    C --> D["4. Data Quality, Freshness & Coverage Verification"]
+    D --> E["5. Spatial Intersections & Configurable Separation Buffers"]
+    E --> F["6. Criterion-Level Piecewise Evaluation (0 - 100)"]
+    F --> G["7. Weighted Aggregation & Empty-Evidence Guards"]
+    G --> H["8. Narrative, Recommendations & Assumptions Generation"]
+    H --> I["9. Immutable Database Snapshot Persistence"]
+    I --> J["10. Typed API Response & Interactive Map Conflict Overlay"]
 ```
 
-1. **Footprint Validation**: Derives an oriented rectangular polygon from `(lat, lng, lengthM, widthM, bearingDeg)`. Validates dimensional limits and computes spatial intersections with existing buildings, water bodies, active railways, motorways, and restricted zones (`military`, `cemetery`).
-2. **Feature Retrieval**: Executes bounded Overpass queries for primary (`R1`) and extended (`R2`) search rings centered at the site.
-3. **Terrain Analysis**: Samples center elevation and a 3×3 grid with 60-meter spacing from Open-Meteo Copernicus DEM. Computes surface gradient using Horn's finite-difference gradient method.
-4. **Climate / Solar**: Ingests ERA5-Land historical precipitation and NASA POWER solar irradiance (GHI).
-5. **Piecewise Scoring**: Normalizes raw physical metrics to a standard 0–100 scale using continuous piecewise functions.
-6. **Weighted Sum**: Aggregates criterion scores using domain-calibrated weights ($\sum w_i = 1.0$).
-7. **Penalty**: If critical footprint conflicts occur (e.g. direct overlap with a mapped building or military zone), the overall score is clamped to maximum 24/100 ("Unsuitable" or "Highly Constrained").
-8. **Snapshot Persistence**: Saves the complete report JSON object in the database for reproducible historical audits.
+1. **Request Validation**: Validates the placement record, infrastructure type, and parameters.
+2. **Coordinate & Geometry Validation**: Validates WGS84 latitude/longitude bounds, derives an oriented rectangular polygon from `(lat, lng, lengthM, widthM, bearingDeg)`, checks polygon ring closure and self-intersection (`turf.kinks`), and verifies parameter-to-area feasibility (e.g., MWp packing density for Solar Farms, bed-to-area ratio for Hospitals).
+3. **Concurrent Geographic Evidence Retrieval**: Executes external provider fetches in parallel (`Promise.allSettled`) and retrieves the extended (`R2`) Overpass search ring in a single network call, deriving the primary (`R1`) ring in-memory via geodesic distance filtering.
+4. **Data Quality & Coverage Verification**: Evaluates source availability, cache freshness, and OpenStreetMap feature density (`features/km²`). If all external providers are unreachable (`INSUFFICIENT_EVIDENCE`), the engine halts with an actionable `503` error rather than fabricating scores.
+5. **Spatial Intersections & Configurable Separation Buffers**: Computes direct polygon intersections and footprint-perimeter-to-feature geodesic distances (`computeFootprintDistanceToGeometryMeters`) against per-infrastructure separation thresholds (`INFRASTRUCTURE_SEPARATION_RULES` grounded in NBC India, IRC, CPCB, and CEA norms).
+6. **Criterion-Level Piecewise Evaluation**: Normalizes raw physical metrics to a 0–100 scale. When OpenStreetMap returns zero features (`osmEmpty`), OSM-dependent criteria are marked `unavailable` (`null` score) so unmapped areas are never mistaken for optimal service gaps or zero-building corridors.
+7. **Weighted Aggregation & Penalty**: Aggregates verified criteria weights ($\sum w_i = 1.0$). If critical footprint conflicts occur, the overall score is clamped to maximum 24/100 ("Unsuitable"). When OSM returns zero features, overall confidence is capped at $\le 35\%$.
+8. **Narrative, Recommendations & Assumptions**: Generates transparent supporting factors, risks, mitigation recommendations, calculation assumptions, and evidence citations (`[E1]..[En]`).
+9. **Snapshot Persistence**: Saves the immutable report JSON in Prisma (`Analysis` table).
+10. **Structured Response & Map Overlay**: Returns the typed `AnalysisReportResult` and renders conflicting OSM geometries (red for critical overlaps, amber for setback warnings) directly on the MapLibre canvas.
 
 ---
 

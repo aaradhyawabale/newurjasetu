@@ -27,3 +27,9 @@
   3. `OpenMeteoProvider`: Open-Meteo Elevation API (elevation & 3x3 slope calculation) and historical precipitation API.
   4. `NasaPowerProvider`: NASA POWER Agroclimatology API for solar irradiance (GHI / direct normal).
 - **Fallback & Resilience**: If external providers are offline, rate-limited, or unreachable, the system returns clear error feedback or test fixtures if explicitly requested in test mode. It never manufactures fake data in production mode.
+
+## 7. Engine v1.2.0 Geospatial Pipeline & Separation Rules
+- **Single-Pass Overpass R2 Retrieval**: Instead of issuing separate Overpass HTTP calls for the footprint validation buffer, primary radius `R1`, and extended radius `R2`, `runAnalysisEngine` fetches the maximum radius (`R2`) once concurrently with Open-Meteo and NASA POWER (`Promise.allSettled`), and filters `R1` and validation subsets in-memory using geodesic distance.
+- **Configurable Separation Rules (`INFRASTRUCTURE_SEPARATION_RULES`)**: Each of the 10 infrastructure types defines explicit separation buffer distances (`minHazardBufferM`, `minRailwayBufferM`, `minMotorwayBufferM`), waterway/railway crossing permissions, and regulatory benchmark references (`NBC India`, `IRC`, `CPCB`, `CEA`) in `src/config/infra-types.ts`.
+- **Empty-Query Guard**: When an Overpass query returns `0` mapped elements (e.g., offshore or unmapped territory), OSM-dependent criteria are marked `unavailable` (`null` score) rather than awarding maximum "service gap" or "zero displacement" scores, and overall confidence is capped at `35%`.
+- **Interactive Conflict Overlay & Candidate Comparison**: Conflicting OSM geometries are attached to `ConflictingFeature.geometry` and rendered on the MapLibre canvas (`conflict-features-source`), and `HistoryDrawer` supports side-by-side comparison of any two saved analyses.

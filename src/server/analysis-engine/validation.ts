@@ -29,6 +29,7 @@ export interface ConflictingFeature {
   distanceM?: number;
   requiredBufferM?: number;
   description: string;
+  geometry?: GeoJSON.Geometry;
 }
 
 export interface ValidationResult {
@@ -208,6 +209,7 @@ export async function validateFootprint(
               severity: isLinearCorridor ? "warning" : "critical",
               distanceM: 0,
               description: `Footprint directly intersects existing mapped structure (${bName}).`,
+              geometry: feature.geometry,
             },
             `building:${bName}`
           );
@@ -230,6 +232,7 @@ export async function validateFootprint(
                 severity: "critical",
                 distanceM: 0,
                 description: `Footprint overlaps with active waterway or water body (${wName}), posing high flood / submersion risk.`,
+                geometry: feature.geometry,
               },
               `waterway:${wName}`
             );
@@ -247,6 +250,7 @@ export async function validateFootprint(
               severity: separationRules.allowRailwayIntersection ? "warning" : "critical",
               distanceM: 0,
               description: `Footprint intersects active railway tracks. Requires statutory grade-separated clearance.`,
+              geometry: feature.geometry,
             },
             `railway:${rLabel}`
           );
@@ -263,6 +267,7 @@ export async function validateFootprint(
               distanceM: 0,
               description:
                 "Footprint intersects restricted defense / military landuse with legal building prohibition.",
+              geometry: feature.geometry,
             },
             "restricted:military"
           );
@@ -277,6 +282,7 @@ export async function validateFootprint(
               severity: "critical",
               distanceM: 0,
               description: "Footprint intersects cemetery or memorial ground.",
+              geometry: feature.geometry,
             },
             "restricted:cemetery"
           );
@@ -291,6 +297,7 @@ export async function validateFootprint(
               severity: "critical",
               distanceM: 0,
               description: `Footprint directly overlaps mapped ${tags.landuse} site.`,
+              geometry: feature.geometry,
             },
             `restricted:${tags.landuse}`
           );
@@ -308,6 +315,7 @@ export async function validateFootprint(
                 severity: "critical",
                 distanceM: 0,
                 description: "Direct collision with high-speed motorway right-of-way.",
+                geometry: feature.geometry,
               },
               `major_road:${hLabel}`
             );
@@ -348,6 +356,7 @@ export async function validateFootprint(
               distanceM: edgeDistM,
               requiredBufferM: separationRules.minHazardBufferM,
               description: `${config.label} footprint edge is ${edgeDistM}m from ${hzName}, below the recommended ${separationRules.minHazardBufferM}m environmental setback.`,
+              geometry: feature.geometry,
             },
             `buf_hz:${hzName}`
           );
@@ -364,6 +373,7 @@ export async function validateFootprint(
               distanceM: edgeDistM,
               requiredBufferM: separationRules.minRailwayBufferM,
               description: `${config.label} footprint is ${edgeDistM}m from active railway (${rwName}), below the ${separationRules.minRailwayBufferM}m vibration/acoustic buffer.`,
+              geometry: feature.geometry,
             },
             `buf_rw:${rwName}`
           );
@@ -380,6 +390,7 @@ export async function validateFootprint(
               distanceM: edgeDistM,
               requiredBufferM: separationRules.minMotorwayBufferM,
               description: `${config.label} footprint is ${edgeDistM}m from high-speed ${mwName}, below the ${separationRules.minMotorwayBufferM}m safety/air-quality setback.`,
+              geometry: feature.geometry,
             },
             `buf_mw:${mwName}`
           );

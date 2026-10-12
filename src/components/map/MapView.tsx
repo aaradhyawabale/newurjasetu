@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { createFootprintPolygon, calculateDistanceMeters } from "@/server/gis/geometry";
+import { ConflictingFeature } from "@/server/analysis-engine/validation";
 
 export interface StudyAreaBounds {
   swLat: number;
@@ -25,6 +26,7 @@ interface MapViewProps {
     bearingDeg: number;
   } | null;
   studyArea?: StudyAreaBounds | null;
+  conflicts?: ConflictingFeature[];
   onMapClick: (lat: number, lng: number) => void;
   onMapLoaded?: (exportFn: () => string | null) => void;
   className?: string;
@@ -37,6 +39,7 @@ export const MapView: React.FC<MapViewProps> = ({
   activeType,
   placement,
   studyArea,
+  conflicts = [],
   onMapClick,
   onMapLoaded,
   className = "",
@@ -174,6 +177,67 @@ export const MapView: React.FC<MapViewProps> = ({
           "line-color": "#1F6F54",
           "line-width": 2.5,
           "line-dasharray": [2, 1],
+        },
+      });
+
+      // Add conflict features geojson source and layers (polygons, lines, points)
+      map.addSource("conflict-features-source", {
+        type: "geojson",
+        data: {
+          type: "FeatureCollection",
+          features: [],
+        },
+      });
+
+      map.addLayer({
+        id: "conflict-features-fill",
+        type: "fill",
+        source: "conflict-features-source",
+        filter: ["==", ["geometry-type"], "Polygon"],
+        paint: {
+          "fill-color": [
+            "match",
+            ["get", "severity"],
+            "critical",
+            "#dc2626",
+            "#d97706",
+          ],
+          "fill-opacity": 0.35,
+        },
+      });
+
+      map.addLayer({
+        id: "conflict-features-line",
+        type: "line",
+        source: "conflict-features-source",
+        paint: {
+          "line-color": [
+            "match",
+            ["get", "severity"],
+            "critical",
+            "#dc2626",
+            "#d97706",
+          ],
+          "line-width": 3,
+        },
+      });
+
+      map.addLayer({
+        id: "conflict-features-point",
+        type: "circle",
+        source: "conflict-features-source",
+        filter: ["==", ["geometry-type"], "Point"],
+        paint: {
+          "circle-radius": 6,
+          "circle-color": [
+            "match",
+            ["get", "severity"],
+            "critical",
+            "#dc2626",
+            "#d97706",
+          ],
+          "circle-stroke-width": 2,
+          "circle-stroke-color": "#ffffff",
         },
       });
 
@@ -323,6 +387,33 @@ export const MapView: React.FC<MapViewProps> = ({
     });
   }, [studyArea, isLoaded]);
 
+  // Update Conflicting OSM Feature Overlays on Map
+  useEffect(() => {
+    if (!mapRef.current || !isLoaded) return;
+    const source = mapRef.current.getSource(
+      "conflict-features-source"
+    ) as maplibregl.GeoJSONSource;
+    if (!source) return;
+
+    const geoFeatures = (conflicts || [])
+      .filter((c) => Boolean(c.geometry))
+      .map((c) => ({
+        type: "Feature" as const,
+        properties: {
+          id: c.id,
+          label: c.label,
+          severity: c.severity,
+          category: c.category,
+        },
+        geometry: c.geometry!,
+      }));
+
+    source.setData({
+      type: "FeatureCollection",
+      features: geoFeatures,
+    });
+  }, [conflicts, isLoaded]);
+
   // Update Pin Marker and Footprint Polygon when placement or activeType changes
   useEffect(() => {
     if (!mapRef.current || !isLoaded) return;
@@ -388,9 +479,24 @@ export const MapView: React.FC<MapViewProps> = ({
     }
   }, [placement, activeType, isLoaded]);
 
+  const mappedConflictCount = (conflicts || []).filter((c) => Boolean(c.geometry)).length;
+
   return (
     <div className={`relative w-full h-full ${className}`}>
       <div ref={mapContainerRef} className="w-full h-full" />
+      {mappedConflictCount > 0 && (
+        <div className="absolute bottom-8 right-3 z-20 bg-white/95 backdrop-blur-xs border border-stone-200 rounded-panel px-3 py-1.5 shadow-md flex items-center gap-3 text-[11px] font-mono text-stone-700">
+          <span className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-xs bg-red-600 inline-block" />
+            <span>Critical Conflict</span>
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-xs bg-amber-600 inline-block" />
+            <span>Setback Warning</span>
+          </span>
+          <span className="text-stone-400">({mappedConflictCount} mapped)</span>
+        </div>
+      )}
     </div>
   );
 };

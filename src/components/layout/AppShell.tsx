@@ -368,6 +368,9 @@ export const AppShell: React.FC<AppShellProps> = ({
 
       const data = await res.json();
       setCurrentReport(data.analysis.result);
+      if (data.analysis.result?.validation) {
+        setValidationResult(data.analysis.result.validation);
+      }
       setCurrentAnalysisId(data.analysis.id);
       setIsReportOpen(true);
       showToast(`Analysis complete: Score ${data.analysis.overallScore}/100`, "success");
@@ -616,6 +619,7 @@ export const AppShell: React.FC<AppShellProps> = ({
             activeType={activePlacement?.type || activeTool}
             placement={activePlacement}
             studyArea={studyArea}
+            conflicts={validationResult?.conflicts || currentReport?.validation?.conflicts || []}
             onMapClick={handleMapClick}
             onMapLoaded={(exportFn) => {
               mapCanvasExportRef.current = exportFn;

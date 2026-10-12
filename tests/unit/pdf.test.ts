@@ -71,4 +71,31 @@ describe("PDF Report Generator", () => {
     const header = Buffer.from(pdfBytes.slice(0, 5)).toString("utf-8");
     expect(header).toBe("%PDF-");
   });
+
+  it("renders enriched report sections (recommendations, assumptions, and evidence provenance)", async () => {
+    const enrichedReport: AnalysisReportResult = {
+      ...dummyReport,
+      engineVersion: "1.2.0",
+      recommendations: [
+        "Coordinate emergency ambulance ingress/egress onto the primary arterial frontage.",
+        "Conduct site-specific geotechnical core drilling prior to foundation excavation.",
+      ],
+      assumptions: [
+        "Footprint geometry approximated as an oriented rectangle using WGS84 geodesic calculations.",
+        "Separation buffers evaluated against NBC India Part 4 & CPCB Silence Zone norms.",
+      ],
+      dataSources: [
+        {
+          provider: "OpenStreetMap Overpass API",
+          status: "ok",
+          retrievedAt: new Date().toISOString(),
+          featureCount: 84,
+        },
+      ],
+    };
+
+    const pdfBytes = await generateReportPdf(enrichedReport);
+    expect(pdfBytes).toBeInstanceOf(Uint8Array);
+    expect(pdfBytes.length).toBeGreaterThan(1500);
+  });
 });
