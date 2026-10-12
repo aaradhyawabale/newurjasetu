@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 
 interface NumberFieldProps {
   id?: string;
@@ -29,11 +29,38 @@ export const NumberField: React.FC<NumberFieldProps> = ({
   helperText,
   className = "",
 }) => {
+  const [rawValue, setRawValue] = useState<string>(String(value));
+  const [isFocused, setIsFocused] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!isFocused) {
+      setRawValue(String(value));
+    }
+  }, [value, isFocused]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = parseFloat(e.target.value);
+    const nextRaw = e.target.value;
+    setRawValue(nextRaw);
+    const val = parseFloat(nextRaw);
     if (!isNaN(val)) {
       onChange(val);
     }
+  };
+
+  const handleBlur = () => {
+    setIsFocused(false);
+    const val = parseFloat(rawValue);
+    if (isNaN(val)) {
+      setRawValue(String(value));
+      return;
+    }
+    let clamped = val;
+    if (min !== undefined && clamped < min) clamped = min;
+    if (max !== undefined && clamped > max) clamped = max;
+    if (clamped !== val) {
+      onChange(clamped);
+    }
+    setRawValue(String(clamped));
   };
 
   return (
@@ -52,8 +79,10 @@ export const NumberField: React.FC<NumberFieldProps> = ({
         <input
           id={id}
           type="number"
-          value={value}
+          value={rawValue}
           onChange={handleChange}
+          onFocus={() => setIsFocused(true)}
+          onBlur={handleBlur}
           min={min}
           max={max}
           step={step}

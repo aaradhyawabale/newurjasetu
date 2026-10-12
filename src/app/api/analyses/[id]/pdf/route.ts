@@ -14,7 +14,11 @@ export async function GET(
     const user = await requireAuthUser(req);
 
     const analysis = await prisma.analysis.findFirst({
-      where: { id: params.id, userId: user.userId },
+      where: {
+        userId: user.userId,
+        OR: [{ id: params.id }, { placementId: params.id }],
+      },
+      orderBy: { createdAt: "desc" },
     });
 
     if (!analysis) {
@@ -28,7 +32,7 @@ export async function GET(
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="UrjaSetu-Report-${report.placementSnapshot.type}-${params.id.substring(0, 8)}.pdf"`,
+        "Content-Disposition": `attachment; filename="UrjaSetu-Report-${report.placementSnapshot.type}-${analysis.id.substring(0, 8)}.pdf"`,
       },
     });
   } catch (err) {
@@ -46,7 +50,11 @@ export async function POST(
     const mapPngBase64 = body.mapImage;
 
     const analysis = await prisma.analysis.findFirst({
-      where: { id: params.id, userId: user.userId },
+      where: {
+        userId: user.userId,
+        OR: [{ id: params.id }, { placementId: params.id }],
+      },
+      orderBy: { createdAt: "desc" },
     });
 
     if (!analysis) {
@@ -60,7 +68,7 @@ export async function POST(
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="UrjaSetu-Report-${report.placementSnapshot.type}-${params.id.substring(0, 8)}.pdf"`,
+        "Content-Disposition": `attachment; filename="UrjaSetu-Report-${report.placementSnapshot.type}-${analysis.id.substring(0, 8)}.pdf"`,
       },
     });
   } catch (err) {

@@ -1,6 +1,7 @@
 import { InfrastructureTypeId, INFRASTRUCTURE_TYPES } from "@/config/infra-types";
 import { createFootprintPolygon, computeAreaM2, doesFootprintIntersect } from "../gis/geometry";
 import { OverpassProvider, osmElementToGeoJson } from "../providers/overpass";
+import { OsmElement } from "../providers/types";
 
 export interface ConflictingFeature {
   id: string;
@@ -30,7 +31,8 @@ export async function validateFootprint(
   lng: number,
   lengthM: number,
   widthM: number,
-  bearingDeg = 0
+  bearingDeg = 0,
+  preloadedElements?: OsmElement[]
 ): Promise<ValidationResult> {
   const config = INFRASTRUCTURE_TYPES[type];
   if (!config) {
@@ -45,7 +47,7 @@ export async function validateFootprint(
 
   // 1. Check dimensional boundaries against type defaults
   let siteMaxArea = config.maxAreaM2;
-  let siteMinArea = config.minAreaM2;
+  const siteMinArea = config.minAreaM2;
   let limitReason = `Standard regulatory design range for ${config.label} projects`;
 
   if (proposedAreaM2 < config.minAreaM2) {
@@ -60,13 +62,16 @@ export async function validateFootprint(
     );
   }
 
-  // 2. Fetch nearby OSM features to test for spatial overlap
+  // 2. Solar Farm capacity vs area feasibility check (~8,000 m² per MWp minimum)
   const searchRadius = Math.max(Math.round(Math.max(lengthM, widthM) / 2 + 150), 200);
 
   try {
-    const osmData = await overpassProvider.getFeaturesAround(lat, lng, searchRadius);
+    const elements =
+      preloadedElements !== undefined
+        ? preloadedElements
+        : (await overpassProvider.getFeaturesAround(lat, lng, searchRadius)).elements;
 
-    for (const el of osmData.elements) {
+    for (const el of elements) {
       const feature = osmElementToGeoJson(el);
       if (!feature) continue;
 
@@ -78,7 +83,6 @@ export async function validateFootprint(
       // Check existing buildings
       if (tags.building && tags.building !== "no") {
         const bName = tags.name || tags["building:name"] || `Building #${el.id}`;
-        // Bridges and Roads may have demolition / right-of-way warnings; hospitals/schools/parks have critical conflicts
         const isLinearCorridor = type === "Road" || type === "Water Canal";
         conflicts.push({
           id: `osm_${el.id}`,
@@ -156,24 +160,29 @@ export async function validateFootprint(
   }
 
   // 3. Determine overall validation status & adjust location-specific limit
-  const hasCritical = conflicts.some((c) => c.severity === "critical");
-  const hasWarning = conflicts.some((c) => c.severity === "warning");
+  const criticalCount = conflicts.filter((c) => c.severity === "critical").length;
+  const warningCount = conflicts.filter((c) => c.severity === "warning").length;
   const outOfBounds = proposedAreaM2 < config.minAreaM2 || proposedAreaM2 > config.maxAreaM2;
 
   let status: "pass" | "warn" | "fail" = "pass";
 
-  if (hasCritical) {
+  if (criticalCount > 0) {
     status = "fail";
-    limitReason = "Severely constrained by critical spatial conflicts on site (buildings, water bodies, or restricted land).";
-    siteMaxArea = Math.min(siteMaxArea, Math.round(proposedAreaM2 * 0.6));
-  } else if (hasWarning || outOfBounds) {
+    const reductionFactor = Math.max(0.25, 1 - criticalCount * 0.25);
+    siteMaxArea = Math.min(siteMaxArea, Math.round(proposedAreaM2 * reductionFactor));
+    limitReason = `Severely constrained by ${criticalCount} critical spatial conflict(s) on site (buildings, water bodies, or restricted land).`;
+  } else if (warningCount > 0 || outOfBounds) {
     status = "warn";
-    if (hasWarning) {
-      limitReason = "Constrained by existing structures or crossings in right-of-way.";
+    if (warningCount > 0) {
       siteMaxArea = Math.min(siteMaxArea, Math.round(proposedAreaM2 * 0.85));
+      limitReason = `Constrained by ${warningCount} right-of-way conflict(s) (${conflicts.map((c) => c.label).slice(0, 2).join(", ")}).`;
+    } else if (proposedAreaM2 < config.minAreaM2) {
+      limitReason = `Below minimum operational area (${config.minAreaM2.toLocaleString()} m²) for ${config.label}.`;
+    } else {
+      limitReason = `Exceeds typical single-phase envelope (${config.maxAreaM2.toLocaleString()} m²) for ${config.label}.`;
     }
   } else {
-    limitReason = `Clear site: footprint satisfies spatial clearance norms for ${config.label}`;
+    limitReason = `Clear site: footprint satisfies spatial clearance norms for ${config.label}.`;
   }
 
   return {

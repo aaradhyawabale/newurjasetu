@@ -3,6 +3,7 @@ import {
   createFootprintPolygon,
   computeAreaM2,
   computeDistanceMeters,
+  computeGeometryDistanceMeters,
   getBoundingBoxAround,
   doesFootprintIntersect,
 } from "@/server/gis/geometry";
@@ -26,6 +27,22 @@ describe("GIS Geometry Utilities", () => {
     const dist = computeDistanceMeters([77.2090, 28.6139], [77.2090, 29.6139]);
     expect(dist).toBeGreaterThan(110000);
     expect(dist).toBeLessThan(112000);
+  });
+
+  it("computes true point-to-line and point-to-polygon boundary distance rather than centroid distance", () => {
+    // Long highway LineString passing right through [77.2090, 28.6139], but whose endpoints are asymmetrically far away
+    const longRoad = turf.lineString([
+      [77.2080, 28.6139],
+      [77.2090, 28.6139],
+      [77.2500, 28.6139],
+    ]).geometry;
+
+    const lineDist = computeGeometryDistanceMeters([77.2090, 28.6139], longRoad);
+    expect(lineDist).toBeLessThan(2); // Essentially 0m because the point lies on the road segment
+
+    // Polygon containing the point -> distance should be 0
+    const footprint = createFootprintPolygon(28.6139, 77.2090, 200, 200, 0).geometry;
+    expect(computeGeometryDistanceMeters([77.2090, 28.6139], footprint)).toBe(0);
   });
 
   it("calculates accurate bounding box around point", () => {

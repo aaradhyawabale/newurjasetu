@@ -73,7 +73,7 @@ export const ToolSidebar: React.FC<ToolSidebarProps> = ({
 
   return (
     <aside
-      className={`w-60 bg-white border-r border-stone-200 flex flex-col justify-between shrink-0 select-none z-10 ${className}`}
+      className={`w-full md:w-52 lg:w-60 bg-white border-b md:border-b-0 md:border-r border-stone-200 flex flex-col justify-between shrink-0 select-none z-10 max-h-48 md:max-h-none overflow-y-auto ${className}`}
     >
       {/* Top Header & Tool List */}
       <div className="flex flex-col">

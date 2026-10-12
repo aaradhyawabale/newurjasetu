@@ -1,5 +1,5 @@
 import * as turf from "@turf/turf";
-import type { Feature, Polygon, Geometry } from "geojson";
+import type { Feature, Polygon, Geometry, LineString, MultiLineString } from "geojson";
 
 export interface GeoPoint {
   lat: number;
@@ -67,13 +67,87 @@ export function computeAreaM2(polygon: Feature<Polygon> | Polygon): number {
 }
 
 /**
- * Computes geodesic distance in meters between two coordinates.
+ * Computes geodesic distance in meters between two coordinates [lng, lat].
  */
 export function computeDistanceMeters(p1: [number, number], p2: [number, number]): number {
-  // turf takes [lng, lat]
   const from = turf.point(p1);
   const to = turf.point(p2);
   return turf.distance(from, to, { units: "meters" });
+}
+
+/**
+ * Computes geodesic distance in meters between two (lat, lng) pairs.
+ */
+export function calculateDistanceMeters(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number
+): number {
+  return computeDistanceMeters([lng1, lat1], [lng2, lat2]);
+}
+
+function distanceToLineOrMultiLine(
+  pt: Feature< GeoJSON.Point >,
+  geom: LineString | MultiLineString
+): number {
+  if (geom.type === "LineString") {
+    return turf.pointToLineDistance(pt, geom, { units: "meters" });
+  }
+  let minD = Infinity;
+  for (const coords of geom.coordinates) {
+    if (coords.length >= 2) {
+      const d = turf.pointToLineDistance(pt, turf.lineString(coords), { units: "meters" });
+      if (d < minD) minD = d;
+    }
+  }
+  return minD;
+}
+
+/**
+ * Computes exact geodesic distance in meters from a point [lng, lat]
+ * to any GeoJSON Geometry (Point, LineString, Polygon, etc.)
+ * avoiding centroid approximation errors on long linear corridors.
+ */
+export function computeGeometryDistanceMeters(
+  pointCoords: [number, number],
+  geometry: Geometry
+): number {
+  try {
+    const pt = turf.point(pointCoords);
+
+    if (geometry.type === "Point") {
+      return turf.distance(pt, turf.point(geometry.coordinates), { units: "meters" });
+    }
+
+    if (geometry.type === "LineString" || geometry.type === "MultiLineString") {
+      return distanceToLineOrMultiLine(pt, geometry);
+    }
+
+    if (geometry.type === "Polygon" || geometry.type === "MultiPolygon") {
+      if (turf.booleanPointInPolygon(pt, geometry as any)) {
+        return 0;
+      }
+      const boundary = turf.polygonToLine(geometry as any);
+      if (boundary.type === "FeatureCollection") {
+        let minDist = Infinity;
+        for (const f of boundary.features) {
+          const d = distanceToLineOrMultiLine(pt, f.geometry as LineString | MultiLineString);
+          if (d < minDist) minDist = d;
+        }
+        return minDist;
+      }
+      return distanceToLineOrMultiLine(
+        pt,
+        (boundary as Feature<LineString | MultiLineString>).geometry
+      );
+    }
+
+    const c = turf.centroid(geometry as any);
+    return turf.distance(pt, c, { units: "meters" });
+  } catch {
+    return 9999;
+  }
 }
 
 /**

@@ -49,7 +49,7 @@ export const PlacementPanel: React.FC<PlacementPanelProps> = ({
   if (!placement) {
     return (
       <aside
-        className={`w-90 bg-white border-l border-stone-200 p-6 flex flex-col justify-center items-center text-center select-none z-10 shrink-0 ${className}`}
+        className={`w-full md:w-80 lg:w-[360px] bg-white border-t md:border-t-0 md:border-l border-stone-200 p-6 flex flex-col justify-center items-center text-center select-none z-10 shrink-0 ${className}`}
       >
         <div className="w-12 h-12 rounded-full bg-stone-100 flex items-center justify-center text-stone-400 mb-3 border border-stone-200">
           <Layers className="w-5 h-5" />
@@ -78,7 +78,7 @@ export const PlacementPanel: React.FC<PlacementPanelProps> = ({
 
   return (
     <aside
-      className={`w-90 bg-white border-l border-stone-200 flex flex-col justify-between shrink-0 select-none z-10 overflow-y-auto ${className}`}
+      className={`w-full md:w-80 lg:w-[360px] bg-white border-t md:border-t-0 md:border-l border-stone-200 flex flex-col justify-between shrink-0 select-none z-10 overflow-y-auto max-h-80 md:max-h-none ${className}`}
     >
       <div className="p-5 flex flex-col gap-5">
         {/* Header: Short ID & Title */}

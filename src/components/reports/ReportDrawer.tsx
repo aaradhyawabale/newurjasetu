@@ -209,7 +209,16 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                     </td>
                     <td className="py-2.5 px-3 whitespace-nowrap">
                       {c.evidenceIds.map((eid) => (
-                        <EvidenceChip key={eid} id={eid} />
+                        <EvidenceChip
+                          key={eid}
+                          id={eid}
+                          onClick={(targetId) => {
+                            const el = document.getElementById(`evidence-${targetId}`);
+                            if (el) {
+                              el.scrollIntoView({ behavior: "smooth", block: "center" });
+                            }
+                          }}
+                        />
                       ))}
                     </td>
                   </tr>
@@ -242,7 +251,11 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
 
           <div className="divide-y divide-stone-100 rounded-panel border border-stone-200 bg-white">
             {evidence.map((ev) => (
-              <div key={ev.id} className="p-3 flex items-start justify-between gap-3 text-xs">
+              <div
+                key={ev.id}
+                id={`evidence-${ev.id}`}
+                className="p-3 flex items-start justify-between gap-3 text-xs scroll-mt-4 transition-colors target:bg-emerald-50/60"
+              >
                 <div className="flex flex-col gap-0.5">
                   <div className="flex items-center gap-2">
                     <span className="font-mono font-bold text-stone-900">{ev.id}</span>

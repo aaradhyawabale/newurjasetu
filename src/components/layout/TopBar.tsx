@@ -250,6 +250,22 @@ export const TopBar: React.FC<TopBarProps> = ({
                   <Plus className="w-3.5 h-3.5 text-stone-500" />
                   <span>Create new scenario</span>
                 </button>
+                {currentScenario && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const nextName = prompt("Rename scenario:", currentScenario.name);
+                      if (nextName && nextName.trim() && nextName.trim() !== currentScenario.name) {
+                        onRenameScenario(currentScenario.id, nextName.trim());
+                      }
+                      setShowScenarioMenu(false);
+                    }}
+                    className="w-full px-3 py-1.5 text-left text-xs text-stone-700 hover:bg-stone-50 flex items-center gap-2"
+                  >
+                    <Edit2 className="w-3.5 h-3.5 text-stone-500" />
+                    <span>Rename current scenario</span>
+                  </button>
+                )}
                 {currentScenario && scenarios.length > 1 && (
                   <button
                     type="button"

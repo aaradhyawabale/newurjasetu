@@ -1,6 +1,7 @@
 import { OverpassQueryResult, OsmElement } from "./types";
 import { generateCacheKey, getCachedResponse, setCachedResponse } from "./cache";
 import * as turf from "@turf/turf";
+import type { Feature, Geometry } from "geojson";
 
 const USER_AGENT =
   process.env.GEO_USER_AGENT ||
@@ -14,7 +15,7 @@ const BACKUP_URL =
 export class OverpassProvider {
   /**
    * Fetches features within radiusM meters around (lat, lng).
-   * Filters by standard infrastructure tags: buildings, highways, waterways, railways, landuse, amenities.
+   * Filters by standard infrastructure tags: buildings, highways, waterways, railways, landuse, amenities, natural, power.
    */
   async getFeaturesAround(
     lat: number,
@@ -28,13 +29,15 @@ export class OverpassProvider {
       return cached;
     }
 
-    // Standard Overpass QL query with [out:json][timeout:25];
     const defaultFilters = [
       `way["building"](around:${radiusM},${lat},${lng});`,
       `way["highway"](around:${radiusM},${lat},${lng});`,
       `way["waterway"](around:${radiusM},${lat},${lng});`,
+      `way["natural"="water"](around:${radiusM},${lat},${lng});`,
+      `way["natural"="wood"](around:${radiusM},${lat},${lng});`,
       `way["railway"](around:${radiusM},${lat},${lng});`,
       `way["landuse"](around:${radiusM},${lat},${lng});`,
+      `way["military"](around:${radiusM},${lat},${lng});`,
       `way["leisure"](around:${radiusM},${lat},${lng});`,
       `node["amenity"](around:${radiusM},${lat},${lng});`,
       `way["amenity"](around:${radiusM},${lat},${lng});`,
@@ -42,9 +45,11 @@ export class OverpassProvider {
       `way["power"](around:${radiusM},${lat},${lng});`,
       `node["public_transport"](around:${radiusM},${lat},${lng});`,
       `node["railway"="station"](around:${radiusM},${lat},${lng});`,
+      `node["highway"="bus_stop"](around:${radiusM},${lat},${lng});`,
     ];
 
-    const filterBlock = tagFilters && tagFilters.length > 0 ? tagFilters.join("\n") : defaultFilters.join("\n");
+    const filterBlock =
+      tagFilters && tagFilters.length > 0 ? tagFilters.join("\n") : defaultFilters.join("\n");
 
     const query = `
       [out:json][timeout:25];
@@ -107,7 +112,6 @@ export class OverpassProvider {
       } catch (err: any) {
         lastError = err;
         console.warn(`[Overpass Provider] Failed against ${url}:`, err.message);
-        // continue to next URL fallback
       }
     }
 
@@ -116,8 +120,6 @@ export class OverpassProvider {
     );
   }
 }
-
-import type { Feature, Geometry } from "geojson";
 
 /**
  * Converts an OSM element with geometry to a Turf GeoJSON Feature
@@ -136,11 +138,33 @@ export function osmElementToGeoJson(
       coords[0][0] === coords[coords.length - 1][0] &&
       coords[0][1] === coords[coords.length - 1][1];
 
-    if (isClosed && (el.tags?.building || el.tags?.landuse || el.tags?.leisure || el.tags?.natural)) {
-      return turf.polygon([coords], { id: el.id, tags: el.tags || {}, osmType: "way" });
+    const tags = el.tags || {};
+    const isAreaTag = Boolean(
+      tags.building ||
+        tags.landuse ||
+        tags.leisure ||
+        tags.natural ||
+        tags.amenity ||
+        tags.military ||
+        tags.water ||
+        tags.area === "yes" ||
+        tags.waterway === "riverbank" ||
+        tags.power === "substation" ||
+        tags.power === "plant"
+    );
+    const isLinearTag = Boolean(
+      tags.highway ||
+        tags.railway ||
+        (tags.waterway && tags.waterway !== "riverbank") ||
+        tags.power === "line" ||
+        tags.power === "minor_line"
+    );
+
+    if (isClosed && isAreaTag && !isLinearTag) {
+      return turf.polygon([coords], { id: el.id, tags, osmType: "way" });
     }
 
-    return turf.lineString(coords, { id: el.id, tags: el.tags || {}, osmType: "way" });
+    return turf.lineString(coords, { id: el.id, tags, osmType: "way" });
   }
 
   return null;

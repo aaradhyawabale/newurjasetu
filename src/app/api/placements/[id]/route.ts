@@ -4,13 +4,19 @@ import { prisma } from "@/server/db/prisma";
 import { requireAuthUser } from "@/server/auth/session";
 import { successResponse, errorResponse, handleRouteError } from "@/server/utils/response";
 
+import { INFRASTRUCTURE_TYPES, InfrastructureTypeId } from "@/config/infra-types";
+
+const validTypes = Object.keys(INFRASTRUCTURE_TYPES) as [string, ...string[]];
+
 const updatePlacementSchema = z.object({
+  type: z.enum(validTypes).optional(),
   lat: z.number().min(-90).max(90).optional(),
   lng: z.number().min(-180).max(180).optional(),
   lengthM: z.number().positive().optional(),
   widthM: z.number().positive().optional(),
   bearingDeg: z.number().optional(),
   params: z.record(z.any()).optional(),
+  replaceParams: z.boolean().optional(),
   label: z.string().optional(),
 });
 
@@ -69,6 +75,7 @@ export async function PATCH(
     }
 
     const updateData: any = {};
+    if (data.type !== undefined) updateData.type = data.type;
     if (data.lat !== undefined) updateData.lat = data.lat;
     if (data.lng !== undefined) updateData.lng = data.lng;
     if (data.lengthM !== undefined) updateData.lengthM = data.lengthM;
@@ -76,8 +83,12 @@ export async function PATCH(
     if (data.bearingDeg !== undefined) updateData.bearingDeg = data.bearingDeg;
     if (data.label !== undefined) updateData.label = data.label.trim();
     if (data.params !== undefined) {
-      const existingParams = JSON.parse(existing.params || "{}");
-      updateData.params = JSON.stringify({ ...existingParams, ...data.params });
+      if (data.replaceParams || (data.type !== undefined && data.type !== existing.type)) {
+        updateData.params = JSON.stringify(data.params);
+      } else {
+        const existingParams = JSON.parse(existing.params || "{}");
+        updateData.params = JSON.stringify({ ...existingParams, ...data.params });
+      }
     }
 
     const updated = await prisma.placement.update({

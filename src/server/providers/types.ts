@@ -23,6 +23,7 @@ export interface OverpassQueryResult {
 export interface ElevationResult {
   centerElevationM: number;
   slopePercent: number;
+  aspectDeg?: number;
   samplePointsCount: number;
   retrievedAt: string;
   source: string;
