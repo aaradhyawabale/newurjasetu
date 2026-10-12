@@ -228,6 +228,21 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
           </div>
         </div>
 
+        {/* Actionable Recommendations */}
+        {report.recommendations && report.recommendations.length > 0 && (
+          <div className="p-4 rounded-panel bg-emerald-50/40 border border-emerald-200 flex flex-col gap-2">
+            <span className="font-mono text-[11px] font-semibold uppercase flex items-center gap-1.5 text-emerald-800">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Engineering & Planning Recommendations ({report.recommendations.length})</span>
+            </span>
+            <ul className="list-disc list-inside space-y-1 text-stone-700 text-xs">
+              {report.recommendations.map((rec, i) => (
+                <li key={i}>{rec}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {/* Data Gaps & OpenStreetMap Coverage */}
         {dataGaps.length > 0 && (
           <div className="p-3.5 rounded-panel bg-amber-50/50 border border-amber-200 text-amber-900 text-xs flex flex-col gap-1.5">
@@ -262,6 +277,19 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                     <span className="px-1.5 py-0.2 rounded text-[10px] font-mono bg-stone-100 text-stone-600">
                       {ev.provider}
                     </span>
+                    {ev.qualityStatus && (
+                      <span
+                        className={`px-1.5 py-0.2 rounded text-[9px] font-mono uppercase ${
+                          ev.qualityStatus === "verified"
+                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                            : ev.qualityStatus === "sparse"
+                            ? "bg-amber-50 text-amber-700 border border-amber-200"
+                            : "bg-red-50 text-red-700 border border-red-200"
+                        }`}
+                      >
+                        {ev.qualityStatus}
+                      </span>
+                    )}
                   </div>
                   <p className="text-stone-600 text-[11px] mt-0.5">{ev.summary}</p>
                 </div>
@@ -273,16 +301,31 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
           </div>
         </div>
 
-        {/* Methodology & Limitations */}
-        <div className="p-4 rounded-panel bg-stone-100/60 border border-stone-200 flex flex-col gap-2 text-[11px] text-stone-500 leading-normal">
-          <span className="font-mono uppercase font-semibold text-stone-600">
-            Methodology & Limitations
-          </span>
-          <ul className="list-disc list-inside space-y-1">
-            {limitations.map((lim, idx) => (
-              <li key={idx}>{lim}</li>
-            ))}
-          </ul>
+        {/* Calculation Assumptions & Methodology Limitations */}
+        <div className="p-4 rounded-panel bg-stone-100/60 border border-stone-200 flex flex-col gap-3 text-[11px] text-stone-500 leading-normal">
+          {report.assumptions && report.assumptions.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <span className="font-mono uppercase font-semibold text-stone-600">
+                Calculation Assumptions
+              </span>
+              <ul className="list-disc list-inside space-y-1">
+                {report.assumptions.map((assump, idx) => (
+                  <li key={idx}>{assump}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <div className="flex flex-col gap-1.5">
+            <span className="font-mono uppercase font-semibold text-stone-600">
+              Methodology & Limitations
+            </span>
+            <ul className="list-disc list-inside space-y-1">
+              {limitations.map((lim, idx) => (
+                <li key={idx}>{lim}</li>
+              ))}
+            </ul>
+          </div>
           <p className="pt-1 text-[10px] text-stone-400">
             Attribution: © OpenStreetMap contributors, MapLibre GL, Open-Meteo, NASA POWER.
           </p>

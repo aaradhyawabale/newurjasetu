@@ -934,3 +934,140 @@ export const INFRASTRUCTURE_TYPES: Record<InfrastructureTypeId, InfrastructureTy
     ],
   },
 };
+
+export interface SeparationRuleConfig {
+  minHazardBufferM: number; // Setback from heavy industry, landfills, quarries, military, cemeteries
+  minRailwayBufferM: number; // Setback from active railway lines (0 if crossing/interchange allowed)
+  minMotorwayBufferM: number; // Setback from high-speed expressways/motorways for sensitive receptors
+  maxRoadAccessDistanceM: number; // Maximum distance to classified road before access constraint triggers
+  maxSlopePercent: number; // Recommended maximum terrain slope (%) before heavy grading is required
+  minSameTypeSpacingM: number; // Recommended spacing from existing facilities of the same type
+  allowWaterwayIntersection: boolean;
+  allowRailwayIntersection: boolean;
+  allowBuildingIntersection: boolean;
+  standardReference: string;
+}
+
+export const INFRASTRUCTURE_SEPARATION_RULES: Record<InfrastructureTypeId, SeparationRuleConfig> = {
+  Hospital: {
+    minHazardBufferM: 250,
+    minRailwayBufferM: 150,
+    minMotorwayBufferM: 80,
+    maxRoadAccessDistanceM: 400,
+    maxSlopePercent: 5.0,
+    minSameTypeSpacingM: 1500,
+    allowWaterwayIntersection: false,
+    allowRailwayIntersection: false,
+    allowBuildingIntersection: false,
+    standardReference: "URDPFI Healthcare Siting Guidelines & CPCB Silence Zone Setback Heuristics (NEEDS VERIFICATION)",
+  },
+  School: {
+    minHazardBufferM: 250,
+    minRailwayBufferM: 150,
+    minMotorwayBufferM: 150,
+    maxRoadAccessDistanceM: 350,
+    maxSlopePercent: 4.0,
+    minSameTypeSpacingM: 800,
+    allowWaterwayIntersection: false,
+    allowRailwayIntersection: false,
+    allowBuildingIntersection: false,
+    standardReference: "URDPFI Educational Campus Norms & Child Traffic Safety Buffer Heuristics (NEEDS VERIFICATION)",
+  },
+  Park: {
+    minHazardBufferM: 150,
+    minRailwayBufferM: 50,
+    minMotorwayBufferM: 50,
+    maxRoadAccessDistanceM: 250,
+    maxSlopePercent: 8.0,
+    minSameTypeSpacingM: 500,
+    allowWaterwayIntersection: true,
+    allowRailwayIntersection: false,
+    allowBuildingIntersection: false,
+    standardReference: "WHO Urban Green Space Accessibility & Riparian Buffer Heuristics (NEEDS VERIFICATION)",
+  },
+  Road: {
+    minHazardBufferM: 0,
+    minRailwayBufferM: 0,
+    minMotorwayBufferM: 0,
+    maxRoadAccessDistanceM: 150,
+    maxSlopePercent: 6.0,
+    minSameTypeSpacingM: 0,
+    allowWaterwayIntersection: false,
+    allowRailwayIntersection: false,
+    allowBuildingIntersection: false,
+    standardReference: "IRC Urban Road Geometric Design Standards (SP:87 / IRC:86) (NEEDS VERIFICATION)",
+  },
+  Bridge: {
+    minHazardBufferM: 0,
+    minRailwayBufferM: 0,
+    minMotorwayBufferM: 0,
+    maxRoadAccessDistanceM: 250,
+    maxSlopePercent: 5.0,
+    minSameTypeSpacingM: 800,
+    allowWaterwayIntersection: true,
+    allowRailwayIntersection: true,
+    allowBuildingIntersection: false,
+    standardReference: "IRC:5 Bridge Siting, Hydraulic Clearance & Approach Alignment Norms (NEEDS VERIFICATION)",
+  },
+  "Water Canal": {
+    minHazardBufferM: 100,
+    minRailwayBufferM: 30,
+    minMotorwayBufferM: 0,
+    maxRoadAccessDistanceM: 500,
+    maxSlopePercent: 2.5,
+    minSameTypeSpacingM: 500,
+    allowWaterwayIntersection: true,
+    allowRailwayIntersection: false,
+    allowBuildingIntersection: false,
+    standardReference: "IS 10430 / CWC Open-Channel Gravity Conveyance & Easement Norms (NEEDS VERIFICATION)",
+  },
+  Building: {
+    minHazardBufferM: 150,
+    minRailwayBufferM: 50,
+    minMotorwayBufferM: 30,
+    maxRoadAccessDistanceM: 100,
+    maxSlopePercent: 6.0,
+    minSameTypeSpacingM: 0,
+    allowWaterwayIntersection: false,
+    allowRailwayIntersection: false,
+    allowBuildingIntersection: false,
+    standardReference: "National Building Code (NBC) Part 3 Setback & Frontage Heuristics (NEEDS VERIFICATION)",
+  },
+  "Transit Station": {
+    minHazardBufferM: 100,
+    minRailwayBufferM: 0,
+    minMotorwayBufferM: 0,
+    maxRoadAccessDistanceM: 150,
+    maxSlopePercent: 4.0,
+    minSameTypeSpacingM: 500,
+    allowWaterwayIntersection: false,
+    allowRailwayIntersection: true,
+    allowBuildingIntersection: false,
+    standardReference: "MoHUA Transit-Oriented Development (TOD) 800m Walkshed & Station Spacing Norms (NEEDS VERIFICATION)",
+  },
+  Drainage: {
+    minHazardBufferM: 0,
+    minRailwayBufferM: 20,
+    minMotorwayBufferM: 0,
+    maxRoadAccessDistanceM: 400,
+    maxSlopePercent: 4.0,
+    minSameTypeSpacingM: 200,
+    allowWaterwayIntersection: true,
+    allowRailwayIntersection: false,
+    allowBuildingIntersection: false,
+    standardReference: "CPHEEO Manual on Stormwater Drainage Systems & Manning Conveyance Heuristics (NEEDS VERIFICATION)",
+  },
+  "Solar Farm": {
+    minHazardBufferM: 50,
+    minRailwayBufferM: 30,
+    minMotorwayBufferM: 30,
+    maxRoadAccessDistanceM: 1000,
+    maxSlopePercent: 5.0,
+    minSameTypeSpacingM: 0,
+    allowWaterwayIntersection: false,
+    allowRailwayIntersection: false,
+    allowBuildingIntersection: false,
+    standardReference: "MNRE / CEA Utility-Scale Solar PV Siting & Grid Interconnection Heuristics (NEEDS VERIFICATION)",
+  },
+};
+

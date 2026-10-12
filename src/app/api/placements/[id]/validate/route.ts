@@ -20,13 +20,16 @@ export async function POST(
       return errorResponse("Placement not found", "NOT_FOUND", 404);
     }
 
+    const customParams = JSON.parse(placement.params || "{}");
     const validation = await validateFootprint(
       placement.type as InfrastructureTypeId,
       placement.lat,
       placement.lng,
       placement.lengthM,
       placement.widthM,
-      placement.bearingDeg
+      placement.bearingDeg,
+      undefined,
+      customParams
     );
 
     return successResponse({ validation });

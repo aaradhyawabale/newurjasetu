@@ -71,9 +71,11 @@ export async function POST(req: NextRequest) {
     }
 
     const customParams = JSON.parse(placement.params || "{}");
+    const generatedAnalysisId = crypto.randomUUID();
 
-    // Execute analysis engine pipeline
+    // Execute 10-step analysis engine pipeline
     const result = await runAnalysisEngine({
+      analysisId: generatedAnalysisId,
       placementId: placement.id,
       type: placement.type as InfrastructureTypeId,
       lat: placement.lat,
@@ -85,9 +87,10 @@ export async function POST(req: NextRequest) {
       label: placement.label || undefined,
     });
 
-    // Persist full result snapshot in DB
+    // Step 9: Persist full result snapshot in DB
     const analysis = await prisma.analysis.create({
       data: {
+        id: generatedAnalysisId,
         userId: user.userId,
         placementId: placement.id,
         engineVersion: result.engineVersion,
@@ -101,12 +104,13 @@ export async function POST(req: NextRequest) {
           lengthM: placement.lengthM,
           widthM: placement.widthM,
           bearingDeg: placement.bearingDeg,
-          params: customParams,
+          params: result.placementSnapshot.params,
         }),
         result: JSON.stringify(result),
       },
     });
 
+    // Step 10: Return structured response to frontend
     return successResponse(
       {
         analysis: {
@@ -125,3 +129,4 @@ export async function POST(req: NextRequest) {
     return handleRouteError(err);
   }
 }
+

@@ -121,4 +121,65 @@ describe("API Route Integration & Auth Ownership", () => {
     const deletedAnalysis = await prisma.analysis.findUnique({ where: { id: a.id } });
     expect(deletedAnalysis).toBeNull();
   });
+
+  it("persists placement type updates, custom parameters, and full analysis report snapshots", async () => {
+    const p = await prisma.placement.create({
+      data: {
+        userId: user1Id,
+        scenarioId: user1ScenarioId,
+        type: "Hospital",
+        lat: 18.5204,
+        lng: 73.8567,
+        lengthM: 120,
+        widthM: 80,
+        params: JSON.stringify({ bedCapacity: 250 }),
+      },
+    });
+
+    // Switch type to Solar Farm and replace parameters
+    const updated = await prisma.placement.update({
+      where: { id: p.id },
+      data: {
+        type: "Solar Farm",
+        lengthM: 250,
+        widthM: 200,
+        params: JSON.stringify({ targetCapacityMw: 5, panelTiltDeg: 19 }),
+      },
+    });
+
+    expect(updated.type).toBe("Solar Farm");
+    expect(JSON.parse(updated.params)).toEqual({ targetCapacityMw: 5, panelTiltDeg: 19 });
+
+    // Persist an analysis record with analysisId matching id
+    const analysisId = crypto.randomUUID();
+    const savedAnalysis = await prisma.analysis.create({
+      data: {
+        id: analysisId,
+        userId: user1Id,
+        placementId: updated.id,
+        engineVersion: "1.0.0",
+        overallScore: 88,
+        scoreBand: "High Suitability",
+        input: JSON.stringify({ placementId: updated.id, type: "Solar Farm" }),
+        result: JSON.stringify({
+          analysisId,
+          overall: { score: 88, band: "High Suitability", confidence: 100 },
+          recommendations: ["Proceed to preliminary municipal zoning verification."],
+        }),
+      },
+    });
+
+    const retrieved = await prisma.analysis.findFirst({
+      where: {
+        userId: user1Id,
+        OR: [{ id: updated.id }, { placementId: updated.id }],
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    expect(retrieved).not.toBeNull();
+    expect(retrieved?.id).toBe(analysisId);
+    expect(JSON.parse(retrieved!.result).analysisId).toBe(analysisId);
+  });
 });
+

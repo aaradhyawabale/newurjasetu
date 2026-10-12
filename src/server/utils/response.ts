@@ -34,6 +34,21 @@ export function handleRouteError(error: unknown): NextResponse<ApiErrorResponse>
     return errorResponse("Validation failed", "VALIDATION_ERROR", 400, error.flatten());
   }
 
+  if (error && typeof error === "object" && "code" in error && "statusCode" in error) {
+    const typedErr = error as {
+      message?: string;
+      code: string;
+      statusCode: number;
+      details?: unknown;
+    };
+    return errorResponse(
+      typedErr.message || "Analysis request failed",
+      typedErr.code,
+      typedErr.statusCode,
+      typedErr.details
+    );
+  }
+
   if (error instanceof Error) {
     if (error.message === "UNAUTHORIZED") {
       return errorResponse("Authentication required", "UNAUTHORIZED", 401);
@@ -44,8 +59,15 @@ export function handleRouteError(error: unknown): NextResponse<ApiErrorResponse>
     if (error.message === "NOT_FOUND") {
       return errorResponse("Resource not found", "NOT_FOUND", 404);
     }
+    if (error.message.includes("Invalid site coordinates") || error.message.includes("Invalid footprint")) {
+      return errorResponse(error.message, "INVALID_GEOMETRY", 400);
+    }
+    if (error.message.includes("Unknown infrastructure type") || error.message.includes("Unsupported infrastructure type")) {
+      return errorResponse(error.message, "UNSUPPORTED_TYPE", 400);
+    }
     return errorResponse(error.message, "SERVER_ERROR", 500);
   }
 
   return errorResponse("An unexpected server error occurred", "INTERNAL_ERROR", 500);
 }
+

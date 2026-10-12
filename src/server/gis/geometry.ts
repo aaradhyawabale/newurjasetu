@@ -14,6 +14,88 @@ export interface BoundingBox {
 }
 
 /**
+ * Validates WGS84 latitude and longitude coordinates.
+ * Rejects NaN/Infinity, out-of-range coordinates, and extreme polar latitudes (> 85°)
+ * where Web Mercator and 3x3 DEM grid approximations become degenerate.
+ */
+export function validateCoordinates(lat: number, lng: number): {
+  valid: boolean;
+  reason?: string;
+} {
+  if (typeof lat !== "number" || typeof lng !== "number" || !Number.isFinite(lat) || !Number.isFinite(lng)) {
+    return { valid: false, reason: "Coordinates must be finite numbers." };
+  }
+  if (lat < -90 || lat > 90) {
+    return { valid: false, reason: `Latitude (${lat}) must be between -90° and 90°.` };
+  }
+  if (lng < -180 || lng > 180) {
+    return { valid: false, reason: `Longitude (${lng}) must be between -180° and 180°.` };
+  }
+  if (Math.abs(lat) > 85) {
+    return {
+      valid: false,
+      reason: `Latitude (${lat}°) exceeds operational Web Mercator / DEM bounds (-85° to 85°).`,
+    };
+  }
+  return { valid: true };
+}
+
+/**
+ * Validates that a GeoJSON Polygon has a closed outer ring, finite vertices,
+ * positive geodesic area, and no self-intersecting kinks.
+ */
+export function validatePolygonGeometry(polygon: Feature<Polygon> | Polygon): {
+  valid: boolean;
+  areaM2: number;
+  reason?: string;
+} {
+  try {
+    const geom = "geometry" in polygon ? polygon.geometry : polygon;
+    if (!geom || geom.type !== "Polygon" || !Array.isArray(geom.coordinates) || geom.coordinates.length === 0) {
+      return { valid: false, areaM2: 0, reason: "Geometry is not a valid GeoJSON Polygon." };
+    }
+
+    const ring = geom.coordinates[0];
+    if (!Array.isArray(ring) || ring.length < 4) {
+      return { valid: false, areaM2: 0, reason: "Polygon outer ring must have at least 4 coordinates." };
+    }
+
+    for (const pt of ring) {
+      if (!Array.isArray(pt) || pt.length < 2 || !Number.isFinite(pt[0]) || !Number.isFinite(pt[1])) {
+        return { valid: false, areaM2: 0, reason: "Polygon contains non-finite vertex coordinates." };
+      }
+      if (pt[1] < -90 || pt[1] > 90 || pt[0] < -180 || pt[0] > 180) {
+        return { valid: false, areaM2: 0, reason: "Polygon vertex out of WGS84 coordinate bounds." };
+      }
+    }
+
+    const first = ring[0];
+    const last = ring[ring.length - 1];
+    if (Math.abs(first[0] - last[0]) > 1e-9 || Math.abs(first[1] - last[1]) > 1e-9) {
+      return { valid: false, areaM2: 0, reason: "Polygon linear ring is not closed." };
+    }
+
+    const kinks = turf.kinks(geom);
+    if (kinks.features.length > 0) {
+      return {
+        valid: false,
+        areaM2: 0,
+        reason: `Polygon is self-intersecting (${kinks.features.length} kink(s) detected).`,
+      };
+    }
+
+    const areaM2 = Math.round(turf.area(geom));
+    if (!Number.isFinite(areaM2) || areaM2 <= 0) {
+      return { valid: false, areaM2: 0, reason: "Polygon has zero or invalid geodesic surface area." };
+    }
+
+    return { valid: true, areaM2 };
+  } catch (err: any) {
+    return { valid: false, areaM2: 0, reason: err?.message || "Invalid polygon geometry." };
+  }
+}
+
+/**
  * Creates a GeoJSON Polygon representing an oriented rectangle footprint
  * centered at (lat, lng), with length along bearing and width perpendicular.
  */
@@ -24,12 +106,24 @@ export function createFootprintPolygon(
   widthM: number,
   bearingDeg = 0
 ): Feature<Polygon> {
+  const coordCheck = validateCoordinates(centerLat, centerLng);
+  if (!coordCheck.valid) {
+    throw new Error(`Invalid footprint coordinates: ${coordCheck.reason}`);
+  }
+  if (!Number.isFinite(lengthM) || !Number.isFinite(widthM) || lengthM <= 0 || widthM <= 0) {
+    throw new Error("Footprint lengthM and widthM must be positive finite numbers.");
+  }
+  if (lengthM > 20000 || widthM > 20000) {
+    throw new Error("Footprint dimensions exceed maximum supported site extent (20,000m).");
+  }
+  const safeBearing = Number.isFinite(bearingDeg) ? bearingDeg : 0;
+
   const center = turf.point([centerLng, centerLat]);
   const halfLenKm = (lengthM / 2) / 1000;
   const halfWidKm = (widthM / 2) / 1000;
 
   // Normalized bearing in degrees
-  const b = ((bearingDeg % 360) + 360) % 360;
+  const b = ((safeBearing % 360) + 360) % 360;
   const bPerp = (b + 90) % 360;
 
   // Corner 1: +halfLen, -halfWid
@@ -52,7 +146,7 @@ export function createFootprintPolygon(
   return turf.polygon([coords], {
     lengthM,
     widthM,
-    bearingDeg,
+    bearingDeg: safeBearing,
     areaM2: lengthM * widthM,
     centerLat,
     centerLng,
@@ -88,7 +182,7 @@ export function calculateDistanceMeters(
 }
 
 function distanceToLineOrMultiLine(
-  pt: Feature< GeoJSON.Point >,
+  pt: Feature<GeoJSON.Point>,
   geom: LineString | MultiLineString
 ): number {
   if (geom.type === "LineString") {
@@ -151,6 +245,44 @@ export function computeGeometryDistanceMeters(
 }
 
 /**
+ * Computes the shortest geodesic distance in meters from the boundary/interior of a
+ * footprint polygon to a target Geometry (0 if they intersect).
+ */
+export function computeFootprintDistanceToGeometryMeters(
+  footprint: Feature<Polygon>,
+  geometry: Geometry
+): number {
+  try {
+    if (doesFootprintIntersect(footprint, geometry)) {
+      return 0;
+    }
+    const ring = footprint.geometry.coordinates[0];
+    let minD = Infinity;
+    // Check distance from each footprint corner + center to target geometry
+    for (let i = 0; i < ring.length - 1; i++) {
+      const cornerDist = computeGeometryDistanceMeters([ring[i][0], ring[i][1]], geometry);
+      if (cornerDist < minD) minD = cornerDist;
+    }
+    // Also check if target geometry vertices are close to footprint edges
+    if (geometry.type === "Point") {
+      const d = computeGeometryDistanceMeters(
+        [geometry.coordinates[0], geometry.coordinates[1]],
+        footprint.geometry
+      );
+      if (d < minD) minD = d;
+    } else if (geometry.type === "LineString") {
+      for (const coord of geometry.coordinates) {
+        const d = computeGeometryDistanceMeters([coord[0], coord[1]], footprint.geometry);
+        if (d < minD) minD = d;
+      }
+    }
+    return minD;
+  } catch {
+    return 9999;
+  }
+}
+
+/**
  * Computes a bounding box in WGS84 for a given center and radius in meters.
  */
 export function getBoundingBoxAround(lat: number, lng: number, radiusM: number): BoundingBox {
@@ -192,3 +324,4 @@ export function doesFootprintIntersect(
     return false;
   }
 }
+
