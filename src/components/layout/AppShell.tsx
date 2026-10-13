@@ -620,6 +620,8 @@ export const AppShell: React.FC<AppShellProps> = ({
             placement={activePlacement}
             studyArea={studyArea}
             conflicts={validationResult?.conflicts || currentReport?.validation?.conflicts || []}
+            analyzedFeatures={currentReport?.analyzedFeatures || []}
+            searchRings={currentReport?.searchRings || null}
             onMapClick={handleMapClick}
             onMapLoaded={(exportFn) => {
               mapCanvasExportRef.current = exportFn;

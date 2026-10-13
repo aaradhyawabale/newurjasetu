@@ -8,6 +8,8 @@ export type StatusType =
   | "acceptable"
   | "suboptimal"
   | "constrained"
+  | "unknown"
+  | "unavailable"
   | "neutral";
 
 interface StatusBadgeProps {
@@ -33,6 +35,9 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
       case "fail":
       case "constrained":
         return "bg-red-50 text-red-800 border-red-200";
+      case "unknown":
+      case "unavailable":
+      case "neutral":
       default:
         return "bg-stone-100 text-stone-700 border-stone-200";
     }
@@ -50,7 +55,9 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
             ? "bg-emerald-600"
             : status === "warn" || status === "acceptable" || status === "suboptimal"
             ? "bg-amber-600"
-            : "bg-red-600"
+            : status === "fail" || status === "constrained"
+            ? "bg-red-600"
+            : "bg-stone-500"
         }`}
       />
       {text}

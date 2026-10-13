@@ -8,38 +8,14 @@ const mockElevationFn = vi.fn();
 const mockClimateFn = vi.fn();
 const mockSolarFn = vi.fn();
 
-vi.mock("@/server/providers/overpass", () => {
+vi.mock("@/server/providers/overpass", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/server/providers/overpass")>();
   return {
+    ...actual,
     OverpassProvider: class {
       async getFeaturesAround(...args: any[]) {
         return mockOverpassFn(...args);
       }
-    },
-    osmElementToGeoJson: (el: any) => {
-      if (el.type === "node") {
-        return {
-          type: "Feature",
-          geometry: { type: "Point", coordinates: [el.lon, el.lat] },
-          properties: el.tags,
-        };
-      }
-      const coords = el.geometry.map((g: any) => [g.lon, g.lat]);
-      const isClosed =
-        coords.length >= 4 &&
-        coords[0][0] === coords[coords.length - 1][0] &&
-        coords[0][1] === coords[coords.length - 1][1];
-      if (isClosed && (el.tags?.building || el.tags?.landuse || el.tags?.natural === "water")) {
-        return {
-          type: "Feature",
-          geometry: { type: "Polygon", coordinates: [coords] },
-          properties: el.tags,
-        };
-      }
-      return {
-        type: "Feature",
-        geometry: { type: "LineString", coordinates: coords },
-        properties: el.tags,
-      };
     },
   };
 });
@@ -247,6 +223,10 @@ describe("Analysis Engine Pipeline & Geospatial Validation", () => {
     expect(result.warnings!.some((w) => w.includes("Zero mapped OpenStreetMap features"))).toBe(true);
     const gapCriterion = result.criteria.find((c) => c.id === "healthcare_gap");
     expect(gapCriterion?.computed).toBe(false);
+    expect(gapCriterion?.status).toBe("unknown");
+    expect(gapCriterion?.score).toBeNull();
+    expect(gapCriterion?.rawMetric).toBeNull();
+    expect(gapCriterion?.missingReason).toBeDefined();
     expect(gapCriterion?.value).toContain("Unverified");
   });
 
@@ -264,12 +244,112 @@ describe("Analysis Engine Pipeline & Geospatial Validation", () => {
 
     // Hospital has 15% weight on terrain_slope -> confidence should be 85%
     expect(result.overall.confidence).toBe(85);
+    expect(result.overall.evidenceCompleteness).toBe(85);
+    expect(result.overall.canCalculateOverall).toBe(true);
+    const slopeCrit = result.criteria.find((c) => c.id === "terrain_slope");
+    expect(slopeCrit?.status).toBe("unknown");
+    expect(slopeCrit?.score).toBeNull();
+    expect(slopeCrit?.rawMetric).toBeNull();
+    expect(slopeCrit?.missingReason).toContain("Open-Meteo Digital Elevation Model");
     expect(result.dataGaps.some((g) => g.includes("Digital elevation model unavailable"))).toBe(
       true
     );
     expect(
       result.dataSources!.find((d) => d.provider.includes("Open-Meteo"))?.status
     ).toBe("failed");
+  });
+
+  it("penalizes shading_obstruction_proxy and records a warning when nearby buildings lack OSM height tags", async () => {
+    // Building at ~150m from (28.6139, 77.2090) WITHOUT height or building:levels tags
+    mockOverpassFn.mockResolvedValueOnce({
+      elements: [
+        {
+          type: "way",
+          id: 901,
+          tags: { building: "commercial" }, // No height or building:levels tag!
+          geometry: [
+            { lat: 28.6152, lon: 77.209 },
+            { lat: 28.6153, lon: 77.2091 },
+            { lat: 28.6152, lon: 77.2091 },
+            { lat: 28.6152, lon: 77.209 },
+          ],
+        },
+      ],
+      retrievedAt: new Date().toISOString(),
+      source: "OpenStreetMap (Missing Height Tag Test)",
+      queryId: "mock_untagged_height",
+    });
+
+    const result = await runAnalysisEngine({
+      placementId: "test_untagged_building_heights",
+      type: "Solar Farm",
+      lat: 28.6139,
+      lng: 77.209,
+      lengthM: 250,
+      widthM: 250,
+    });
+
+    const shadeCrit = result.criteria.find((c) => c.id === "shading_obstruction_proxy");
+    expect(shadeCrit?.computed).toBe(true);
+    // Must not assume favorable 94 ("optimal") when nearby buildings lack height attributes
+    expect(shadeCrit?.score).toBe(68);
+    expect(shadeCrit?.status).toBe("acceptable");
+    expect(shadeCrit?.value).toContain("Heights untagged");
+    expect(result.warnings!.some((w) => w.includes("lack OSM height/building:levels attributes"))).toBe(
+      true
+    );
+  });
+
+  it("reduces confidence and flags data sources as stale when stale fallback cache is used", async () => {
+    mockElevationFn.mockResolvedValueOnce({
+      centerElevationM: 215,
+      slopePercent: 2.3,
+      aspectDeg: 175,
+      samplePointsCount: 9,
+      retrievedAt: new Date(Date.now() - 48 * 3600 * 1000).toISOString(),
+      source: "Open-Meteo DEM (Stale Fallback)",
+      isStale: true,
+      cacheStatus: "stale_fallback",
+    });
+
+    const result = await runAnalysisEngine({
+      placementId: "test_stale_fallback",
+      type: "Hospital",
+      lat: 28.6139,
+      lng: 77.209,
+      lengthM: 120,
+      widthM: 80,
+    });
+
+    expect(result.overall.evidenceCompleteness).toBe(100);
+    expect(result.overall.confidence).toBe(90); // 100 - 10 staleness adjustment
+    const demSource = result.dataSources!.find((d) => d.provider.includes("Open-Meteo DEM"));
+    expect(demSource?.status).toBe("stale");
+    expect(demSource?.isStale).toBe(true);
+  });
+
+  it("includes standardized analyzedFeatures and searchRings matching backend evaluation", async () => {
+    const result = await runAnalysisEngine({
+      placementId: "test_map_consistency",
+      type: "Hospital",
+      lat: 28.6139,
+      lng: 77.209,
+      lengthM: 120,
+      widthM: 80,
+    });
+
+    expect(result.analyzedFeatures).toBeDefined();
+    expect(result.analyzedFeatures!.length).toBeGreaterThan(0);
+    expect(result.analyzedFeatures![0]).toHaveProperty("sourceId");
+    expect(result.analyzedFeatures![0]).toHaveProperty("category");
+    expect(result.analyzedFeatures![0]).toHaveProperty("quality");
+    expect(result.analyzedFeatures![0]).toHaveProperty("license");
+    expect(result.searchRings).toEqual({
+      centerLat: 28.6139,
+      centerLng: 77.209,
+      r1M: INFRASTRUCTURE_TYPES["Hospital"].searchRadiusR1M,
+      r2M: INFRASTRUCTURE_TYPES["Hospital"].searchRadiusR2M,
+    });
   });
 
   it("throws actionable INSUFFICIENT_EVIDENCE error when all providers fail", async () => {

@@ -190,10 +190,20 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                 {criteria.map((c) => (
                   <tr key={c.id} className="hover:bg-stone-50/70 transition-colors">
                     <td className="py-2.5 px-3 font-medium text-stone-900">
-                      <div>{c.label}</div>
+                      <div className="flex items-center gap-1.5">
+                        <span>{c.label}</span>
+                        {c.status === "unknown" && (
+                          <StatusBadge status="unknown" />
+                        )}
+                      </div>
                       <div className="text-[10px] text-stone-500 font-normal max-w-xs truncate">
                         {c.description}
                       </div>
+                      {c.missingReason && (
+                        <div className="text-[10px] text-amber-800 bg-amber-50/80 border border-amber-200/70 rounded px-1.5 py-0.5 mt-1 max-w-xs leading-tight">
+                          {c.missingReason}
+                        </div>
+                      )}
                     </td>
                     <td className="py-2.5 px-3 font-mono font-medium text-stone-700 whitespace-nowrap">
                       {c.value}
@@ -270,10 +280,11 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                 {report.dataSources.map((ds, idx) => (
                   <span
                     key={idx}
+                    title={ds.license ? `License: ${ds.license}` : undefined}
                     className={`px-2 py-0.5 rounded text-[10px] font-mono border flex items-center gap-1 ${
                       ds.status === "ok"
                         ? "bg-emerald-50/70 border-emerald-200 text-emerald-800"
-                        : ds.status === "empty"
+                        : ds.status === "empty" || ds.status === "stale"
                         ? "bg-amber-50/70 border-amber-200 text-amber-800"
                         : "bg-red-50/70 border-red-200 text-red-800"
                     }`}
@@ -282,12 +293,15 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                       className={`w-1.5 h-1.5 rounded-full ${
                         ds.status === "ok"
                           ? "bg-emerald-600"
-                          : ds.status === "empty"
+                          : ds.status === "empty" || ds.status === "stale"
                           ? "bg-amber-600"
                           : "bg-red-600"
                       }`}
                     />
                     <span>{ds.provider}</span>
+                    {ds.status === "stale" && (
+                      <span className="uppercase font-bold text-[9px]">(STALE)</span>
+                    )}
                     {ds.featureCount !== undefined && (
                       <span className="opacity-75">({ds.featureCount})</span>
                     )}
@@ -305,7 +319,7 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                 className="p-3 flex items-start justify-between gap-3 text-xs scroll-mt-4 transition-colors target:bg-emerald-50/60"
               >
                 <div className="flex flex-col gap-0.5">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-mono font-bold text-stone-900">{ev.id}</span>
                     <span className="px-1.5 py-0.2 rounded text-[10px] font-mono bg-stone-100 text-stone-600">
                       {ev.provider}
@@ -315,12 +329,17 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                         className={`px-1.5 py-0.2 rounded text-[9px] font-mono uppercase ${
                           ev.qualityStatus === "verified"
                             ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                            : ev.qualityStatus === "sparse"
+                            : ev.qualityStatus === "sparse" || ev.qualityStatus === "stale"
                             ? "bg-amber-50 text-amber-700 border border-amber-200"
                             : "bg-red-50 text-red-700 border border-red-200"
                         }`}
                       >
                         {ev.qualityStatus}
+                      </span>
+                    )}
+                    {ev.license && (
+                      <span className="text-[9px] font-mono text-stone-400">
+                        {ev.license}
                       </span>
                     )}
                   </div>

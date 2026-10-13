@@ -289,7 +289,10 @@ export async function generateReportPdf(
 
     page.drawText(c.label.substring(0, 30), { x: 36, y: y - 11, size: 7, font: timesRoman, color: rgb(0.1, 0.1, 0.1) });
     page.drawText(c.value.substring(0, 22), { x: 190, y: y - 11, size: 7, font: timesRoman, color: rgb(0.1, 0.1, 0.1) });
-    page.drawText(`${c.score}/100`, { x: 310, y: y - 11, size: 7, font: boldFont, color: rgb(0.12, 0.44, 0.33) });
+    page.drawText(
+      c.score !== null && c.score !== undefined ? `${c.score}/100` : "N/A",
+      { x: 310, y: y - 11, size: 7, font: boldFont, color: rgb(0.12, 0.44, 0.33) }
+    );
     page.drawText(`${Math.round(c.weight * 100)}%`, { x: 360, y: y - 11, size: 7, font: timesRoman, color: rgb(0.3, 0.3, 0.3) });
     page.drawText(c.status.toUpperCase(), { x: 415, y: y - 11, size: 6.5, font: boldFont, color: rgb(0.2, 0.2, 0.2) });
     page.drawText(c.benchmark.substring(0, 24), { x: 475, y: y - 11, size: 6, font: timesRoman, color: rgb(0.4, 0.4, 0.4) });

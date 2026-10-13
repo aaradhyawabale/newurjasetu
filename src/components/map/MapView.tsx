@@ -3,8 +3,10 @@
 import React, { useEffect, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+import * as turf from "@turf/turf";
 import { createFootprintPolygon, calculateDistanceMeters } from "@/server/gis/geometry";
 import { ConflictingFeature } from "@/server/analysis-engine/validation";
+import { StandardizedGeoFeature } from "@/server/providers/types";
 
 export interface StudyAreaBounds {
   swLat: number;
@@ -27,6 +29,13 @@ interface MapViewProps {
   } | null;
   studyArea?: StudyAreaBounds | null;
   conflicts?: ConflictingFeature[];
+  analyzedFeatures?: StandardizedGeoFeature[];
+  searchRings?: {
+    centerLat: number;
+    centerLng: number;
+    r1M: number;
+    r2M: number;
+  } | null;
   onMapClick: (lat: number, lng: number) => void;
   onMapLoaded?: (exportFn: () => string | null) => void;
   className?: string;
@@ -40,6 +49,8 @@ export const MapView: React.FC<MapViewProps> = ({
   placement,
   studyArea,
   conflicts = [],
+  analyzedFeatures = [],
+  searchRings = null,
   onMapClick,
   onMapLoaded,
   className = "",
@@ -51,6 +62,7 @@ export const MapView: React.FC<MapViewProps> = ({
   const placementRef = useRef(placement);
   const activeTypeRef = useRef(activeType);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [showAnalyzedOverlay, setShowAnalyzedOverlay] = useState(true);
 
   // Keep refs updated to avoid stale closures inside MapLibre event listeners
   useEffect(() => {
@@ -145,6 +157,108 @@ export const MapView: React.FC<MapViewProps> = ({
           "line-color": "#0284c7",
           "line-width": 2,
           "line-dasharray": [4, 2],
+        },
+      });
+
+      // Add search rings geojson source and layer (R1 & R2 geodesic circles)
+      map.addSource("search-rings-source", {
+        type: "geojson",
+        data: {
+          type: "FeatureCollection",
+          features: [],
+        },
+      });
+
+      map.addLayer({
+        id: "search-rings-line",
+        type: "line",
+        source: "search-rings-source",
+        paint: {
+          "line-color": "#0f766e",
+          "line-width": 1.5,
+          "line-dasharray": [3, 3],
+          "line-opacity": 0.65,
+        },
+      });
+
+      // Add analyzed OSM evidence features geojson source and layers
+      map.addSource("analyzed-features-source", {
+        type: "geojson",
+        data: {
+          type: "FeatureCollection",
+          features: [],
+        },
+      });
+
+      map.addLayer({
+        id: "analyzed-features-fill",
+        type: "fill",
+        source: "analyzed-features-source",
+        filter: ["==", ["geometry-type"], "Polygon"],
+        paint: {
+          "fill-color": [
+            "match",
+            ["get", "category"],
+            "waterway",
+            "#0284c7",
+            "power_grid",
+            "#7c3aed",
+            "green_space",
+            "#16a34a",
+            "industrial_hazard",
+            "#ea580c",
+            "#475569",
+          ],
+          "fill-opacity": 0.16,
+        },
+      });
+
+      map.addLayer({
+        id: "analyzed-features-line",
+        type: "line",
+        source: "analyzed-features-source",
+        paint: {
+          "line-color": [
+            "match",
+            ["get", "category"],
+            "road",
+            "#2563eb",
+            "waterway",
+            "#0284c7",
+            "power_grid",
+            "#7c3aed",
+            "railway",
+            "#4f46e5",
+            "#475569",
+          ],
+          "line-width": 1.75,
+          "line-opacity": 0.7,
+        },
+      });
+
+      map.addLayer({
+        id: "analyzed-features-point",
+        type: "circle",
+        source: "analyzed-features-source",
+        filter: ["==", ["geometry-type"], "Point"],
+        paint: {
+          "circle-radius": 4,
+          "circle-color": [
+            "match",
+            ["get", "category"],
+            "power_grid",
+            "#7c3aed",
+            "transit",
+            "#0284c7",
+            "amenity_healthcare",
+            "#059669",
+            "amenity_education",
+            "#2563eb",
+            "#475569",
+          ],
+          "circle-stroke-width": 1,
+          "circle-stroke-color": "#ffffff",
+          "circle-opacity": 0.85,
         },
       });
 
@@ -387,6 +501,63 @@ export const MapView: React.FC<MapViewProps> = ({
     });
   }, [studyArea, isLoaded]);
 
+  // Update Analyzed OSM Evidence Features & Geodesic Search Rings on Map
+  useEffect(() => {
+    if (!mapRef.current || !isLoaded) return;
+    const analyzedSource = mapRef.current.getSource(
+      "analyzed-features-source"
+    ) as maplibregl.GeoJSONSource;
+    const ringsSource = mapRef.current.getSource(
+      "search-rings-source"
+    ) as maplibregl.GeoJSONSource;
+
+    if (analyzedSource) {
+      if (!showAnalyzedOverlay || !analyzedFeatures || analyzedFeatures.length === 0) {
+        analyzedSource.setData({ type: "FeatureCollection", features: [] });
+      } else {
+        const features = analyzedFeatures.map((f) => ({
+          type: "Feature" as const,
+          properties: {
+            id: f.id,
+            category: f.category,
+            subCategory: f.subCategory,
+            label: f.label,
+          },
+          geometry: f.geometry,
+        }));
+        analyzedSource.setData({
+          type: "FeatureCollection",
+          features,
+        });
+      }
+    }
+
+    if (ringsSource) {
+      if (!showAnalyzedOverlay || !searchRings) {
+        ringsSource.setData({ type: "FeatureCollection", features: [] });
+      } else {
+        try {
+          const r1Circle = turf.circle(
+            [searchRings.centerLng, searchRings.centerLat],
+            searchRings.r1M / 1000,
+            { steps: 64, units: "kilometers" }
+          );
+          const r2Circle = turf.circle(
+            [searchRings.centerLng, searchRings.centerLat],
+            searchRings.r2M / 1000,
+            { steps: 64, units: "kilometers" }
+          );
+          ringsSource.setData({
+            type: "FeatureCollection",
+            features: [r1Circle as any, r2Circle as any],
+          });
+        } catch {
+          ringsSource.setData({ type: "FeatureCollection", features: [] });
+        }
+      }
+    }
+  }, [analyzedFeatures, searchRings, showAnalyzedOverlay, isLoaded]);
+
   // Update Conflicting OSM Feature Overlays on Map
   useEffect(() => {
     if (!mapRef.current || !isLoaded) return;
@@ -480,21 +651,40 @@ export const MapView: React.FC<MapViewProps> = ({
   }, [placement, activeType, isLoaded]);
 
   const mappedConflictCount = (conflicts || []).filter((c) => Boolean(c.geometry)).length;
+  const analyzedCount = (analyzedFeatures || []).length;
 
   return (
     <div className={`relative w-full h-full ${className}`}>
       <div ref={mapContainerRef} className="w-full h-full" />
-      {mappedConflictCount > 0 && (
-        <div className="absolute bottom-8 right-3 z-20 bg-white/95 backdrop-blur-xs border border-stone-200 rounded-panel px-3 py-1.5 shadow-md flex items-center gap-3 text-[11px] font-mono text-stone-700">
-          <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-xs bg-red-600 inline-block" />
-            <span>Critical Conflict</span>
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-xs bg-amber-600 inline-block" />
-            <span>Setback Warning</span>
-          </span>
-          <span className="text-stone-400">({mappedConflictCount} mapped)</span>
+      {(mappedConflictCount > 0 || analyzedCount > 0) && (
+        <div className="absolute bottom-8 right-3 z-20 bg-white/95 backdrop-blur-xs border border-stone-200 rounded-panel px-3 py-1.5 shadow-md flex items-center flex-wrap gap-3 text-[11px] font-mono text-stone-700">
+          {mappedConflictCount > 0 && (
+            <>
+              <span className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-xs bg-red-600 inline-block" />
+                <span>Critical Conflict</span>
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-xs bg-amber-600 inline-block" />
+                <span>Setback Warning</span>
+              </span>
+              <span className="text-stone-400">({mappedConflictCount} conflicts)</span>
+            </>
+          )}
+          {analyzedCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowAnalyzedOverlay((prev) => !prev)}
+              className={`px-2 py-0.5 rounded border text-[10px] font-mono transition-colors ${
+                showAnalyzedOverlay
+                  ? "bg-teal-50 border-teal-300 text-teal-800 font-semibold"
+                  : "bg-stone-100 border-stone-200 text-stone-500"
+              }`}
+              title="Toggle display of the exact OpenStreetMap features and R1/R2 search rings used by the backend suitability engine"
+            >
+              {showAnalyzedOverlay ? "Hide" : "Show"} Analyzed OSM Evidence ({analyzedCount})
+            </button>
+          )}
         </div>
       )}
     </div>

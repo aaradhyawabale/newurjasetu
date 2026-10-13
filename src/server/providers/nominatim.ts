@@ -1,5 +1,11 @@
 import { GeocodeResult } from "./types";
-import { generateCacheKey, getCachedResponse, setCachedResponse } from "./cache";
+import {
+  generateCacheKey,
+  getCachedEntry,
+  setCachedResponse,
+  withInFlightDedup,
+} from "./cache";
+import { OSM_LICENSE } from "./overpass";
 
 const USER_AGENT =
   process.env.GEO_USER_AGENT ||
@@ -22,91 +28,135 @@ async function throttleNominatim(): Promise<void> {
 
 export class NominatimProvider {
   /**
-   * Forward geocoding with 1 req/sec throttling and DB cache
+   * Forward geocoding with 1 req/sec throttling, 10s timeout, in-flight dedup, and DB cache
    */
   async geocode(query: string): Promise<GeocodeResult[]> {
     const cleanQuery = query.trim();
     if (!cleanQuery) return [];
 
     const cacheKey = generateCacheKey("nominatim_geocode", { q: cleanQuery.toLowerCase() });
-    const cached = await getCachedResponse<GeocodeResult[]>(cacheKey);
-    if (cached) return cached;
+    const freshCached = await getCachedEntry<GeocodeResult[]>(cacheKey, { allowStale: false });
+    if (freshCached) return freshCached.data;
 
-    await throttleNominatim();
+    return withInFlightDedup(cacheKey, async () => {
+      await throttleNominatim();
 
-    const url = new URL(`${NOMINATIM_BASE}/search`);
-    url.searchParams.set("q", cleanQuery);
-    url.searchParams.set("format", "jsonv2");
-    url.searchParams.set("limit", "5");
-    url.searchParams.set("addressdetails", "1");
+      const url = new URL(`${NOMINATIM_BASE}/search`);
+      url.searchParams.set("q", cleanQuery);
+      url.searchParams.set("format", "jsonv2");
+      url.searchParams.set("limit", "5");
+      url.searchParams.set("addressdetails", "1");
 
-    try {
-      const res = await fetch(url.toString(), {
-        headers: {
-          "User-Agent": USER_AGENT,
-          Accept: "application/json",
-        },
-      });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-      if (!res.ok) {
-        throw new Error(`Nominatim returned HTTP ${res.status}`);
+      try {
+        const res = await fetch(url.toString(), {
+          headers: {
+            "User-Agent": USER_AGENT,
+            Accept: "application/json",
+          },
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+
+        if (!res.ok) {
+          throw new Error(`Nominatim returned HTTP ${res.status}`);
+        }
+
+        const raw = await res.json();
+        if (!Array.isArray(raw)) {
+          throw new Error("Nominatim returned non-array response");
+        }
+
+        const retrievedAt = new Date().toISOString();
+        const results: GeocodeResult[] = raw
+          .filter(
+            (item: any) =>
+              item &&
+              Number.isFinite(parseFloat(item.lat)) &&
+              Number.isFinite(parseFloat(item.lon))
+          )
+          .map((item: any) => ({
+            displayName: String(item.display_name || cleanQuery),
+            lat: parseFloat(item.lat),
+            lng: parseFloat(item.lon),
+            placeId: String(item.place_id),
+            type: item.type || item.category,
+            source: "OpenStreetMap Nominatim",
+            license: OSM_LICENSE,
+            retrievedAt,
+          }));
+
+        await setCachedResponse(cacheKey, results, 72); // Cache geocodes for 72 hours
+        return results;
+      } catch (err: any) {
+        clearTimeout(timeoutId);
+        console.warn("[Nominatim Geocode Error]", err.message);
+        const staleEntry = await getCachedEntry<GeocodeResult[]>(cacheKey, {
+          allowStale: true,
+          maxStaleHours: 168,
+        });
+        if (staleEntry) return staleEntry.data;
+        return [];
       }
-
-      const raw = await res.json();
-      const results: GeocodeResult[] = (raw || []).map((item: any) => ({
-        displayName: item.display_name,
-        lat: parseFloat(item.lat),
-        lng: parseFloat(item.lon),
-        placeId: String(item.place_id),
-        type: item.type || item.category,
-      }));
-
-      await setCachedResponse(cacheKey, results, 72); // Cache geocodes for 72 hours
-      return results;
-    } catch (err: any) {
-      console.warn("[Nominatim Geocode Error]", err.message);
-      return [];
-    }
+    });
   }
 
   /**
    * Reverse geocoding (coordinates to human-readable label)
    */
   async reverse(lat: number, lng: number): Promise<string> {
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      return "0.0000, 0.0000";
+    }
     const roundedLat = Math.round(lat * 10000) / 10000;
     const roundedLng = Math.round(lng * 10000) / 10000;
     const cacheKey = generateCacheKey("nominatim_reverse", { lat: roundedLat, lng: roundedLng });
 
-    const cached = await getCachedResponse<{ label: string }>(cacheKey);
-    if (cached) return cached.label;
+    const freshCached = await getCachedEntry<{ label: string }>(cacheKey, { allowStale: false });
+    if (freshCached) return freshCached.data.label;
 
-    await throttleNominatim();
+    return withInFlightDedup(cacheKey, async () => {
+      await throttleNominatim();
 
-    const url = new URL(`${NOMINATIM_BASE}/reverse`);
-    url.searchParams.set("lat", String(lat));
-    url.searchParams.set("lon", String(lng));
-    url.searchParams.set("format", "jsonv2");
-    url.searchParams.set("zoom", "16");
+      const url = new URL(`${NOMINATIM_BASE}/reverse`);
+      url.searchParams.set("lat", String(lat));
+      url.searchParams.set("lon", String(lng));
+      url.searchParams.set("format", "jsonv2");
+      url.searchParams.set("zoom", "16");
 
-    try {
-      const res = await fetch(url.toString(), {
-        headers: {
-          "User-Agent": USER_AGENT,
-          Accept: "application/json",
-        },
-      });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-      if (!res.ok) {
-        throw new Error(`Nominatim reverse returned HTTP ${res.status}`);
+      try {
+        const res = await fetch(url.toString(), {
+          headers: {
+            "User-Agent": USER_AGENT,
+            Accept: "application/json",
+          },
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+
+        if (!res.ok) {
+          throw new Error(`Nominatim reverse returned HTTP ${res.status}`);
+        }
+
+        const item = await res.json();
+        const label = item?.display_name || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+        await setCachedResponse(cacheKey, { label }, 72);
+        return label;
+      } catch (err: any) {
+        clearTimeout(timeoutId);
+        console.warn("[Nominatim Reverse Error]", err.message);
+        const staleEntry = await getCachedEntry<{ label: string }>(cacheKey, {
+          allowStale: true,
+          maxStaleHours: 168,
+        });
+        if (staleEntry) return staleEntry.data.label;
+        return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
       }
-
-      const item = await res.json();
-      const label = item.display_name || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-      await setCachedResponse(cacheKey, { label }, 72);
-      return label;
-    } catch (err: any) {
-      console.warn("[Nominatim Reverse Error]", err.message);
-      return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-    }
+    });
   }
 }

@@ -25,7 +25,7 @@ import {
   scoreManningHydraulicCapacity,
   determineSuitabilityBand,
 } from "./scoring";
-import { OsmElement } from "../providers/types";
+import { OsmElement, StandardizedGeoFeature, StandardizedFeatureCategory } from "../providers/types";
 
 export type AnalysisErrorCode =
   | "INVALID_INPUT"
@@ -60,16 +60,21 @@ export interface EvidenceItem {
   provider: string;
   params: Record<string, unknown>;
   retrievedAt: string;
+  datasetTimestamp?: string;
+  license?: string;
   featureCount?: number;
-  qualityStatus?: "verified" | "sparse" | "empty";
-  freshness?: "live" | "cached";
+  qualityStatus?: "verified" | "sparse" | "empty" | "stale";
+  freshness?: "live" | "cached" | "stale_fallback";
   summary: string;
 }
 
 export interface DataSourceSummary {
   provider: string;
-  status: "ok" | "empty" | "failed";
+  status: "ok" | "empty" | "failed" | "stale";
   retrievedAt?: string;
+  datasetTimestamp?: string;
+  license?: string;
+  isStale?: boolean;
   featureCount?: number;
   errorMessage?: string;
 }
@@ -78,15 +83,16 @@ export interface CriterionResult {
   id: string;
   label: string;
   value: string;
-  rawMetric: number;
+  rawMetric: number | null;
   unit?: string;
-  score: number;
+  score: number | null;
   weight: number;
-  status: "optimal" | "acceptable" | "suboptimal" | "constrained";
+  status: "optimal" | "acceptable" | "suboptimal" | "constrained" | "unknown";
   benchmark: string;
   evidenceIds: string[];
   description: string;
   computed?: boolean;
+  missingReason?: string;
 }
 
 export interface AnalysisReportResult {
@@ -107,12 +113,21 @@ export interface AnalysisReportResult {
   };
   validation: ValidationResult;
   constraints?: ConflictingFeature[];
+  analyzedFeatures?: StandardizedGeoFeature[];
+  searchRings?: {
+    centerLat: number;
+    centerLng: number;
+    r1M: number;
+    r2M: number;
+  };
   criteria: CriterionResult[];
   overall: {
     score: number;
     band: string;
     tone: "positive" | "moderate" | "cautious" | "negative";
     confidence: number;
+    canCalculateOverall?: boolean;
+    evidenceCompleteness?: number;
     verdictSummary: string;
   };
   supporting: string[];
@@ -310,6 +325,12 @@ export async function runAnalysisEngine(params: {
   let osmFeaturesR1Count = 0;
   let osmLoaded = false;
   let osmEmpty = false;
+  let anyStaleDataUsed = false;
+  let overpassSourceName = "OpenStreetMap / Overpass API";
+  let overpassRetrievedAt = new Date().toISOString();
+  let overpassDatasetTimestamp: string | undefined;
+  let overpassIsStale = false;
+  let overpassErrorMsg = "Overpass query failed";
 
   let elevationData = {
     centerElevationM: 0,
@@ -320,19 +341,30 @@ export async function runAnalysisEngine(params: {
     retrievedAt: "",
   };
   let elevationLoaded = false;
+  let elevationErrorMsg = "Elevation query failed";
 
   let climateData: {
     maxDailyRainfallMm: number;
     annualTotalRainfallMm: number;
     source: string;
     retrievedAt: string;
+    datasetTimestamp?: string;
+    license?: string;
+    isStale?: boolean;
   } | null = null;
+  let climateErrorMsg = "Climate archive failed";
 
   let solarData: {
     annualAverageGhiKwhM2Day: number;
+    clearSkyGhiKwhM2Day?: number;
+    annualMeanTempC?: number;
     source: string;
     retrievedAt: string;
+    datasetTimestamp?: string;
+    license?: string;
+    isStale?: boolean;
   } | null = null;
+  let solarErrorMsg = "NASA POWER query failed";
 
   // Fetch core providers concurrently
   const [overpassSettled, elevationSettled, climateSettled, solarSettled] =
@@ -353,11 +385,25 @@ export async function runAnalysisEngine(params: {
     osmFeaturesAll = resR2.elements;
     osmLoaded = true;
     osmEmpty = resR2.elements.length === 0;
+    overpassSourceName = resR2.source;
+    overpassRetrievedAt = resR2.retrievedAt;
+    overpassDatasetTimestamp = resR2.datasetTimestamp;
+    overpassIsStale = Boolean(resR2.isStale);
+
+    if (resR2.isStale) {
+      anyStaleDataUsed = true;
+      const staleMsg = `OpenStreetMap Overpass data was served from a stale local cache (${resR2.retrievedAt}) because live mirrors were unreachable.`;
+      warnings.push(staleMsg);
+      dataGaps.push(staleMsg);
+    }
 
     dataSources.push({
       provider: resR2.source,
-      status: osmEmpty ? "empty" : "ok",
+      status: osmEmpty ? "empty" : resR2.isStale ? "stale" : "ok",
       retrievedAt: resR2.retrievedAt,
+      datasetTimestamp: resR2.datasetTimestamp,
+      license: resR2.license || "ODbL 1.0 — © OpenStreetMap contributors",
+      isStale: Boolean(resR2.isStale),
       featureCount: resR2.elements.length,
     });
 
@@ -371,9 +417,21 @@ export async function runAnalysisEngine(params: {
         lng,
       },
       retrievedAt: resR2.retrievedAt,
+      datasetTimestamp: resR2.datasetTimestamp,
+      license: resR2.license || "ODbL 1.0 — © OpenStreetMap contributors",
       featureCount: resR2.elements.length,
-      qualityStatus: osmEmpty ? "empty" : resR2.elements.length < 15 ? "sparse" : "verified",
-      freshness: resR2.source.includes("Cache") ? "cached" : "live",
+      qualityStatus: resR2.isStale
+        ? "stale"
+        : osmEmpty
+        ? "empty"
+        : resR2.elements.length < 15
+        ? "sparse"
+        : "verified",
+      freshness: resR2.isStale
+        ? "stale_fallback"
+        : resR2.cacheStatus === "fresh_hit" || resR2.source.includes("Cache")
+        ? "cached"
+        : "live",
       summary: `Retrieved ${resR2.elements.length} mapped OSM features within ${config.searchRadiusR2M}m regional buffer.`,
     });
 
@@ -383,13 +441,13 @@ export async function runAnalysisEngine(params: {
       warnings.push(emptyMsg);
     }
   } else {
-    const errMsg = overpassSettled.reason?.message || "Overpass query failed";
+    overpassErrorMsg = overpassSettled.reason?.message || "Overpass query failed";
     dataSources.push({
       provider: "OpenStreetMap / Overpass API",
       status: "failed",
-      errorMessage: errMsg,
+      errorMessage: overpassErrorMsg,
     });
-    dataGaps.push(`OpenStreetMap Overpass query failed: ${errMsg}`);
+    dataGaps.push(`OpenStreetMap Overpass query failed: ${overpassErrorMsg}`);
   }
 
   // Process Open-Meteo DEM response
@@ -401,10 +459,19 @@ export async function runAnalysisEngine(params: {
     };
     elevationLoaded = true;
 
+    if (elev.isStale) {
+      anyStaleDataUsed = true;
+      const staleMsg = `Open-Meteo Digital Elevation Model data was served from a stale cache (${elev.retrievedAt}).`;
+      warnings.push(staleMsg);
+    }
+
     dataSources.push({
       provider: elev.source,
-      status: "ok",
+      status: elev.isStale ? "stale" : "ok",
       retrievedAt: elev.retrievedAt,
+      datasetTimestamp: elev.datasetTimestamp,
+      license: elev.license,
+      isStale: Boolean(elev.isStale),
       featureCount: elev.samplePointsCount,
     });
 
@@ -413,46 +480,65 @@ export async function runAnalysisEngine(params: {
       provider: elev.source,
       params: { lat, lng, sampleGrid: "3x3 points (60m step)" },
       retrievedAt: elev.retrievedAt,
-      qualityStatus: "verified",
-      freshness: elev.source.includes("Cache") ? "cached" : "live",
+      datasetTimestamp: elev.datasetTimestamp,
+      license: elev.license,
+      qualityStatus: elev.isStale ? "stale" : "verified",
+      freshness: elev.isStale
+        ? "stale_fallback"
+        : elev.cacheStatus === "fresh_hit" || elev.source.includes("Cache")
+        ? "cached"
+        : "live",
       summary: `Sampled 3x3 digital elevation model. Ground elevation: ${elev.centerElevationM}m, Surface gradient: ${elev.slopePercent}%, Aspect: ${elevationData.aspectDeg}°.`,
     });
   } else {
-    const errMsg = elevationSettled.reason?.message || "Elevation query failed";
+    elevationErrorMsg = elevationSettled.reason?.message || "Elevation query failed";
     dataSources.push({
       provider: "Open-Meteo Elevation API",
       status: "failed",
-      errorMessage: errMsg,
+      errorMessage: elevationErrorMsg,
     });
-    dataGaps.push(`Digital elevation model unavailable: ${errMsg}`);
+    dataGaps.push(`Digital elevation model unavailable: ${elevationErrorMsg}`);
   }
 
   // Process Open-Meteo Climate response (if applicable)
   if (type === "Drainage") {
     if (climateSettled.status === "fulfilled" && climateSettled.value) {
       climateData = climateSettled.value;
+      if (climateData.isStale) {
+        anyStaleDataUsed = true;
+        warnings.push(`Open-Meteo Climate Archive data was served from a stale cache (${climateData.retrievedAt}).`);
+      }
       dataSources.push({
         provider: climateData.source,
-        status: "ok",
+        status: climateData.isStale ? "stale" : "ok",
         retrievedAt: climateData.retrievedAt,
+        datasetTimestamp: climateData.datasetTimestamp,
+        license: climateData.license,
+        isStale: Boolean(climateData.isStale),
       });
       evidence.push({
         id: "evd_climate",
         provider: climateData.source,
         params: { lat, lng },
         retrievedAt: climateData.retrievedAt,
-        qualityStatus: "verified",
-        freshness: climateData.source.includes("Cache") ? "cached" : "live",
+        datasetTimestamp: climateData.datasetTimestamp,
+        license: climateData.license,
+        qualityStatus: climateData.isStale ? "stale" : "verified",
+        freshness: climateData.isStale
+          ? "stale_fallback"
+          : climateData.source.includes("Cache")
+          ? "cached"
+          : "live",
         summary: `Historical peak 24-hr daily rainfall: ${climateData.maxDailyRainfallMm} mm/day (Annual: ${climateData.annualTotalRainfallMm} mm).`,
       });
     } else if (climateSettled.status === "rejected") {
-      const errMsg = climateSettled.reason?.message || "Climate archive failed";
+      climateErrorMsg = climateSettled.reason?.message || "Climate archive failed";
       dataSources.push({
         provider: "Open-Meteo Historical Climate Archive",
         status: "failed",
-        errorMessage: errMsg,
+        errorMessage: climateErrorMsg,
       });
-      dataGaps.push(`Historical precipitation archive unavailable: ${errMsg}`);
+      dataGaps.push(`Historical precipitation archive unavailable: ${climateErrorMsg}`);
     }
   }
 
@@ -460,28 +546,43 @@ export async function runAnalysisEngine(params: {
   if (type === "Solar Farm") {
     if (solarSettled.status === "fulfilled" && solarSettled.value) {
       solarData = solarSettled.value;
+      if (solarData.isStale) {
+        anyStaleDataUsed = true;
+        warnings.push(`NASA POWER solar climatology data was served from a stale cache (${solarData.retrievedAt}).`);
+      }
       dataSources.push({
         provider: solarData.source,
-        status: "ok",
+        status: solarData.isStale ? "stale" : "ok",
         retrievedAt: solarData.retrievedAt,
+        datasetTimestamp: solarData.datasetTimestamp,
+        license: solarData.license,
+        isStale: Boolean(solarData.isStale),
       });
       evidence.push({
         id: "evd_solar",
         provider: solarData.source,
         params: { lat, lng, parameter: "ALLSKY_SFC_SW_DWN" },
         retrievedAt: solarData.retrievedAt,
-        qualityStatus: "verified",
-        freshness: solarData.source.includes("Cache") ? "cached" : "live",
-        summary: `Annual average Global Horizontal Irradiance (GHI): ${solarData.annualAverageGhiKwhM2Day} kWh/m²/day.`,
+        datasetTimestamp: solarData.datasetTimestamp,
+        license: solarData.license,
+        qualityStatus: solarData.isStale ? "stale" : "verified",
+        freshness: solarData.isStale
+          ? "stale_fallback"
+          : solarData.source.includes("Cache")
+          ? "cached"
+          : "live",
+        summary: `Annual average Global Horizontal Irradiance (GHI): ${solarData.annualAverageGhiKwhM2Day} kWh/m²/day${
+          solarData.annualMeanTempC !== undefined ? ` (Mean ambient temp: ${solarData.annualMeanTempC}°C)` : ""
+        }.`,
       });
     } else if (solarSettled.status === "rejected") {
-      const errMsg = solarSettled.reason?.message || "NASA POWER query failed";
+      solarErrorMsg = solarSettled.reason?.message || "NASA POWER query failed";
       dataSources.push({
         provider: "NASA POWER CERES Solar Resource",
         status: "failed",
-        errorMessage: errMsg,
+        errorMessage: solarErrorMsg,
       });
-      dataGaps.push(`NASA POWER solar irradiance unavailable: ${errMsg}`);
+      dataGaps.push(`NASA POWER solar irradiance unavailable: ${solarErrorMsg}`);
     }
   }
 
@@ -539,6 +640,8 @@ export async function runAnalysisEngine(params: {
 
   let residentialBldgsCount = 0;
   let commercialBldgsCount = 0;
+  let nearbyBuildings250mCount = 0;
+  let buildingsWithHeightTagsCount = 0;
   let incompatibleLanduseCount = 0;
   let hospitalsCount = 0;
   let schoolsCount = 0;
@@ -549,6 +652,7 @@ export async function runAnalysisEngine(params: {
   let railwayCorridorCrossings = 0;
   let roadCorridorCrossings = 0;
 
+  const analyzedFeatures: StandardizedGeoFeature[] = [];
   const uniqueElements = new Map<number, OsmElement>();
   for (const el of osmFeaturesAll) {
     uniqueElements.set(el.id, el);
@@ -565,6 +669,93 @@ export async function runAnalysisEngine(params: {
 
     const intersectsFootprint = doesFootprintIntersect(footprintPolygon, geo.geometry);
     const tags = el.tags || {};
+
+    // Classify feature for Map & Analysis Consistency (STEP 5)
+    let category: StandardizedFeatureCategory = "other";
+    let subCategory: string | undefined;
+    let featLabel = tags.name || `OSM #${el.id}`;
+    const missingAttributes: string[] = [];
+
+    if (tags.bridge && tags.bridge !== "no") {
+      category = "bridge";
+      subCategory = tags.highway || tags.railway || "bridge";
+      featLabel = tags.name || `Bridge (${subCategory})`;
+    } else if (
+      tags.military ||
+      ["military", "landfill", "quarry", "cemetery"].includes(tags.landuse || "") ||
+      tags.amenity === "grave_yard"
+    ) {
+      category = "restricted";
+      subCategory = tags.landuse || tags.military || "restricted";
+      featLabel = tags.name || `Restricted Zone (${subCategory})`;
+    } else if (tags.building && tags.building !== "no") {
+      category = "building";
+      subCategory = tags.building;
+      featLabel = tags.name || tags["building:name"] || `Building #${el.id}`;
+      if (!tags["building:levels"] && !tags.height) {
+        missingAttributes.push("building:levels", "height");
+      }
+    } else if (tags.highway) {
+      category = tags.highway === "bus_stop" ? "transit" : "road";
+      subCategory = tags.highway;
+      featLabel = tags.name || tags.ref || `Road (${tags.highway})`;
+    } else if (tags.waterway || tags.natural === "water" || tags.landuse === "reservoir") {
+      category = "waterway";
+      subCategory = tags.waterway || "water";
+      featLabel = tags.name || `Waterway (${subCategory})`;
+    } else if (tags.railway) {
+      category =
+        tags.railway === "station" || tags.railway === "halt" ? "transit" : "railway";
+      subCategory = tags.railway;
+      featLabel = tags.name || `Railway (${tags.railway})`;
+    } else if (tags.power) {
+      category = "power";
+      subCategory = tags.power;
+      featLabel = tags.name || `Power (${tags.power})`;
+    } else if (tags.public_transport) {
+      category = "transit";
+      subCategory = tags.public_transport;
+      featLabel = tags.name || `Transit (${tags.public_transport})`;
+    } else if (tags.amenity) {
+      category = "amenity";
+      subCategory = tags.amenity;
+      featLabel = tags.name || `Amenity (${tags.amenity})`;
+    } else if (tags.leisure || tags.landuse) {
+      category = "landuse";
+      subCategory = tags.leisure || tags.landuse;
+      featLabel = tags.name || `Landuse (${subCategory})`;
+    } else if (tags.natural) {
+      category = "natural";
+      subCategory = tags.natural;
+      featLabel = tags.name || `Natural (${tags.natural})`;
+    }
+
+    analyzedFeatures.push({
+      id: `osm:${el.type}:${el.id}`,
+      sourceId: `${el.type}/${el.id}`,
+      sourceName: overpassSourceName,
+      category,
+      subCategory,
+      label: featLabel,
+      geometry: geo.geometry,
+      attributes: {
+        osmId: el.id,
+        osmType: el.type,
+        distanceM: Math.round(distM),
+        intersectsFootprint,
+      },
+      rawTags: tags,
+      distanceM: Math.round(distM),
+      retrievedAt: overpassRetrievedAt,
+      datasetTimestamp: overpassDatasetTimestamp,
+      quality: {
+        completeness: missingAttributes.length > 0 ? "partial" : "verified",
+        isStale: overpassIsStale,
+        cacheStatus: overpassIsStale ? "stale_fallback" : "miss",
+        ...(missingAttributes.length > 0 ? { missingAttributes } : {}),
+      },
+      license: "ODbL 1.0 — © OpenStreetMap contributors",
+    });
 
     // Bridges
     if (tags.bridge && tags.bridge !== "no") {
@@ -640,6 +831,12 @@ export async function runAnalysisEngine(params: {
 
     // Buildings & residential/commercial catchment proxy
     if (tags.building && tags.building !== "no") {
+      if (distM <= 250) {
+        nearbyBuildings250mCount++;
+        if (levels > 0 || heightM > 0) {
+          buildingsWithHeightTagsCount++;
+        }
+      }
       if (distM <= 1000) {
         residentialBldgsCount++;
         if (["commercial", "retail", "office", "industrial"].includes(tags.building)) {
@@ -677,6 +874,10 @@ export async function runAnalysisEngine(params: {
     }
   }
 
+  // Sort analyzed features by distance so the closest site evidence is prioritized on the map overlay
+  analyzedFeatures.sort((a, b) => (a.distanceM ?? 9999) - (b.distanceM ?? 9999));
+  const boundedAnalyzedFeatures = analyzedFeatures.slice(0, 200);
+
   // Record R1 evidence summary
   if (osmLoaded) {
     evidence.push({
@@ -684,8 +885,16 @@ export async function runAnalysisEngine(params: {
       provider: evidence[0]?.provider || "OpenStreetMap / Overpass",
       params: { radiusM: config.searchRadiusR1M, lat, lng },
       retrievedAt: evidence[0]?.retrievedAt || new Date().toISOString(),
+      datasetTimestamp: overpassDatasetTimestamp,
+      license: "ODbL 1.0 — © OpenStreetMap contributors",
       featureCount: osmFeaturesR1Count,
-      qualityStatus: osmFeaturesR1Count === 0 ? "empty" : osmFeaturesR1Count < 8 ? "sparse" : "verified",
+      qualityStatus: overpassIsStale
+        ? "stale"
+        : osmFeaturesR1Count === 0
+        ? "empty"
+        : osmFeaturesR1Count < 8
+        ? "sparse"
+        : "verified",
       freshness: evidence[0]?.freshness || "live",
       summary: `Filtered ${osmFeaturesR1Count} mapped OSM features within immediate ${config.searchRadiusR1M}m site radius.`,
     });
@@ -710,30 +919,36 @@ export async function runAnalysisEngine(params: {
 
   for (const critDef of config.criteria) {
     totalConfiguredWeight += critDef.weight;
-    let metricVal = 0;
+    let metricVal: number | null = 0;
     let scoreObj: MetricScore = { score: 0, status: "constrained", formattedValue: "Unavailable" };
     let evidenceIds: string[] = ["evd_osm_r1"];
     let isComputed = true;
+    let missingReason: string | undefined;
 
-    // Check if required base provider succeeded
+    // Check if required base provider succeeded (STEP 4 — Missing-Data Policy)
     if (
       (critDef.sourceProvider === "overpass" || critDef.sourceProvider === "osm-coverage") &&
       !osmLoaded
     ) {
       isComputed = false;
+      missingReason = `OpenStreetMap Overpass provider unavailable (${overpassErrorMsg}); ${critDef.label} could not be evaluated.`;
     } else if (critDef.sourceProvider === "overpass" && osmEmpty) {
       // Do not fabricate high "gap" or "clearance" scores when Overpass returned 0 features in the entire region
       isComputed = false;
+      missingReason = `Zero mapped OpenStreetMap features returned within ${config.searchRadiusR2M}m radius; ${critDef.label} cannot be verified without assuming unmapped conditions.`;
     } else if (
       critDef.sourceProvider === "open-meteo" &&
       critDef.id !== "precipitation_intensity" &&
       !elevationLoaded
     ) {
       isComputed = false;
+      missingReason = `Open-Meteo Digital Elevation Model unavailable (${elevationErrorMsg}); ${critDef.label} could not be computed.`;
     } else if (critDef.id === "precipitation_intensity" && !climateData) {
       isComputed = false;
+      missingReason = `Open-Meteo ERA5-Land climate archive unavailable (${climateErrorMsg}); historical precipitation could not be verified.`;
     } else if (critDef.sourceProvider === "nasa-power" && !solarData) {
       isComputed = false;
+      missingReason = `NASA POWER solar climatology unavailable (${solarErrorMsg}); solar irradiance could not be verified.`;
     }
 
     if (isComputed) {
@@ -1251,17 +1466,31 @@ export async function runAnalysisEngine(params: {
           const shadeDist = Math.min(nearestShadeObstructionDistM, 2000);
           metricVal = Math.round(shadeDist);
           if (shadeDist > 120 && buildingCorridorCollisions === 0) {
-            scoreObj = {
-              score: 94,
-              status: "optimal",
-              formattedValue:
-                nearestShadeObstructionDistM > 1500
-                  ? "Clear horizon (> 1.5 km)"
-                  : `${Math.round(shadeDist)} m setback`,
-            };
-            supporting.push(
-              "Unobstructed solar horizon: clear of dense forests and tall high-rise shading [evd_osm_r1]."
-            );
+            if (nearbyBuildings250mCount > 0 && buildingsWithHeightTagsCount === 0) {
+              scoreObj = {
+                score: 68,
+                status: "acceptable",
+                formattedValue: `Heights untagged (${nearbyBuildings250mCount} bldgs ≤250m)`,
+              };
+              warnings.push(
+                `${nearbyBuildings250mCount} nearby building footprint(s) within 250m lack OSM height/building:levels attributes; vertical shadow profile requires field verification [evd_osm_r1].`
+              );
+              dataGaps.push(
+                `OpenStreetMap building footprints within 250m lack vertical height ('height' / 'building:levels') attributes.`
+              );
+            } else {
+              scoreObj = {
+                score: 94,
+                status: "optimal",
+                formattedValue:
+                  nearestShadeObstructionDistM > 1500
+                    ? "Clear horizon (> 1.5 km)"
+                    : `${Math.round(shadeDist)} m setback`,
+              };
+              supporting.push(
+                "Unobstructed solar horizon: clear of dense forests and tall high-rise shading [evd_osm_r1]."
+              );
+            }
           } else {
             scoreObj = {
               score: 45,
@@ -1328,16 +1557,17 @@ export async function runAnalysisEngine(params: {
         ? scoreObj.formattedValue
         : osmEmpty && critDef.sourceProvider === "overpass"
         ? "Unverified (0 OSM features)"
-        : "Data Unavailable",
-      rawMetric: metricVal,
+        : "Unknown (Evidence Unavailable)",
+      rawMetric: isComputed ? metricVal : null,
       unit: critDef.unit,
-      score: isComputed ? scoreObj.score : 0,
+      score: isComputed ? scoreObj.score : null,
       weight: critDef.weight,
-      status: isComputed ? scoreObj.status : "constrained",
+      status: isComputed ? scoreObj.status : "unknown",
       benchmark: critDef.benchmark,
       evidenceIds: isComputed ? evidenceIds : [],
       description: critDef.description,
       computed: isComputed,
+      ...(missingReason ? { missingReason } : {}),
     });
   }
 
@@ -1363,14 +1593,19 @@ export async function runAnalysisEngine(params: {
   }
 
   const bandInfo = determineSuitabilityBand(finalScore);
-  let confidencePercent =
+  const evidenceCompleteness =
     totalConfiguredWeight > 0
       ? Math.min(Math.round((computedWeight / totalConfiguredWeight) * 100), 100)
       : 0;
+  let confidencePercent = evidenceCompleteness;
 
   // Reduce confidence if OSM query returned zero features across the entire region
   if (osmEmpty) {
     confidencePercent = Math.min(confidencePercent, 35);
+  }
+  // Reduce confidence if stale cached fallback data was used
+  if (anyStaleDataUsed) {
+    confidencePercent = Math.max(20, confidencePercent - 10);
   }
 
   // =========================================================================
@@ -1453,6 +1688,8 @@ export async function runAnalysisEngine(params: {
       tone: bandInfo.tone,
       confidence: confidencePercent,
       verdictSummary: bandInfo.summary,
+      canCalculateOverall: computedWeight > 0,
+      evidenceCompleteness,
     },
     supporting,
     risks,
@@ -1464,5 +1701,12 @@ export async function runAnalysisEngine(params: {
     evidence,
     limitations,
     narrativeText: narrative,
+    analyzedFeatures: boundedAnalyzedFeatures,
+    searchRings: {
+      centerLat: lat,
+      centerLng: lng,
+      r1M: config.searchRadiusR1M,
+      r2M: config.searchRadiusR2M,
+    },
   };
 }
