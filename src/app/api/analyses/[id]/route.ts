@@ -11,7 +11,11 @@ export async function GET(
     const user = await requireAuthUser(req);
 
     const analysis = await prisma.analysis.findFirst({
-      where: { id: params.id, userId: user.userId },
+      where: {
+        userId: user.userId,
+        OR: [{ id: params.id }, { placementId: params.id }],
+      },
+      orderBy: { createdAt: "desc" },
       include: {
         placement: true,
       },
@@ -50,7 +54,11 @@ export async function DELETE(
     const user = await requireAuthUser(req);
 
     const analysis = await prisma.analysis.findFirst({
-      where: { id: params.id, userId: user.userId },
+      where: {
+        userId: user.userId,
+        OR: [{ id: params.id }, { placementId: params.id }],
+      },
+      orderBy: { createdAt: "desc" },
     });
 
     if (!analysis) {
@@ -58,7 +66,7 @@ export async function DELETE(
     }
 
     await prisma.analysis.delete({
-      where: { id: params.id },
+      where: { id: analysis.id },
     });
 
     return successResponse({ success: true, message: "Analysis report deleted" });

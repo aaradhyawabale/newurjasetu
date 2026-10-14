@@ -17,11 +17,12 @@ describe("API Route Integration & Auth Ownership", () => {
     await prisma.user.deleteMany();
 
     const pwd = await hashPassword("password123");
+    const uniqueSuffix = `api-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
 
     // Create User 1
     const u1 = await prisma.user.create({
       data: {
-        email: "planner1@urjasetu.local",
+        email: `planner1-${uniqueSuffix}@urjasetu.local`,
         passwordHash: pwd,
         name: "Planner One",
         scenarios: {
@@ -37,7 +38,7 @@ describe("API Route Integration & Auth Ownership", () => {
     // Create User 2
     const u2 = await prisma.user.create({
       data: {
-        email: "planner2@urjasetu.local",
+        email: `planner2-${uniqueSuffix}@urjasetu.local`,
         passwordHash: pwd,
         name: "Planner Two",
         scenarios: {
@@ -180,6 +181,84 @@ describe("API Route Integration & Auth Ownership", () => {
     expect(retrieved).not.toBeNull();
     expect(retrieved?.id).toBe(analysisId);
     expect(JSON.parse(retrieved!.result).analysisId).toBe(analysisId);
+  });
+
+  it("resolves report and generates PDF whether accessed by analysisId or placementId", async () => {
+    const { GET: getAnalysis } = await import("@/app/api/analyses/[id]/route");
+    const { GET: getAnalysisPdf } = await import("@/app/api/analyses/[id]/pdf/route");
+    const { NextRequest } = await import("next/server");
+
+    const placement = await prisma.placement.create({
+      data: {
+        userId: user1Id,
+        scenarioId: user1ScenarioId,
+        type: "Hospital",
+        lat: 28.6139,
+        lng: 77.2090,
+        lengthM: 100,
+        widthM: 80,
+      },
+    });
+
+    const analysis = await prisma.analysis.create({
+      data: {
+        userId: user1Id,
+        placementId: placement.id,
+        overallScore: 85,
+        scoreBand: "High Suitability",
+        input: JSON.stringify({ lat: 28.6139, lng: 77.2090 }),
+        result: JSON.stringify({
+          engineVersion: "1.0.0",
+          timestamp: new Date().toISOString(),
+          placementSnapshot: {
+            id: placement.id,
+            type: "Hospital",
+            lat: 28.6139,
+            lng: 77.2090,
+            lengthM: 100,
+            widthM: 80,
+            bearingDeg: 0,
+            areaM2: 8000,
+            params: {},
+          },
+          validation: { status: "pass", proposedAreaM2: 8000, allowedAreaRange: { minM2: 0, maxM2: 10000, reason: "" }, conflicts: [], messages: [] },
+          criteria: [],
+          overall: { score: 85, band: "High Suitability", tone: "positive", confidence: 0.9, verdictSummary: "Good" },
+          supporting: [],
+          risks: [],
+          dataGaps: [],
+          evidence: [],
+          limitations: [],
+          narrativeText: "",
+        }),
+      },
+    });
+
+    // 1. Fetch by analysisId
+    const reqByAnalysisId = new NextRequest(`http://localhost:3000/api/analyses/${analysis.id}`, {
+      headers: { cookie: `urjasetu_session=${user1Token}` },
+    });
+    const res1 = await getAnalysis(reqByAnalysisId, { params: { id: analysis.id } });
+    expect(res1.status).toBe(200);
+    const body1 = await res1.json();
+    expect(body1.analysis.id).toBe(analysis.id);
+
+    // 2. Fetch by placementId
+    const reqByPlacementId = new NextRequest(`http://localhost:3000/api/analyses/${placement.id}`, {
+      headers: { cookie: `urjasetu_session=${user1Token}` },
+    });
+    const res2 = await getAnalysis(reqByPlacementId, { params: { id: placement.id } });
+    expect(res2.status).toBe(200);
+    const body2 = await res2.json();
+    expect(body2.analysis.id).toBe(analysis.id);
+
+    // 3. Fetch PDF by placementId
+    const reqPdfByPlacementId = new NextRequest(`http://localhost:3000/api/analyses/${placement.id}/pdf`, {
+      headers: { cookie: `urjasetu_session=${user1Token}` },
+    });
+    const resPdf = await getAnalysisPdf(reqPdfByPlacementId, { params: { id: placement.id } });
+    expect(resPdf.status).toBe(200);
+    expect(resPdf.headers.get("Content-Type")).toBe("application/pdf");
   });
 });
 

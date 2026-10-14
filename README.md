@@ -1,24 +1,49 @@
-# UrjaSetu — Urban Infrastructure Siting & Impact Analysis System (Phase 1)
+# UrjaSetu — Urban Infrastructure Siting, Solar Reality & Scenario Simulator
 
-UrjaSetu is a modern, map-based urban infrastructure siting and impact-analysis decision support tool. A planner selects an infrastructure type (Hospital, School, Park, Road, Bridge, Water Canal, Building, Transit Station, Drainage, or Solar Farm), places a pin anywhere on the interactive map, customizes dimensions and type-specific parameters, validates the footprint against mapped OpenStreetMap features, and executes multi-criteria suitability analysis backed by transparent open geospatial data.
+UrjaSetu is an explainable, map-based urban infrastructure siting and impact-analysis decision support platform. A planner selects an infrastructure type (Hospital, School, Park, Road, Bridge, Water Canal, Building, Transit Station, Drainage, or Solar Farm), places a pin anywhere on the interactive map, customizes dimensions and type-specific parameters, validates the footprint against mapped OpenStreetMap features, and executes multi-criteria suitability analysis backed by transparent open geospatial data.
 
-> **DECISION SUPPORT NOTICE**: UrjaSetu is an indicative screening system. It never approves projects, never presents indicative heuristic scores as statutory clearance, and never substitutes for licensed geotechnical or civil engineering field investigations.
+> **DECISION SUPPORT NOTICE**: UrjaSetu is an indicative screening system. It never approves projects, never presents indicative heuristic scores as statutory clearance, and never substitutes for licensed geotechnical, environmental impact, or civil engineering field investigations.
 
 ---
 
-## 1. Prerequisites
-- **Node.js**: v18.18+ or v20+ (tested on Node v22)
+## 1. Key Capabilities & Engine Features
+
+### A. Explainable Multi-Criteria Geospatial Siting Engine
+- **Transparent Scorecards**: 10 distinct infrastructure profiles evaluated with domain-specific criteria (arterial road access, terrain slope, flood risk, utility proximity, demand density, hydraulic capacity).
+- **Mandatory Constraint Enforcement**: Violations of critical spatial exclusions (railway buffers, waterways, protected land use) trigger overriding penalties preventing unsuitable sites from appearing viable.
+- **Sensitivity Analysis**: Explores score volatility across 4 transparent weight profiles (Balanced, Accessibility-Prioritized, Environmental/Safety-First, Economic/Feasibility-First).
+
+### B. Shadow-of-the-Future: 3D Solar Shading Simulator
+- **Solar Position Algorithm**: NOAA/NREL solar position calculation accounting for latitude, longitude, day of year, and local solar time.
+- **3D Ground Shadow Ray Casting**: Projects building footprint shadows onto ground coordinates.
+- **Future What-If Scenarios**: Planners can construct hypothetical future towers or planned urban developments to simulate future shading risk before capital commitment.
+
+### C. Solar Reality: Generation & Financial Feasibility
+- **Transposition & NOCT Modeling**: Converts horizontal GHI to tilted plane-of-array irradiance using Liu-Jordan transposition, derating cell efficiency using IEC ambient temperature models.
+- **Loss Waterfall**: Decomposes soiling, shading, inverter, wiring, and thermal losses.
+- **25-Year LCOE & Financial Payback**: Computes levelized cost of electricity and simple payback periods under local grid tariffs.
+
+### D. Infrastructure Impact and Scenario Simulator
+- **Multi-Candidate Comparison**: Compares candidate sites side-by-side using identical criteria.
+- **Criteria Differential Matrix**: Computes exact delta scores ($\Delta\text{score} = \text{Score}_{\text{leader}} - \text{Score}_{\text{trailing}}$).
+- **Spatial Impact & Geodesic Separation**: Calculates true Haversine separation distance between candidates, road access quality, and straight-line service catchment proxies.
+- **Executive PDF Export**: Generates multi-page comparison reports summarizing candidate rankings, trade-offs, and data provenance.
+
+---
+
+## 2. Prerequisites
+- **Node.js**: v18.18+ or v20+ (tested on Node v20 / v22)
 - **npm**: v9+ or v10+
 - **Operating System**: macOS, Linux, or Windows
 
 ---
 
-## 2. Installation & Quickstart
+## 3. Installation & Quickstart
 
 ```bash
 # 1. Clone repository
-git clone <repository-url>
-cd newesturjasetu
+git clone https://github.com/aaradhyawabale/newurjasetu.git
+cd newurjasetu
 
 # 2. Install dependencies
 npm install
@@ -38,7 +63,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---
 
-## 3. Environment Configuration (`.env`)
+## 4. Environment Configuration (`.env`)
 
 | Variable | Description | Default |
 | :--- | :--- | :--- |
@@ -55,14 +80,17 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---
 
-## 4. Running Tests & Quality Verification
+## 5. Running Tests & Quality Verification
 
 ```bash
-# Run unit and integration tests with Vitest
+# Run all unit and integration tests (95 tests passing)
 npm test
 
+# Run ESLint validation
+npm run lint
+
 # Run TypeScript strict type verification
-npm run typecheck
+npx tsc --noEmit
 
 # Run production build
 npm run build
@@ -70,60 +98,70 @@ npm run build
 
 ---
 
-## 5. Production Deployment (Vercel + Managed PostgreSQL)
+## 6. Jury & Technical Review Demonstration Script
 
-1. **Database Setup**:
-   - Provision a PostgreSQL database on Neon, Supabase, or AWS RDS.
-   - In `prisma/schema.prisma`, change `provider = "sqlite"` to `provider = "postgresql"`.
-   - Update `DATABASE_URL="postgresql://user:password@host/dbname?sslmode=require"`.
-   - Run `npx prisma db push`.
-2. **Deploy to Vercel**:
-   - Connect the repository to Vercel.
-   - Set environment variables (`DATABASE_URL`, `SESSION_SECRET`, `GEO_USER_AGENT`, `NEXT_PUBLIC_MAP_STYLE`).
-   - The build command is `npm run build` which runs `prisma generate && next build`.
+To reproduce a live technical evaluation using genuine open datasets:
+
+1. **Sign In**: Log in or register an account.
+2. **Search Location**: Type `Connaught Place, New Delhi` in the search bar (`Cmd+K`).
+3. **Select Tool**: Click **Hospital** in the left sidebar.
+4. **Place Pin**: Click on the map to place the candidate footprint (e.g. $100\text{m} \times 80\text{m}$).
+5. **Validate Footprint**: Click **Validate Footprint** to screen mapped OSM buildings, waterways, and railway corridors.
+6. **Execute Analysis**: Click **Analyze** to poll Overpass, Open-Meteo, and NASA POWER. Inspect the 0–100 scorecard, criteria breakdown, and sensitivity profiles.
+7. **Test Solar Reality**: Change infrastructure type to **Solar Farm**. Click **Solar Reality** to inspect the 12-month generation curve, NOCT thermal derating, and loss waterfall.
+8. **Test Shadow Simulator**: Click **Shadow Simulator** to view solar azimuth/elevation, project building ground shadows, and add a hypothetical 50m tower to evaluate future shading.
+9. **Multi-Candidate Scenario Comparison**:
+   - Create a second placement in the same scenario (e.g. Karol Bagh).
+   - Click **Analyze** on the second placement.
+   - Click **Compare** in the top navigation bar to open the **Scenario Simulator**.
+   - Review candidate rankings, criteria differential matrix ($\Delta\text{score}$), spatial separation, and export the comparative PDF report.
+10. **Report Export**: Click **PDF** in the top bar to download the complete siting evaluation dossier.
 
 ---
 
-## 6. Project Architecture & Directory Layout
+## 7. Project Architecture & Directory Layout
 
 ```
-newesturjasetu/
+newurjasetu/
 ├── docs/
-│   ├── ANALYSIS_METHOD.md     # Formulas, piecewise thresholds, and Manning equation
-│   ├── DATA_SOURCES.md        # OpenStreetMap, Open-Meteo, NASA POWER, rate limits, CRS
-│   ├── DECISIONS.md           # Architecture checkpoints and rationale
-│   ├── KNOWN_GAPS.md          # P2 boundaries, external provider notes
-│   └── EXTENDING.md           # Adding new infrastructure types and data providers
+│   ├── ANALYSIS_METHOD.md              # Formulas, piecewise scoring, and benchmarks
+│   ├── DATA_SOURCES.md                 # OpenStreetMap, Open-Meteo, NASA POWER, rate limits
+│   ├── EXPLAINABILITY_AND_SENSITIVITY.md # Weight profiles & Monte Carlo sensitivity
+│   ├── SHADOW_OF_THE_FUTURE.md         # Solar position algorithm & ground ray casting
+│   ├── SOLAR_REALITY.md                # Liu-Jordan transposition, NOCT, and LCOE
+│   └── SCENARIO_SIMULATOR.md           # Scenario comparator & differential trade-offs
 ├── prisma/
-│   └── schema.prisma          # Database schema (User, Scenario, Placement, Analysis, ProviderCache)
+│   └── schema.prisma                   # Database schema (User, Scenario, Placement, Analysis, ProviderCache)
 ├── src/
-│   ├── app/                   # Next.js App Router (pages and /api route handlers)
+│   ├── app/                            # Next.js App Router (pages and API route handlers)
 │   ├── components/
-│   │   ├── layout/            # AppShell, TopBar, ToolSidebar
-│   │   ├── map/               # MapView (MapLibre GL JS with canvas export)
-│   │   ├── panels/            # PlacementPanel (dimensions, coordinates, params)
-│   │   ├── reports/           # ReportDrawer (verdict, scorecard, evidence)
-│   │   ├── history/           # HistoryDrawer (stored reports)
-│   │   └── ui/                # StatusBadge, ScoreBar, NumberField, ConfirmDialog, Toast
+│   │   ├── layout/                     # AppShell, TopBar, ToolSidebar
+│   │   ├── map/                        # MapView (MapLibre GL JS with canvas export)
+│   │   ├── panels/                     # PlacementPanel (dimensions, coordinates, params)
+│   │   ├── reports/                    # ReportDrawer (verdict, scorecard, evidence)
+│   │   ├── history/                    # HistoryDrawer (stored reports)
+│   │   ├── scenarios/                  # ScenarioComparisonModal (multi-candidate simulator)
+│   │   ├── solar/                      # ShadowSimulatorModal & SolarRealityModal
+│   │   └── ui/                         # StatusBadge, ScoreBar, Toast, Drawer
 │   ├── config/
-│   │   └── infra-types.ts     # Complete registry for all 10 infrastructure types
-│   ├── lib/
-│   │   └── geojson-export.ts  # GeoJSON feature collection export
+│   │   └── infra-types.ts              # Complete registry for all 10 infrastructure types
 │   └── server/
-│       ├── auth/              # JWT session management & bcrypt hashing
-│       ├── db/                # Prisma singleton client
-│       ├── gis/               # Turf.js geodesic geometry & footprint generation
-│       ├── pdf/               # Server-side PDF report generator (pdf-lib)
-│       ├── providers/         # Overpass, Nominatim, Open-Meteo, NASA POWER with DB cache
-│       └── analysis-engine/   # Multi-criteria scoring engine & validation
+│       ├── analysis-engine/            # Scoring, validation, sensitivity, weight profiles
+│       ├── gis/                        # Turf.js geodesic geometry & spatial separation
+│       ├── pdf/                        # PDF generation with pdf-lib (report & scenario comparison)
+│       ├── providers/                  # Overpass, Open-Meteo, NASA POWER with DB caching
+│       ├── scenarios/                  # Comparison engine & impact trade-off simulator
+│       └── solar/                      # NOAA solar position, ray casting, solar reality models
 └── tests/
-    ├── unit/                  # Vitest geometry, scoring, engine, and pdf tests
-    └── integration/           # Vitest API auth, isolation, and cascade deletion tests
+    ├── unit/                           # Engine, scoring, geometry, solar, sensitivity, comparison
+    └── integration/                    # API authentication, scenario isolation, PDF exports
 ```
 
 ---
 
-## 7. Troubleshooting
+## 8. Data Sources & Limitations
 
-- **Overpass API Rate Limit (HTTP 429)**: UrjaSetu caches successful Overpass responses in the database for 24 hours. If an un-cached area query hits rate limits, the engine retries against the configured backup mirror.
-- **Map Tiles in Production**: Do not query public `tile.openstreetmap.org` for high-volume commercial production per OSM tile usage policy. Configure a vector style endpoint in `NEXT_PUBLIC_MAP_STYLE`.
+1. **OpenStreetMap**: Features, footprints, and road corridors via Overpass API. Cached locally in SQLite (`ProviderCache`) for 24 hours.
+2. **Open-Meteo Elevation & Climate API**: 90m digital elevation model (DEM) and ERA5-Land reanalysis.
+3. **NASA POWER**: Multi-year solar climatology (All-Sky Surface Insolation GHI).
+4. **Service Catchment Disclaimer**: Proximity calculations use straight-line Euclidean distance proxies (500m radius). They do not substitute for census population micro-data or origin-destination transit routing.
