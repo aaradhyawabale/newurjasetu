@@ -67,11 +67,21 @@ export async function getSessionUser(req?: NextRequest): Promise<SessionPayload 
 }
 
 export async function requireAuthUser(req?: NextRequest): Promise<SessionPayload> {
-  const user = await getSessionUser(req);
+  const session = await getSessionUser(req);
+  if (!session) {
+    throw new Error("UNAUTHORIZED");
+  }
+  const user = await prisma.user.findUnique({
+    where: { id: session.userId },
+  });
   if (!user) {
     throw new Error("UNAUTHORIZED");
   }
-  return user;
+  return {
+    userId: user.id,
+    email: user.email,
+    name: user.name,
+  };
 }
 
 export function setSessionCookie(response: NextResponse, token: string): void {

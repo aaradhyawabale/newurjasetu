@@ -22,37 +22,44 @@ export default async function HomePage() {
   const session = await getSessionUser();
 
   if (session) {
-    // User is signed in — load scenarios and render AppShell workspace
-    let scenarios = await prisma.scenario.findMany({
-      where: { userId: session.userId },
-      orderBy: { createdAt: "desc" },
+    // Verify user still exists in the database
+    const user = await prisma.user.findUnique({
+      where: { id: session.userId },
     });
 
-    if (scenarios.length === 0) {
-      // Ensure default scenario exists
-      const newScenario = await prisma.scenario.create({
-        data: {
-          userId: session.userId,
-          name: "Untitled scenario",
-        },
+    if (user) {
+      // User is signed in and verified — load scenarios and render AppShell workspace
+      let scenarios = await prisma.scenario.findMany({
+        where: { userId: user.id },
+        orderBy: { createdAt: "desc" },
       });
-      scenarios = [newScenario];
-    }
 
-    return (
-      <AppShell
-        user={{
-          id: session.userId,
-          email: session.email,
-          name: session.name,
-        }}
-        initialScenarios={scenarios}
-        initialScenarioId={scenarios[0].id}
-      />
-    );
+      if (scenarios.length === 0) {
+        // Ensure default scenario exists
+        const newScenario = await prisma.scenario.create({
+          data: {
+            userId: user.id,
+            name: "Untitled scenario",
+          },
+        });
+        scenarios = [newScenario];
+      }
+
+      return (
+        <AppShell
+          user={{
+            id: user.id,
+            email: user.email,
+            name: user.name,
+          }}
+          initialScenarios={scenarios}
+          initialScenarioId={scenarios[0].id}
+        />
+      );
+    }
   }
 
-  // Not signed in — render minimal, professional public landing page
+  // Not signed in or stale session — render minimal, professional public landing page
   return (
     <div className="min-h-screen bg-stone-50 flex flex-col justify-between text-stone-900 font-sans">
       {/* Navigation Header */}
