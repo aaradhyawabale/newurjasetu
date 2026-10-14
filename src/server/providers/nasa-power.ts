@@ -104,6 +104,20 @@ export class NasaPowerProvider {
         }
 
         const ghi = Math.round(annualVal * 100) / 100;
+
+        // Extract monthly GHI if present in ALLSKY_SFC_SW_DWN
+        const MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"] as const;
+        const monthlyGhi: Record<string, number> = {};
+        const allskyMonthly = paramsObj?.ALLSKY_SFC_SW_DWN;
+        if (allskyMonthly) {
+          for (const m of MONTHS) {
+            const val = allskyMonthly[m];
+            if (typeof val === "number" && Number.isFinite(val) && val > 0 && val < 15) {
+              monthlyGhi[m] = Math.round(val * 100) / 100;
+            }
+          }
+        }
+
         const rawClearSky = paramsObj?.CLRSKY_SFC_SW_DWN?.ANN;
         const clearSkyGhi =
           typeof rawClearSky === "number" && rawClearSky > 0 && rawClearSky <= 15
@@ -116,6 +130,18 @@ export class NasaPowerProvider {
             ? Math.round(rawTemp * 10) / 10
             : undefined;
 
+        // Extract monthly ambient temperatures if present
+        const monthlyTemp: Record<string, number> = {};
+        const t2mMonthly = paramsObj?.T2M;
+        if (t2mMonthly) {
+          for (const m of MONTHS) {
+            const val = t2mMonthly[m];
+            if (typeof val === "number" && Number.isFinite(val) && val > -80 && val < 70) {
+              monthlyTemp[m] = Math.round(val * 10) / 10;
+            }
+          }
+        }
+
         const startYr = json?.header?.start;
         const endYr = json?.header?.end;
         const datasetTimestamp =
@@ -123,8 +149,10 @@ export class NasaPowerProvider {
 
         const result: SolarResult = {
           annualAverageGhiKwhM2Day: ghi,
+          ...(Object.keys(monthlyGhi).length === 12 ? { monthlyGhiKwhM2Day: monthlyGhi } : {}),
           ...(clearSkyGhi !== undefined ? { clearSkyGhiKwhM2Day: clearSkyGhi } : {}),
           ...(annualMeanTempC !== undefined ? { annualMeanTempC } : {}),
+          ...(Object.keys(monthlyTemp).length === 12 ? { monthlyMeanTempC: monthlyTemp } : {}),
           retrievedAt: new Date().toISOString(),
           datasetTimestamp,
           source: "NASA POWER Agroclimatology / CERES & MERRA-2",

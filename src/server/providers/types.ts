@@ -130,8 +130,10 @@ export interface ClimateResult {
 
 export interface SolarResult {
   annualAverageGhiKwhM2Day: number; // Global Horizontal Irradiance in kWh/m2/day
+  monthlyGhiKwhM2Day?: Record<string, number>; // Monthly GHI in kWh/m2/day for JAN-DEC
   clearSkyGhiKwhM2Day?: number;
   annualMeanTempC?: number;
+  monthlyMeanTempC?: Record<string, number>; // Monthly mean 2m air temp in °C for JAN-DEC
   retrievedAt: string;
   datasetTimestamp?: string;
   source: string;

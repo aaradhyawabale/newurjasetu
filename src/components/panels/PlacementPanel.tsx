@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   Sun,
   Sparkles,
+  Zap,
 } from "lucide-react";
 import {
   InfrastructureTypeId,
@@ -42,6 +43,7 @@ interface PlacementPanelProps {
   validationResult: ValidationResult | null;
   isValidating: boolean;
   onOpenShadowSimulator?: () => void;
+  onOpenSolarReality?: () => void;
   className?: string;
 }
 
@@ -52,6 +54,7 @@ export const PlacementPanel: React.FC<PlacementPanelProps> = ({
   validationResult,
   isValidating,
   onOpenShadowSimulator,
+  onOpenSolarReality,
   className = "",
 }) => {
   if (!placement) {
@@ -310,6 +313,15 @@ export const PlacementPanel: React.FC<PlacementPanelProps> = ({
             >
               <Sparkles className="w-3.5 h-3.5" />
               <span>Simulate Solar Shading</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={onOpenSolarReality}
+              className="w-full py-1.5 px-3 rounded-btn bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold flex items-center justify-center gap-1.5 shadow-xs transition-colors"
+            >
+              <Zap className="w-3.5 h-3.5" />
+              <span>Solar Reality: Generation & Financials</span>
             </button>
           </div>
         )}

@@ -9,6 +9,7 @@ import { ReportDrawer } from "../reports/ReportDrawer";
 import { HistoryDrawer, HistoryItem } from "../history/HistoryDrawer";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { ShadowSimulatorModal } from "../solar/ShadowSimulatorModal";
+import { SolarRealityModal } from "../solar/SolarRealityModal";
 import { useToast } from "../ui/Toast";
 import { InfrastructureTypeId, INFRASTRUCTURE_TYPES } from "@/config/infra-types";
 import { ValidationResult } from "@/server/analysis-engine/validation";
@@ -66,8 +67,9 @@ export const AppShell: React.FC<AppShellProps> = ({
   const [isReportOpen, setIsReportOpen] = useState<boolean>(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState<boolean>(false);
 
-  // State: Shadow-of-the-Future Simulator
+  // State: Shadow-of-the-Future & Solar Reality Modals
   const [isShadowSimulatorOpen, setIsShadowSimulatorOpen] = useState<boolean>(false);
+  const [isSolarRealityOpen, setIsSolarRealityOpen] = useState<boolean>(false);
   const [solarShadingOverlay, setSolarShadingOverlay] = useState<any | null>(null);
 
   // State: History
@@ -687,6 +689,7 @@ export const AppShell: React.FC<AppShellProps> = ({
           validationResult={validationResult}
           isValidating={isValidating}
           onOpenShadowSimulator={() => setIsShadowSimulatorOpen(true)}
+          onOpenSolarReality={() => setIsSolarRealityOpen(true)}
         />
       </div>
 
@@ -724,6 +727,15 @@ export const AppShell: React.FC<AppShellProps> = ({
           onClose={() => setIsShadowSimulatorOpen(false)}
           placement={activePlacement}
           onApplyMapOverlay={(overlay) => setSolarShadingOverlay(overlay)}
+        />
+      )}
+
+      {/* Solar Reality Generation & Financial Feasibility Modal */}
+      {activePlacement && (
+        <SolarRealityModal
+          isOpen={isSolarRealityOpen}
+          onClose={() => setIsSolarRealityOpen(false)}
+          placement={activePlacement}
         />
       )}
     </div>

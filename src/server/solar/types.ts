@@ -110,3 +110,89 @@ export interface SolarShadingResult {
   provenanceSummary: ProvenanceSummary;
   limitations: string[];
 }
+
+export interface SolarRealityInput {
+  lat: number;
+  lng: number;
+  capacityKwp: number; // Direct DC peak capacity in kWp
+  panelTiltDeg?: number; // Tilt angle in degrees (default to lat or 22°)
+  panelAzimuthDeg?: number; // True azimuth (default 180° for North hemisphere, 0° for South)
+  soilingLossPct?: number; // Custom soiling percentage (default 2.5%)
+  shadingLossPct?: number; // Shading loss percentage (e.g. from Shadow-of-the-Future or default 2.0%)
+  inverterEfficiencyPct?: number; // Inverter efficiency (default 97.5%)
+  capexPerKwpInr?: number; // Benchmark capital expenditure per kWp (default ₹42,000)
+  tariffPerKwhInr?: number; // Commercial or PPA electricity tariff per kWh (default ₹6.50)
+  opexAnnualPct?: number; // Annual O&M cost as % of Capex (default 1.2%)
+}
+
+export interface MonthlyProductionBreakdown {
+  month: string; // "Jan", "Feb", ...
+  monthIndex: number; // 0 to 11
+  days: number;
+  ghiKwhM2Day: number; // Global Horizontal Irradiance (kWh/m2/day)
+  poaKwhM2Day: number; // Plane-of-Array Irradiance on tilted surface (kWh/m2/day)
+  tiltTranspositionFactor: number; // POA / GHI ratio
+  ambientTempC: number; // Ambient 2m air temperature (°C)
+  cellTempC: number; // Nominal operating cell temperature (°C)
+  tempDerateFactor: number; // e.g. 0.90 (-10% loss)
+  performanceRatioPct: number; // Net PR for this month (%)
+  productionKwh: number; // Kilowatt-hours generated in this month
+  productionMwh: number; // Megawatt-hours generated in this month
+  capacityUtilizationFactorPct: number; // Monthly CUF (%)
+}
+
+export interface LossWaterfallItem {
+  id: string;
+  name: string;
+  lossPct: number; // Percentage lost (e.g. 2.5)
+  derateFactor: number; // Multiplicative factor (e.g. 0.975)
+  explanation: string;
+}
+
+export interface EconomicSensitivityItem {
+  scenarioName: string;
+  capexTotalInr: number;
+  tariffInrPerKwh: number;
+  simplePaybackYears: number;
+  lcoeInrPerKwh: number;
+}
+
+export interface EconomicFeasibilityResult {
+  capexTotalInr: number;
+  capexPerKwpInr: number;
+  opexAnnualInr: number;
+  tariffInrPerKwh: number;
+  annualRevenueInr: number;
+  simplePaybackYears: number;
+  lcoeInrPerKwh: number; // 25-year Levelized Cost of Electricity (LCOE)
+  twentyFiveYearNetSavingsInr: number;
+  sensitivityMatrix: EconomicSensitivityItem[];
+  economicDisclaimer: string;
+}
+
+export interface SolarRealityResult {
+  installedCapacityKwp: number;
+  installedCapacityMwp: number;
+  systemPerformanceRatio: number; // Overall weighted PR (0.0 to 1.0)
+  annualGenerationKwh: number;
+  annualGenerationMwh: number;
+  dailyAverageKwh: number;
+  specificYieldKwhPerKwp: number; // kWh / kWp / year
+  capacityUtilizationFactorPct: number; // CUF %
+  annualGhiAverageKwhM2Day: number;
+  annualPoaAverageKwhM2Day: number;
+  monthlyBreakdown: MonthlyProductionBreakdown[];
+  lossWaterfall: LossWaterfallItem[];
+  economics: EconomicFeasibilityResult;
+  dataProvenance: {
+    dataset: string;
+    source: string;
+    temporalResolution: string;
+    spatialResolution: string;
+    isClimatological: boolean;
+    retrievedAt: string;
+    license: string;
+  };
+  modelLimitations: string[];
+}
+
