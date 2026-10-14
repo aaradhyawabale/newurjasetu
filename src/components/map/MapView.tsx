@@ -36,6 +36,13 @@ interface MapViewProps {
     r1M: number;
     r2M: number;
   } | null;
+  solarShadingData?: {
+    shadowPolygons?: any[];
+    hypotheticalBuildings?: any[];
+    shadedFootprintOverlap?: any;
+    sunAzimuthDeg?: number;
+    sunElevationDeg?: number;
+  } | null;
   onMapClick: (lat: number, lng: number) => void;
   onMapLoaded?: (exportFn: () => string | null) => void;
   className?: string;
@@ -51,6 +58,7 @@ export const MapView: React.FC<MapViewProps> = ({
   conflicts = [],
   analyzedFeatures = [],
   searchRings = null,
+  solarShadingData = null,
   onMapClick,
   onMapLoaded,
   className = "",
@@ -355,6 +363,86 @@ export const MapView: React.FC<MapViewProps> = ({
         },
       });
 
+      // Add Solar Shading Cast Shadows GeoJSON source and layers
+      map.addSource("solar-shadows-source", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+
+      map.addLayer({
+        id: "solar-shadows-fill",
+        type: "fill",
+        source: "solar-shadows-source",
+        paint: {
+          "fill-color": "#0f172a",
+          "fill-opacity": 0.35,
+        },
+      });
+
+      map.addLayer({
+        id: "solar-shadows-line",
+        type: "line",
+        source: "solar-shadows-source",
+        paint: {
+          "line-color": "#334155",
+          "line-width": 1.5,
+          "line-dasharray": [2, 2],
+        },
+      });
+
+      // Add Solar Hypothetical Proposed Buildings GeoJSON source and layers
+      map.addSource("solar-hypothetical-source", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+
+      map.addLayer({
+        id: "solar-hypothetical-fill",
+        type: "fill",
+        source: "solar-hypothetical-source",
+        paint: {
+          "fill-color": "#9333ea",
+          "fill-opacity": 0.25,
+        },
+      });
+
+      map.addLayer({
+        id: "solar-hypothetical-line",
+        type: "line",
+        source: "solar-hypothetical-source",
+        paint: {
+          "line-color": "#7e22ce",
+          "line-width": 2,
+          "line-dasharray": [4, 2],
+        },
+      });
+
+      // Add Solar Shaded Array Overlap GeoJSON source and layers
+      map.addSource("solar-shaded-overlap-source", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+
+      map.addLayer({
+        id: "solar-shaded-overlap-fill",
+        type: "fill",
+        source: "solar-shaded-overlap-source",
+        paint: {
+          "fill-color": "#ef4444",
+          "fill-opacity": 0.55,
+        },
+      });
+
+      map.addLayer({
+        id: "solar-shaded-overlap-line",
+        type: "line",
+        source: "solar-shaded-overlap-source",
+        paint: {
+          "line-color": "#b91c1c",
+          "line-width": 2,
+        },
+      });
+
       if (onMapLoaded) {
         onMapLoaded(() => {
           if (!mapRef.current) return null;
@@ -650,12 +738,54 @@ export const MapView: React.FC<MapViewProps> = ({
     }
   }, [placement, activeType, isLoaded]);
 
+  // Update Solar Shading Simulation Overlays on Map
+  useEffect(() => {
+    if (!mapRef.current || !isLoaded) return;
+    const shadowsSource = mapRef.current.getSource("solar-shadows-source") as maplibregl.GeoJSONSource;
+    const hypoSource = mapRef.current.getSource("solar-hypothetical-source") as maplibregl.GeoJSONSource;
+    const overlapSource = mapRef.current.getSource("solar-shaded-overlap-source") as maplibregl.GeoJSONSource;
+
+    if (shadowsSource) {
+      shadowsSource.setData({
+        type: "FeatureCollection",
+        features: (solarShadingData?.shadowPolygons as any[]) || [],
+      });
+    }
+
+    if (hypoSource) {
+      hypoSource.setData({
+        type: "FeatureCollection",
+        features: (solarShadingData?.hypotheticalBuildings as any[]) || [],
+      });
+    }
+
+    if (overlapSource) {
+      overlapSource.setData({
+        type: "FeatureCollection",
+        features: solarShadingData?.shadedFootprintOverlap ? [solarShadingData.shadedFootprintOverlap as any] : [],
+      });
+    }
+  }, [solarShadingData, isLoaded]);
+
   const mappedConflictCount = (conflicts || []).filter((c) => Boolean(c.geometry)).length;
   const analyzedCount = (analyzedFeatures || []).length;
 
   return (
     <div className={`relative w-full h-full ${className}`}>
       <div ref={mapContainerRef} className="w-full h-full" />
+
+      {/* Solar Shading Floating Indicator Badge */}
+      {solarShadingData?.sunAzimuthDeg !== undefined && (
+        <div className="absolute top-3 left-3 z-20 bg-amber-50/95 backdrop-blur-xs border border-amber-300 rounded-panel px-3 py-1.5 shadow-md flex items-center gap-2 text-xs text-amber-900 font-mono">
+          <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
+          <span>
+            Sun: Azimuth {solarShadingData.sunAzimuthDeg}°, Elevation {solarShadingData.sunElevationDeg}°
+          </span>
+          <span className="text-[10px] text-amber-700 bg-amber-100 px-1.5 py-0.2 rounded font-sans font-bold">
+            Shading Active
+          </span>
+        </div>
+      )}
       {(mappedConflictCount > 0 || analyzedCount > 0) && (
         <div className="absolute bottom-8 right-3 z-20 bg-white/95 backdrop-blur-xs border border-stone-200 rounded-panel px-3 py-1.5 shadow-md flex items-center flex-wrap gap-3 text-[11px] font-mono text-stone-700">
           {mappedConflictCount > 0 && (

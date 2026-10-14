@@ -8,6 +8,7 @@ import { PlacementPanel } from "../panels/PlacementPanel";
 import { ReportDrawer } from "../reports/ReportDrawer";
 import { HistoryDrawer, HistoryItem } from "../history/HistoryDrawer";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
+import { ShadowSimulatorModal } from "../solar/ShadowSimulatorModal";
 import { useToast } from "../ui/Toast";
 import { InfrastructureTypeId, INFRASTRUCTURE_TYPES } from "@/config/infra-types";
 import { ValidationResult } from "@/server/analysis-engine/validation";
@@ -64,6 +65,10 @@ export const AppShell: React.FC<AppShellProps> = ({
   const [currentAnalysisId, setCurrentAnalysisId] = useState<string | null>(null);
   const [isReportOpen, setIsReportOpen] = useState<boolean>(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState<boolean>(false);
+
+  // State: Shadow-of-the-Future Simulator
+  const [isShadowSimulatorOpen, setIsShadowSimulatorOpen] = useState<boolean>(false);
+  const [solarShadingOverlay, setSolarShadingOverlay] = useState<any | null>(null);
 
   // State: History
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
@@ -622,6 +627,7 @@ export const AppShell: React.FC<AppShellProps> = ({
             conflicts={validationResult?.conflicts || currentReport?.validation?.conflicts || []}
             analyzedFeatures={currentReport?.analyzedFeatures || []}
             searchRings={currentReport?.searchRings || null}
+            solarShadingData={solarShadingOverlay}
             onMapClick={handleMapClick}
             onMapLoaded={(exportFn) => {
               mapCanvasExportRef.current = exportFn;
@@ -680,6 +686,7 @@ export const AppShell: React.FC<AppShellProps> = ({
           onValidate={handleValidateFootprint}
           validationResult={validationResult}
           isValidating={isValidating}
+          onOpenShadowSimulator={() => setIsShadowSimulatorOpen(true)}
         />
       </div>
 
@@ -709,6 +716,16 @@ export const AppShell: React.FC<AppShellProps> = ({
         onConfirm={confirmDialog.onConfirm}
         onCancel={() => setConfirmDialog((prev) => ({ ...prev, isOpen: false }))}
       />
+
+      {/* Shadow-of-the-Future Solar Shading Simulator Modal */}
+      {activePlacement && (
+        <ShadowSimulatorModal
+          isOpen={isShadowSimulatorOpen}
+          onClose={() => setIsShadowSimulatorOpen(false)}
+          placement={activePlacement}
+          onApplyMapOverlay={(overlay) => setSolarShadingOverlay(overlay)}
+        />
+      )}
     </div>
   );
 };

@@ -11,6 +11,8 @@ import {
   Info,
   Loader2,
   ShieldCheck,
+  Sun,
+  Sparkles,
 } from "lucide-react";
 import {
   InfrastructureTypeId,
@@ -39,6 +41,7 @@ interface PlacementPanelProps {
   onValidate: () => Promise<ValidationResult | null>;
   validationResult: ValidationResult | null;
   isValidating: boolean;
+  onOpenShadowSimulator?: () => void;
   className?: string;
 }
 
@@ -48,6 +51,7 @@ export const PlacementPanel: React.FC<PlacementPanelProps> = ({
   onValidate,
   validationResult,
   isValidating,
+  onOpenShadowSimulator,
   className = "",
 }) => {
   if (!placement) {
@@ -281,6 +285,32 @@ export const PlacementPanel: React.FC<PlacementPanelProps> = ({
                 return null;
               })}
             </div>
+          </div>
+        )}
+
+        {/* Shadow-of-the-Future Simulator Action */}
+        {placement.type === "Solar Farm" && (
+          <div className="pt-2 border-t border-amber-200 bg-amber-50/70 p-3 rounded-lg flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-mono uppercase tracking-wider font-bold text-amber-900 flex items-center gap-1.5">
+                <Sun className="w-3.5 h-3.5 text-amber-600" />
+                <span>Shadow-of-the-Future</span>
+              </span>
+              <span className="text-[9px] font-mono px-1.5 py-0.2 bg-amber-200 text-amber-800 rounded font-bold">
+                Shading AI
+              </span>
+            </div>
+            <p className="text-[11px] text-amber-850 leading-snug">
+              Simulate 3D solar positions, building shadows, and what-if future tower developments.
+            </p>
+            <button
+              type="button"
+              onClick={onOpenShadowSimulator}
+              className="w-full py-1.5 px-3 rounded-btn bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold flex items-center justify-center gap-1.5 shadow-xs transition-colors"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Simulate Solar Shading</span>
+            </button>
           </div>
         )}
 
