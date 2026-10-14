@@ -141,12 +141,19 @@ describe("Analysis Engine Pipeline & Geospatial Validation", () => {
       expect(result.recommendations!.length).toBeGreaterThan(0);
       expect(result.limitations.length).toBeGreaterThan(0);
       expect(result.narrativeText).toContain("UrjaSetu");
+      expect(result.sensitivity).toBeDefined();
+      expect(result.sensitivity!.profiles.length).toBeGreaterThanOrEqual(2);
+      expect(result.sensitivity!.rankStability).toBeDefined();
 
       for (const crit of result.criteria) {
         expect(crit.score).toBeGreaterThanOrEqual(0);
         expect(crit.score).toBeLessThanOrEqual(100);
         expect(crit.weight).toBeGreaterThan(0);
         expect(crit.benchmark).toContain("NEEDS VERIFICATION");
+        expect(crit.calculationMethod).toBeDefined();
+        expect(crit.dataSourceName).toBeDefined();
+        expect(crit.weightedContribution).toBeGreaterThanOrEqual(0);
+        expect(crit.uncertaintyClassification).toBeDefined();
       }
     });
   }

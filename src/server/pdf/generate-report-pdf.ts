@@ -336,6 +336,52 @@ export async function generateReportPdf(
     }
   }
 
+  // Sensitivity Analysis & Weight Profiles
+  if (report.sensitivity) {
+    y -= 12;
+    ensureSpace(60);
+    page.drawText("SENSITIVITY ANALYSIS (ALTERNATIVE MCDA WEIGHT PROFILES)", {
+      x: 30,
+      y,
+      size: 9,
+      font: boldFont,
+      color: rgb(0.12, 0.44, 0.33),
+    });
+    y -= 11;
+
+    const sensSummaryLines = wrapText(
+      `Rank Stability: ${report.sensitivity.rankStability.toUpperCase()} — ${report.sensitivity.sensitivitySummary}`,
+      95
+    );
+    for (const sLine of sensSummaryLines) {
+      page.drawText(sLine, {
+        x: 34,
+        y,
+        size: 7.5,
+        font: timesRoman,
+        color: rgb(0.2, 0.2, 0.2),
+      });
+      y -= 9.5;
+    }
+
+    // Profile pill summaries
+    y -= 2;
+    ensureSpace(20);
+    let profX = 34;
+    for (const prof of report.sensitivity.profiles.slice(0, 3)) {
+      const profText = `${prof.profileName}: ${prof.score}/100 (${prof.scoreDeltaFromBaseline >= 0 ? `+${prof.scoreDeltaFromBaseline}` : prof.scoreDeltaFromBaseline} pts)`;
+      page.drawText(profText, {
+        x: profX,
+        y,
+        size: 7,
+        font: boldFont,
+        color: rgb(0.15, 0.35, 0.25),
+      });
+      profX += 175;
+    }
+    y -= 10;
+  }
+
   // Calculation Assumptions & Evidence Provenance
   if (report.assumptions && report.assumptions.length > 0) {
     y -= 10;

@@ -26,6 +26,7 @@ import {
   determineSuitabilityBand,
 } from "./scoring";
 import { OsmElement, StandardizedGeoFeature, StandardizedFeatureCategory } from "../providers/types";
+import { calculateSensitivityAnalysis } from "./sensitivity";
 
 export type AnalysisErrorCode =
   | "INVALID_INPUT"
@@ -93,6 +94,16 @@ export interface CriterionResult {
   description: string;
   computed?: boolean;
   missingReason?: string;
+  calculationMethod?: string;
+  dataSourceName?: string;
+  weightedContribution?: number;
+  uncertaintyClassification?:
+    | "evidence_supported"
+    | "confirmed_constraint"
+    | "incomplete_evidence"
+    | "estimated_proxy"
+    | "unknown";
+  limitations?: string;
 }
 
 export interface AnalysisReportResult {
@@ -140,6 +151,7 @@ export interface AnalysisReportResult {
   evidence: EvidenceItem[];
   limitations: string[];
   narrativeText: string;
+  sensitivity?: import("./sensitivity").SensitivityAnalysisResult;
 }
 
 const overpassProvider = new OverpassProvider();
@@ -1550,6 +1562,46 @@ export async function runAnalysisEngine(params: {
       computedWeight += critDef.weight;
     }
 
+    // Explainability: calculate weighted contribution to final score
+    const weightedContribution = isComputed && computedWeight > 0
+      ? Math.round((scoreObj.score * critDef.weight) * 10) / 10
+      : 0;
+
+    // Uncertainty classification
+    let uncertaintyClassification: CriterionResult["uncertaintyClassification"] = "evidence_supported";
+    if (!isComputed) {
+      uncertaintyClassification = "unknown";
+    } else if (critDef.id === "shading_obstruction_proxy" && nearbyBuildings250mCount > 0 && buildingsWithHeightTagsCount === 0) {
+      uncertaintyClassification = "incomplete_evidence";
+    } else if (critDef.id.includes("proxy") || critDef.id.includes("catchment") || critDef.id === "green_space_deficit") {
+      uncertaintyClassification = "estimated_proxy";
+    } else if (validation.status === "fail") {
+      uncertaintyClassification = "confirmed_constraint";
+    }
+
+    // Calculation method explanation
+    let calculationMethod = "Piecewise benchmark evaluation against statutory and planning thresholds.";
+    if (critDef.sourceProvider === "overpass") {
+      calculationMethod = `Geodesic distance (${config.searchRadiusR1M}m / ${config.searchRadiusR2M}m radius) to classified OpenStreetMap vector geometries via Turf.js.`;
+    } else if (critDef.sourceProvider === "open-meteo" && critDef.id !== "precipitation_intensity") {
+      calculationMethod = "Horn's 3x3 finite-difference terrain slope and aspect calculated from Copernicus GLO-90 DEM elevation grid.";
+    } else if (critDef.id === "precipitation_intensity") {
+      calculationMethod = "Annual peak 24-hr rainfall extracted from 365-day ECMWF ERA5-Land reanalysis time series.";
+    } else if (critDef.sourceProvider === "nasa-power") {
+      calculationMethod = "Multi-year Global Horizontal Irradiance (GHI) climatology from NASA CERES satellite & MERRA-2 assimilation.";
+    } else if (critDef.sourceProvider === "osm-coverage") {
+      calculationMethod = `Feature density metric (mapped OSM features per km² within ${config.searchRadiusR1M}m radius).`;
+    }
+
+    let criterionLimitations: string | undefined;
+    if (critDef.sourceProvider === "overpass") {
+      criterionLimitations = "Subject to community mapping completeness in OpenStreetMap; unmapped physical structures may alter local distances.";
+    } else if (critDef.sourceProvider === "open-meteo") {
+      criterionLimitations = "90m horizontal DEM resolution smooths out micro-topography; local civil grading and retaining wall surveys required.";
+    } else if (critDef.sourceProvider === "nasa-power") {
+      criterionLimitations = "~50km satellite grid average; localized microclimate and horizon ridge shading require on-site solar pyranometer logging.";
+    }
+
     computedCriteria.push({
       id: critDef.id,
       label: critDef.label,
@@ -1567,6 +1619,17 @@ export async function runAnalysisEngine(params: {
       evidenceIds: isComputed ? evidenceIds : [],
       description: critDef.description,
       computed: isComputed,
+      calculationMethod,
+      dataSourceName: critDef.sourceProvider === "overpass"
+        ? overpassSourceName
+        : critDef.sourceProvider === "open-meteo"
+        ? (elevationData?.source || "Open-Meteo DEM")
+        : critDef.sourceProvider === "nasa-power"
+        ? (solarData?.source || "NASA POWER CERES")
+        : "UrjaSetu Geospatial Coverage Engine",
+      weightedContribution,
+      uncertaintyClassification,
+      limitations: criterionLimitations,
       ...(missingReason ? { missingReason } : {}),
     });
   }
@@ -1585,7 +1648,7 @@ export async function runAnalysisEngine(params: {
 
   let finalScore = Math.round(weightedSum / computedWeight);
 
-  // Penalize score if critical validation conflicts exist
+  // Penalize score if critical validation conflicts exist (MANDATORY CONSTRAINT OVERRIDE)
   if (validation.status === "fail") {
     finalScore = Math.min(finalScore, 24);
   } else if (validation.status === "warn") {
@@ -1607,6 +1670,13 @@ export async function runAnalysisEngine(params: {
   if (anyStaleDataUsed) {
     confidencePercent = Math.max(20, confidencePercent - 10);
   }
+
+  // Calculate deterministic sensitivity analysis across alternative weighting profiles
+  const sensitivity = calculateSensitivityAnalysis({
+    type,
+    criteria: computedCriteria,
+    validationStatus: validation.status,
+  });
 
   // =========================================================================
   // STEP 8: GENERATE ACTIONABLE RECOMMENDATIONS & EXPLANATION
@@ -1653,7 +1723,13 @@ export async function runAnalysisEngine(params: {
   }
 
   const primaryEvdId = evidence[0]?.id || "evd_osm_r2";
-  const narrative = `UrjaSetu geospatial multi-criteria evaluation indicates an overall score of ${finalScore}/100 (${bandInfo.band}, ${confidencePercent}% data confidence) for the proposed ${config.label} project [${primaryEvdId}]. The site encompasses ${lengthM}m × ${widthM}m (~${footprintAreaM2.toLocaleString()} m²) at coordinates (${lat.toFixed(4)}, ${lng.toFixed(4)}). Primary supporting factors include ${
+  const constraintPrefix = validation.status === "fail"
+    ? "MANDATORY CONSTRAINT OVERRIDE: Prohibited spatial overlap detected. "
+    : validation.status === "warn"
+    ? "MANDATORY SETBACK WARNING: Localized buffer constraint active. "
+    : "";
+
+  const narrative = `${constraintPrefix}UrjaSetu geospatial multi-criteria evaluation indicates an overall score of ${finalScore}/100 (${bandInfo.band}, ${confidencePercent}% data confidence) for the proposed ${config.label} project [${primaryEvdId}]. The site encompasses ${lengthM}m × ${widthM}m (~${footprintAreaM2.toLocaleString()} m²) at coordinates (${lat.toFixed(4)}, ${lng.toFixed(4)}). Primary supporting factors include ${
     supporting.slice(0, 2).join(" Furthermore, ") || "baseline access alignment"
   }. Key constraints include ${
     risks.slice(0, 2).join(" In addition, ") || "routine regulatory setback verification"
@@ -1661,7 +1737,7 @@ export async function runAnalysisEngine(params: {
     elevationLoaded
       ? `Digital elevation modeling records ${elevationData.centerElevationM}m elevation with ${elevationData.slopePercent}% ground gradient [evd_elevation].`
       : "Digital elevation data could not be retrieved for this run."
-  } Recommended next action: ${recommendations[0]} This assessment provides indicative decision support only and must be corroborated by statutory on-site land surveys.`;
+  } Sensitivity analysis: ${sensitivity.sensitivitySummary} Recommended next action: ${recommendations[0]} This assessment provides indicative decision support only and must be corroborated by statutory on-site land surveys.`;
 
   return {
     ...(analysisId ? { analysisId } : {}),
@@ -1708,5 +1784,6 @@ export async function runAnalysisEngine(params: {
       r1M: config.searchRadiusR1M,
       r2M: config.searchRadiusR2M,
     },
+    sensitivity,
   };
 }

@@ -12,6 +12,9 @@ import {
   Layers,
   MapPin,
   ExternalLink,
+  Sliders,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { Drawer } from "../ui/Drawer";
 import { ScoreBar } from "../ui/ScoreBar";
@@ -34,6 +37,8 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
   onDownloadPdf,
   isDownloadingPdf = false,
 }) => {
+  const [expandedCriterionId, setExpandedCriterionId] = React.useState<string | null>(null);
+
   if (!report) return null;
 
   const { overall, placementSnapshot, criteria, supporting, risks, dataGaps, evidence, limitations } = report;
@@ -184,55 +189,122 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                   <th className="py-2.5 px-3 font-semibold">Weight</th>
                   <th className="py-2.5 px-3 font-semibold">Benchmark</th>
                   <th className="py-2.5 px-3 font-semibold">Evidence</th>
+                  <th className="py-2.5 px-2 font-semibold w-8"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100 bg-white">
-                {criteria.map((c) => (
-                  <tr key={c.id} className="hover:bg-stone-50/70 transition-colors">
-                    <td className="py-2.5 px-3 font-medium text-stone-900">
-                      <div className="flex items-center gap-1.5">
-                        <span>{c.label}</span>
-                        {c.status === "unknown" && (
-                          <StatusBadge status="unknown" />
-                        )}
-                      </div>
-                      <div className="text-[10px] text-stone-500 font-normal max-w-xs truncate">
-                        {c.description}
-                      </div>
-                      {c.missingReason && (
-                        <div className="text-[10px] text-amber-800 bg-amber-50/80 border border-amber-200/70 rounded px-1.5 py-0.5 mt-1 max-w-xs leading-tight">
-                          {c.missingReason}
-                        </div>
+                {criteria.map((c) => {
+                  const isExpanded = expandedCriterionId === c.id;
+                  return (
+                    <React.Fragment key={c.id}>
+                      <tr
+                        onClick={() => setExpandedCriterionId(isExpanded ? null : c.id)}
+                        className={`hover:bg-stone-50/70 transition-colors cursor-pointer ${
+                          isExpanded ? "bg-emerald-50/20" : ""
+                        }`}
+                      >
+                        <td className="py-2.5 px-3 font-medium text-stone-900">
+                          <div className="flex items-center gap-1.5">
+                            <span>{c.label}</span>
+                            {c.status === "unknown" && (
+                              <StatusBadge status="unknown" />
+                            )}
+                            {c.uncertaintyClassification && c.uncertaintyClassification !== "evidence_supported" && (
+                              <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-stone-100 text-stone-600 border border-stone-200 uppercase">
+                                {c.uncertaintyClassification.replace("_", " ")}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[10px] text-stone-500 font-normal max-w-xs truncate">
+                            {c.description}
+                          </div>
+                          {c.missingReason && (
+                            <div className="text-[10px] text-amber-800 bg-amber-50/80 border border-amber-200/70 rounded px-1.5 py-0.5 mt-1 max-w-xs leading-tight">
+                              {c.missingReason}
+                            </div>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-3 font-mono font-medium text-stone-700 whitespace-nowrap">
+                          {c.value}
+                        </td>
+                        <td className="py-2.5 px-3">
+                          <ScoreBar score={c.score} size="sm" />
+                        </td>
+                        <td className="py-2.5 px-3 font-mono text-stone-500 whitespace-nowrap">
+                          <div>{Math.round(c.weight * 100)}%</div>
+                          {c.weightedContribution !== undefined && (
+                            <div className="text-[9px] text-stone-400">+{c.weightedContribution} pts</div>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-3 text-[11px] text-stone-500 max-w-xs leading-tight">
+                          {c.benchmark}
+                        </td>
+                        <td className="py-2.5 px-3 whitespace-nowrap">
+                          {c.evidenceIds.map((eid) => (
+                            <EvidenceChip
+                              key={eid}
+                              id={eid}
+                              onClick={(targetId) => {
+                                const el = document.getElementById(`evidence-${targetId}`);
+                                if (el) {
+                                  el.scrollIntoView({ behavior: "smooth", block: "center" });
+                                }
+                              }}
+                            />
+                          ))}
+                        </td>
+                        <td className="py-2.5 px-2 text-stone-400 text-center">
+                          {isExpanded ? (
+                            <ChevronUp className="w-3.5 h-3.5 inline text-emerald-700" />
+                          ) : (
+                            <ChevronDown className="w-3.5 h-3.5 inline text-stone-400" />
+                          )}
+                        </td>
+                      </tr>
+
+                      {/* Expandable Explanation Details */}
+                      {isExpanded && (
+                        <tr className="bg-stone-50/75 border-y border-stone-200">
+                          <td colSpan={7} className="p-3.5 text-xs text-stone-700">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                              <div className="flex flex-col gap-1">
+                                <span className="font-mono text-[10px] uppercase font-bold text-stone-500">
+                                  Calculation Method
+                                </span>
+                                <p className="text-[11px] text-stone-800 leading-relaxed">
+                                  {c.calculationMethod || "Piecewise benchmark evaluation."}
+                                </p>
+                              </div>
+
+                              <div className="flex flex-col gap-1">
+                                <span className="font-mono text-[10px] uppercase font-bold text-stone-500">
+                                  Data Source & Classification
+                                </span>
+                                <div className="flex flex-col gap-0.5 text-[11px]">
+                                  <span className="font-mono text-emerald-800 font-medium">
+                                    {c.dataSourceName || "Geospatial Provider"}
+                                  </span>
+                                  <span className="text-stone-600">
+                                    Confidence: <strong className="font-mono uppercase">{c.uncertaintyClassification || "evidence_supported"}</strong>
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className="flex flex-col gap-1">
+                                <span className="font-mono text-[10px] uppercase font-bold text-stone-500">
+                                  Metric Limitations
+                                </span>
+                                <p className="text-[11px] text-stone-600 leading-relaxed italic">
+                                  {c.limitations || "Subject to local field validation and municipal planning guidelines."}
+                                </p>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
                       )}
-                    </td>
-                    <td className="py-2.5 px-3 font-mono font-medium text-stone-700 whitespace-nowrap">
-                      {c.value}
-                    </td>
-                    <td className="py-2.5 px-3">
-                      <ScoreBar score={c.score} size="sm" />
-                    </td>
-                    <td className="py-2.5 px-3 font-mono text-stone-500 whitespace-nowrap">
-                      {Math.round(c.weight * 100)}%
-                    </td>
-                    <td className="py-2.5 px-3 text-[11px] text-stone-500 max-w-xs leading-tight">
-                      {c.benchmark}
-                    </td>
-                    <td className="py-2.5 px-3 whitespace-nowrap">
-                      {c.evidenceIds.map((eid) => (
-                        <EvidenceChip
-                          key={eid}
-                          id={eid}
-                          onClick={(targetId) => {
-                            const el = document.getElementById(`evidence-${targetId}`);
-                            if (el) {
-                              el.scrollIntoView({ behavior: "smooth", block: "center" });
-                            }
-                          }}
-                        />
-                      ))}
-                    </td>
-                  </tr>
-                ))}
+                    </React.Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -265,6 +337,83 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                 <li key={i}>{gap}</li>
               ))}
             </ul>
+          </div>
+        )}
+
+        {/* Sensitivity Analysis (MCDA Alternative Weight Profiles) */}
+        {report.sensitivity && (
+          <div className="p-4 rounded-panel bg-stone-50 border border-stone-200 flex flex-col gap-3">
+            <div className="flex items-center justify-between border-b border-stone-200 pb-2">
+              <div className="flex items-center gap-2">
+                <Sliders className="w-4 h-4 text-emerald-700" />
+                <span className="font-mono text-xs font-bold uppercase tracking-wider text-stone-900">
+                  Sensitivity Analysis (Weight Profiles)
+                </span>
+              </div>
+              <span
+                className={`text-[10px] font-mono px-2 py-0.5 rounded font-semibold border ${
+                  report.sensitivity.rankStability === "stable"
+                    ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                    : report.sensitivity.rankStability === "sensitive"
+                    ? "bg-amber-50 text-amber-800 border-amber-200"
+                    : "bg-red-50 text-red-800 border-red-200"
+                }`}
+              >
+                Stability: {report.sensitivity.rankStability.toUpperCase()}
+              </span>
+            </div>
+
+            <p className="text-xs text-stone-600 leading-relaxed">
+              {report.sensitivity.sensitivitySummary}
+            </p>
+
+            {report.sensitivity.constraintPenaltyNote && (
+              <div className="p-2.5 rounded bg-red-50 border border-red-200 text-red-800 text-[11px] leading-snug flex items-start gap-1.5 font-medium">
+                <ShieldAlert className="w-3.5 h-3.5 shrink-0 mt-0.5 text-red-600" />
+                <span>{report.sensitivity.constraintPenaltyNote}</span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 pt-1">
+              {report.sensitivity.profiles.map((prof) => (
+                <div
+                  key={prof.profileId}
+                  className="p-3 rounded-control bg-white border border-stone-200 flex flex-col justify-between gap-2 shadow-2xs"
+                >
+                  <div className="flex flex-col gap-0.5">
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-xs font-bold text-stone-900 leading-tight">
+                        {prof.profileName}
+                      </span>
+                      {prof.scoreDeltaFromBaseline !== 0 && (
+                        <span
+                          className={`text-[10px] font-mono font-bold px-1.5 py-0.2 rounded ${
+                            prof.scoreDeltaFromBaseline > 0
+                              ? "bg-emerald-100 text-emerald-800"
+                              : "bg-stone-100 text-stone-700"
+                          }`}
+                        >
+                          {prof.scoreDeltaFromBaseline > 0 ? `+${prof.scoreDeltaFromBaseline}` : prof.scoreDeltaFromBaseline}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-stone-500 leading-tight line-clamp-2 mt-0.5">
+                      {prof.rationale}
+                    </p>
+                  </div>
+
+                  <div className="flex items-baseline justify-between border-t border-stone-100 pt-1.5">
+                    <span className="text-base font-mono font-bold text-stone-900">
+                      {prof.score}
+                      <span className="text-[10px] text-stone-400 font-normal">/100</span>
+                    </span>
+                    <span className="text-[10px] font-mono font-medium text-stone-600">
+                      {prof.band.replace(" Suitability", "")}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
