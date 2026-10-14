@@ -35,6 +35,7 @@ interface HistoryDrawerProps {
   historyItems: HistoryItem[];
   onOpenReport: (id: string) => void;
   onDeleteReport: (id: string) => void;
+  onOpenDetailedCompare?: (placementIds: string[]) => void;
   isLoading?: boolean;
 }
 
@@ -44,6 +45,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
   historyItems,
   onOpenReport,
   onDeleteReport,
+  onOpenDetailedCompare,
 }) => {
   const [compareIds, setCompareIds] = useState<string[]>([]);
 
@@ -174,6 +176,21 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
                   );
                 })}
               </div>
+
+              {onOpenDetailedCompare && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const placementIds = selectedCandidates.map((c) => c.placementId);
+                    onOpenDetailedCompare(placementIds);
+                    onClose();
+                  }}
+                  className="w-full py-2 px-3 rounded-btn bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-2xs"
+                >
+                  <GitCompare className="w-3.5 h-3.5 text-emerald-200" />
+                  <span>Open Full Scenario Simulator & Trade-Offs</span>
+                </button>
+              )}
             </div>
           )}
 

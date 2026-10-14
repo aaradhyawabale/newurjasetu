@@ -10,6 +10,7 @@ import { HistoryDrawer, HistoryItem } from "../history/HistoryDrawer";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { ShadowSimulatorModal } from "../solar/ShadowSimulatorModal";
 import { SolarRealityModal } from "../solar/SolarRealityModal";
+import { ScenarioComparisonModal } from "../scenarios/ScenarioComparisonModal";
 import { useToast } from "../ui/Toast";
 import { InfrastructureTypeId, INFRASTRUCTURE_TYPES } from "@/config/infra-types";
 import { ValidationResult } from "@/server/analysis-engine/validation";
@@ -71,6 +72,10 @@ export const AppShell: React.FC<AppShellProps> = ({
   const [isShadowSimulatorOpen, setIsShadowSimulatorOpen] = useState<boolean>(false);
   const [isSolarRealityOpen, setIsSolarRealityOpen] = useState<boolean>(false);
   const [solarShadingOverlay, setSolarShadingOverlay] = useState<any | null>(null);
+
+  // State: Scenario Comparison Simulator
+  const [isComparisonOpen, setIsComparisonOpen] = useState<boolean>(false);
+  const [comparisonPlacementIds, setComparisonPlacementIds] = useState<string[] | undefined>(undefined);
 
   // State: History
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
@@ -599,6 +604,10 @@ export const AppShell: React.FC<AppShellProps> = ({
           handleMapClick(lat, lng);
         }}
         onSignOut={handleSignOut}
+        onCompareClick={() => {
+          setComparisonPlacementIds(undefined);
+          setIsComparisonOpen(true);
+        }}
         userName={user.name || user.email}
         historyCount={historyItems.length}
         isAnalyzing={isAnalyzing}
@@ -709,6 +718,10 @@ export const AppShell: React.FC<AppShellProps> = ({
         historyItems={historyItems}
         onOpenReport={handleOpenSavedReport}
         onDeleteReport={handleDeleteReport}
+        onOpenDetailedCompare={(placementIds) => {
+          setComparisonPlacementIds(placementIds);
+          setIsComparisonOpen(true);
+        }}
       />
 
       {/* Confirmation Dialog */}
@@ -738,6 +751,21 @@ export const AppShell: React.FC<AppShellProps> = ({
           placement={activePlacement}
         />
       )}
+
+      {/* Scenario Simulator & Candidate Comparison Modal */}
+      <ScenarioComparisonModal
+        isOpen={isComparisonOpen}
+        onClose={() => {
+          setIsComparisonOpen(false);
+          setComparisonPlacementIds(undefined);
+        }}
+        scenarioId={currentScenarioId}
+        scenarioName={scenarios.find((s) => s.id === currentScenarioId)?.name}
+        selectedPlacementIds={comparisonPlacementIds}
+        onSelectCandidateLocation={(lat, lng) => {
+          setMapCenter({ lat, lng });
+        }}
+      />
     </div>
   );
 };

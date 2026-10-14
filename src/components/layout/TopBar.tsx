@@ -15,6 +15,7 @@ import {
   Loader2,
   MapPin,
   Sparkles,
+  GitCompare,
 } from "lucide-react";
 
 interface Scenario {
@@ -38,6 +39,7 @@ interface TopBarProps {
   onExportGeoJsonClick: () => void;
   onSearchSelectLocation: (lat: number, lng: number, label: string) => void;
   onSignOut: () => void;
+  onCompareClick?: () => void;
   userName?: string | null;
   historyCount: number;
   isAnalyzing: boolean;
@@ -61,6 +63,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   onExportGeoJsonClick,
   onSearchSelectLocation,
   onSignOut,
+  onCompareClick,
   userName,
   historyCount,
   isAnalyzing,
@@ -285,6 +288,19 @@ export const TopBar: React.FC<TopBarProps> = ({
             </div>
           )}
         </div>
+
+        {/* Compare Candidates Simulator Button */}
+        {onCompareClick && (
+          <button
+            type="button"
+            onClick={onCompareClick}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-btn border border-stone-200 hover:border-emerald-700/50 bg-white hover:bg-emerald-50/50 text-xs font-semibold text-stone-700 hover:text-emerald-800 transition-colors shadow-2xs"
+            title="Open Scenario Simulator & Candidate Comparison"
+          >
+            <GitCompare className="w-3.5 h-3.5 text-emerald-700" />
+            <span className="hidden sm:inline">Compare</span>
+          </button>
+        )}
       </div>
 
       {/* Right: Actions, Exports & Profile */}
