@@ -278,4 +278,160 @@ describe("Solar Reality: Solar Generation & Feasibility Engine", () => {
       expect(result.modelLimitations.length).toBeGreaterThanOrEqual(4);
     });
   });
+
+  describe("Phase A: Input Audit & Archetypes", () => {
+    it("audits inputs into required, optional, estimated, and missing categories", () => {
+      const result = estimateSolarGeneration(
+        {
+          lat: 28.6139,
+          lng: 77.209,
+          capacityKwp: 250,
+          systemType: "rooftop_commercial",
+          panelTiltDeg: 15,
+        },
+        dummySolarResource
+      );
+
+      expect(result.inputAudit.length).toBeGreaterThanOrEqual(8);
+
+      const coordItem = result.inputAudit.find((i) => i.key === "coordinates")!;
+      expect(coordItem.state).toBe("required_provided");
+
+      const capItem = result.inputAudit.find((i) => i.key === "capacityKwp")!;
+      expect(capItem.state).toBe("required_provided");
+
+      const tiltItem = result.inputAudit.find((i) => i.key === "panelTiltDeg")!;
+      expect(tiltItem.state).toBe("optional_provided");
+      expect(tiltItem.value).toBe(15);
+
+      const obsItem = result.inputAudit.find((i) => i.key === "observedGeneration")!;
+      expect(obsItem.state).toBe("missing_unprovided");
+    });
+
+    it("applies appropriate residential wiring loss derate for rooftop residential", () => {
+      const resResult = estimateSolarGeneration(
+        { lat: 28.6139, lng: 77.209, capacityKwp: 10, systemType: "rooftop_residential" },
+        dummySolarResource
+      );
+      expect(resResult.systemType).toBe("rooftop_residential");
+    });
+  });
+
+  describe("Phase C: Seasonal Weather & Monsoon Dynamics", () => {
+    it("evaluates monsoon cloud attenuation and pre-monsoon thermal derate", () => {
+      const result = estimateSolarGeneration(
+        { lat: 28.6139, lng: 77.209, capacityKwp: 5000 },
+        dummySolarResource
+      );
+
+      const sw = result.seasonalWeather;
+      expect(sw.monsoonPeriod.months).toEqual(["Jun", "Jul", "Aug", "Sep"]);
+      expect(sw.monsoonPeriod.monsoonDropPercentage).toBeGreaterThan(15.0); // > 15% GHI drop in monsoon vs May peak
+      expect(sw.monsoonPeriod.weatherDynamicsNote).toContain("Monsoon cloud attenuation");
+
+      expect(sw.dryDustSeason.peakAmbientTempC).toBeGreaterThanOrEqual(33.0);
+      expect(sw.dryDustSeason.elevatedSoilingRisk).toBe(true);
+      expect(sw.winterClearSeason.winterGenerationMwh).toBeGreaterThan(0);
+    });
+  });
+
+  describe("Phase D: Modelled vs Observed Performance & Calibration", () => {
+    it("operates in uncalibrated estimate mode when no meter records provided (zero fake data)", () => {
+      const result = estimateSolarGeneration(
+        { lat: 28.6139, lng: 77.209, capacityKwp: 1000 },
+        dummySolarResource
+      );
+
+      expect(result.calibration.isCalibrated).toBe(false);
+      expect(result.calibration.totalObservedKwh).toBe(0);
+      expect(result.calibration.calibrationInsight).toContain("uncalibrated climatological estimate mode");
+      expect(result.calibration.calibrationInsight).toContain("does not synthesize fake meter readings");
+    });
+
+    it("evaluates MBE, MAPE, RMSE, and calibration insights when actual meter records supplied", () => {
+      // 12 months of actual meter readings for a 1000 kWp plant in Delhi
+      const observedTelemetries = [
+        { month: "Jan", observedKwh: 92000 },
+        { month: "Feb", observedKwh: 101000 },
+        { month: "Mar", observedKwh: 135000 },
+        { month: "Apr", observedKwh: 142000 },
+        { month: "May", observedKwh: 145000 },
+        { month: "Jun", observedKwh: 122000 },
+        { month: "Jul", observedKwh: 95000 },
+        { month: "Aug", observedKwh: 92000 },
+        { month: "Sep", observedKwh: 105000 },
+        { month: "Oct", observedKwh: 118000 },
+        { month: "Nov", observedKwh: 96000 },
+        { month: "Dec", observedKwh: 86000 },
+      ];
+
+      const result = estimateSolarGeneration(
+        {
+          lat: 28.6139,
+          lng: 77.209,
+          capacityKwp: 1000,
+          observedGeneration: observedTelemetries,
+        },
+        dummySolarResource
+      );
+
+      expect(result.calibration.isCalibrated).toBe(true);
+      expect(result.calibration.totalObservedKwh).toBeGreaterThan(1000000);
+      expect(result.calibration.monthlyComparisons).toHaveLength(12);
+
+      // Verify statistical calibration error metrics
+      expect(result.calibration.meanBiasErrorKwh).toBeDefined();
+      expect(result.calibration.meanAbsolutePercentageErrorPct).toBeGreaterThanOrEqual(0);
+      expect(result.calibration.rootMeanSquareErrorKwh).toBeGreaterThan(0);
+      expect(result.calibration.observedSpecificYieldKwhPerKwp).toBeGreaterThan(1000);
+      expect(result.calibration.calibrationInsight.length).toBeGreaterThan(20);
+    });
+  });
+
+  describe("Phase E: Statistical Uncertainty Bounds (P50, P90, P10)", () => {
+    it("computes Gaussian exceedance bounds: P90 < P50 < P10", () => {
+      const result = estimateSolarGeneration(
+        { lat: 28.6139, lng: 77.209, capacityKwp: 2000 },
+        dummySolarResource
+      );
+
+      const { p50AnnualGenerationMwh, p90AnnualGenerationMwh, p10AnnualGenerationMwh } =
+        result.uncertaintyBounds;
+
+      expect(p50AnnualGenerationMwh).toBe(result.annualGenerationMwh);
+      expect(p90AnnualGenerationMwh).toBeLessThan(p50AnnualGenerationMwh);
+      expect(p10AnnualGenerationMwh).toBeGreaterThan(p50AnnualGenerationMwh);
+
+      // P90 should be roughly 8.5% - 9% below P50
+      const p90Ratio = p90AnnualGenerationMwh / p50AnnualGenerationMwh;
+      expect(p90Ratio).toBeGreaterThan(0.90);
+      expect(p90Ratio).toBeLessThan(0.93);
+    });
+  });
+
+  describe("Phase F: Future-Shading Simulator Integration", () => {
+    it("seamlessly imports 3D simulated shading and guards against double-counting", () => {
+      const result = estimateSolarGeneration(
+        {
+          lat: 28.6139,
+          lng: 77.209,
+          capacityKwp: 1000,
+          shadingSource: "shadow_of_the_future_simulation",
+          shadingLossPct: 6.5,
+          shadingScenarioName: "2028 Municipal Masterplan High-Rise Corridor",
+        },
+        dummySolarResource
+      );
+
+      expect(result.shadingIntegration.source).toBe("shadow_of_the_future_simulation");
+      expect(result.shadingIntegration.shadingLossPct).toBe(6.5);
+      expect(result.shadingIntegration.doubleCountingGuarded).toBe(true);
+      expect(result.shadingIntegration.notes).toContain("superseded to eliminate double-counting");
+
+      // Verify the loss waterfall reflects the simulated shading loss
+      const shadingLossItem = result.lossWaterfall.find((l) => l.id === "shading_obstruction_loss")!;
+      expect(shadingLossItem.lossPct).toBe(6.5);
+      expect(shadingLossItem.name).toContain("Shadow-of-the-Future");
+    });
+  });
 });

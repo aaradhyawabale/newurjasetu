@@ -170,18 +170,118 @@ export interface SolarShadingResult {
   limitations: string[];
 }
 
+export type SolarSystemType =
+  | "rooftop_commercial" // Grid-tied commercial/industrial rooftop
+  | "rooftop_residential" // Residential grid-tied rooftop
+  | "ground_mount_utility" // Central station utility scale solar farm
+  | "ground_mount_cni"; // Ground mounted behind-the-meter captive plant
+
+export type InputEpistemicState =
+  | "required_provided"
+  | "optional_provided"
+  | "estimated_proxy"
+  | "missing_unprovided";
+
+export interface InputAuditItem {
+  key: string;
+  label: string;
+  value: string | number | boolean | null;
+  unit?: string;
+  state: InputEpistemicState;
+  provenance: string;
+}
+
+export interface SeasonalWeatherSummary {
+  monsoonPeriod: {
+    months: string[]; // e.g. ["Jun", "Jul", "Aug", "Sep"]
+    monsoonGhiAverage: number;
+    monsoonGenerationMwh: number;
+    monsoonCufPct: number;
+    monsoonDropPercentage: number; // vs pre-monsoon peak
+    weatherDynamicsNote: string;
+  };
+  dryDustSeason: {
+    months: string[]; // e.g. ["Mar", "Apr", "May"]
+    peakAmbientTempC: number;
+    estimatedThermalDeratePct: number;
+    elevatedSoilingRisk: boolean;
+    weatherDynamicsNote: string;
+  };
+  winterClearSeason: {
+    months: string[]; // e.g. ["Oct", "Nov", "Dec", "Jan", "Feb"]
+    winterGhiAverage: number;
+    winterGenerationMwh: number;
+    weatherDynamicsNote: string;
+  };
+}
+
+export interface ObservedMonthlyGeneration {
+  month: string; // "Jan", "Feb", ...
+  observedKwh: number;
+  meterSource?: string;
+  reportedDowntimeHours?: number;
+  notes?: string;
+}
+
+export interface CalibrationComparisonResult {
+  isCalibrated: boolean;
+  totalObservedKwh: number;
+  totalModelledKwh: number;
+  energyDeltaKwh: number; // observed - modelled
+  energyDeltaPct: number; // (observed - modelled) / modelled * 100
+  meanBiasErrorKwh: number; // MBE = 1/N * sum(modelled - observed)
+  meanAbsolutePercentageErrorPct: number; // MAPE
+  rootMeanSquareErrorKwh: number; // RMSE
+  observedSpecificYieldKwhPerKwp: number;
+  observedCapacityUtilizationFactorPct: number;
+  monthlyComparisons: {
+    month: string;
+    modelledKwh: number;
+    observedKwh: number;
+    deltaKwh: number;
+    deltaPct: number;
+    performanceRatioPct: number;
+    downtimeNormalizedKwh?: number;
+  }[];
+  calibrationInsight: string;
+  recommendedAdjustmentPct?: number; // suggested tuning factor
+}
+
+export interface GenerationUncertaintyBounds {
+  p50AnnualGenerationMwh: number; // Median expected (standard model output)
+  p90AnnualGenerationMwh: number; // Conservative 90% exceedance probability (~ -8% interannual weather & pyranometer variance)
+  p10AnnualGenerationMwh: number; // Optimistic 10% exceedance probability (~ +8% high solar resource year)
+  interannualVariabilityPct: number; // typically 4.5% - 6.0% in India
+  modelUncertaintyPct: number; // +/- 5.0%
+}
+
+export interface ShadingIntegrationMeta {
+  source: "default_benchmark" | "shadow_of_the_future_simulation";
+  shadingLossPct: number;
+  simulatedScenarioName?: string;
+  annualGenerationDropMwh?: number;
+  doubleCountingGuarded: boolean;
+  notes: string;
+}
+
 export interface SolarRealityInput {
   lat: number;
   lng: number;
   capacityKwp: number; // Direct DC peak capacity in kWp
+  systemType?: SolarSystemType;
+  availableAreaM2?: number; // Rooftop or parcel area
+  groundCoverageRatio?: number; // e.g. 0.45 for ground mount
   panelTiltDeg?: number; // Tilt angle in degrees (default to lat or 22°)
   panelAzimuthDeg?: number; // True azimuth (default 180° for North hemisphere, 0° for South)
   soilingLossPct?: number; // Custom soiling percentage (default 2.5%)
   shadingLossPct?: number; // Shading loss percentage (e.g. from Shadow-of-the-Future or default 2.0%)
+  shadingSource?: "default_benchmark" | "shadow_of_the_future_simulation";
+  shadingScenarioName?: string;
   inverterEfficiencyPct?: number; // Inverter efficiency (default 97.5%)
   capexPerKwpInr?: number; // Benchmark capital expenditure per kWp (default ₹42,000)
   tariffPerKwhInr?: number; // Commercial or PPA electricity tariff per kWh (default ₹6.50)
   opexAnnualPct?: number; // Annual O&M cost as % of Capex (default 1.2%)
+  observedGeneration?: ObservedMonthlyGeneration[];
 }
 
 export interface MonthlyProductionBreakdown {
@@ -230,6 +330,7 @@ export interface EconomicFeasibilityResult {
 }
 
 export interface SolarRealityResult {
+  systemType: SolarSystemType;
   installedCapacityKwp: number;
   installedCapacityMwp: number;
   systemPerformanceRatio: number; // Overall weighted PR (0.0 to 1.0)
@@ -242,6 +343,11 @@ export interface SolarRealityResult {
   annualPoaAverageKwhM2Day: number;
   monthlyBreakdown: MonthlyProductionBreakdown[];
   lossWaterfall: LossWaterfallItem[];
+  seasonalWeather: SeasonalWeatherSummary;
+  calibration: CalibrationComparisonResult;
+  uncertaintyBounds: GenerationUncertaintyBounds;
+  shadingIntegration: ShadingIntegrationMeta;
+  inputAudit: InputAuditItem[];
   economics: EconomicFeasibilityResult;
   dataProvenance: {
     dataset: string;

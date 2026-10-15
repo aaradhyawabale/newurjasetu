@@ -42,11 +42,19 @@ export async function POST(req: NextRequest) {
         lat: placement.lat,
         lng: placement.lng,
         capacityKwp,
+        systemType: body.systemType ?? params.systemType,
+        availableAreaM2: placement.lengthM * placement.widthM,
         panelTiltDeg: Number(body.panelTiltDeg ?? params.panelTiltDeg ?? 22),
+        panelAzimuthDeg: typeof body.panelAzimuthDeg === "number" ? body.panelAzimuthDeg : params.panelAzimuthDeg,
         soilingLossPct: typeof body.soilingLossPct === "number" ? body.soilingLossPct : 2.5,
-        shadingLossPct: typeof body.shadingLossPct === "number" ? body.shadingLossPct : 2.0,
+        shadingLossPct: typeof body.shadingLossPct === "number" ? body.shadingLossPct : (params.shadingLossPct ?? 2.0),
+        shadingSource: body.shadingSource ?? params.shadingSource,
+        shadingScenarioName: body.shadingScenarioName ?? params.shadingScenarioName,
+        inverterEfficiencyPct: typeof body.inverterEfficiencyPct === "number" ? body.inverterEfficiencyPct : 97.5,
         capexPerKwpInr: typeof body.capexPerKwpInr === "number" ? body.capexPerKwpInr : 42000,
         tariffPerKwhInr: typeof body.tariffPerKwhInr === "number" ? body.tariffPerKwhInr : 6.50,
+        opexAnnualPct: typeof body.opexAnnualPct === "number" ? body.opexAnnualPct : 1.2,
+        observedGeneration: Array.isArray(body.observedGeneration) ? body.observedGeneration : undefined,
       };
     } else {
       const lat = Number(body.lat);
@@ -65,11 +73,19 @@ export async function POST(req: NextRequest) {
         lat,
         lng,
         capacityKwp,
+        systemType: body.systemType,
+        availableAreaM2: typeof body.availableAreaM2 === "number" ? body.availableAreaM2 : undefined,
         panelTiltDeg: typeof body.panelTiltDeg === "number" ? body.panelTiltDeg : undefined,
+        panelAzimuthDeg: typeof body.panelAzimuthDeg === "number" ? body.panelAzimuthDeg : undefined,
         soilingLossPct: typeof body.soilingLossPct === "number" ? body.soilingLossPct : 2.5,
         shadingLossPct: typeof body.shadingLossPct === "number" ? body.shadingLossPct : 2.0,
+        shadingSource: body.shadingSource,
+        shadingScenarioName: body.shadingScenarioName,
+        inverterEfficiencyPct: typeof body.inverterEfficiencyPct === "number" ? body.inverterEfficiencyPct : 97.5,
         capexPerKwpInr: typeof body.capexPerKwpInr === "number" ? body.capexPerKwpInr : 42000,
         tariffPerKwhInr: typeof body.tariffPerKwhInr === "number" ? body.tariffPerKwhInr : 6.50,
+        opexAnnualPct: typeof body.opexAnnualPct === "number" ? body.opexAnnualPct : 1.2,
+        observedGeneration: Array.isArray(body.observedGeneration) ? body.observedGeneration : undefined,
       };
     }
 
