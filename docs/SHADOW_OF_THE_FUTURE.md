@@ -100,13 +100,15 @@ Users can configure, simulate, and compare:
    - **Floating Sun Tracker**: Displays real-time sun azimuth and elevation badge on the live map.
 2. **Interactive Modal (`ShadowSimulatorModal.tsx`)**:
    - Time-of-day slider and Solstice / Equinox quick presets.
+   - Rooftop receiver elevation adjustment ($H_{\text{effective}} = \max(0, H_{\text{bldg}} - H_{\text{receiver}})$).
+   - Diurnal Solar Access table (07:00–17:00), Solar Access Ratio (SAR), and annualized $\Delta\text{MWh}$ screening.
    - Real-time exposure cards with baseline vs scenario comparison.
    - Obstructing buildings inspector displaying distance, height, and provenance badge for every shade-casting structure.
-   - Hypothetical tower insertion form with instant map synchronization.
+   - Hypothetical tower insertion form with status hierarchy (`approved_development`, `proposed_development`, `hypothetical_scenario`).
 
 ---
 
-## 7. Verification & Test Suite (STEP 7)
+## 7. Verification & Test Suite
 
 All calculations are verified by automated tests in `tests/unit/`:
 
@@ -114,12 +116,14 @@ All calculations are verified by automated tests in `tests/unit/`:
 # 1. Test astronomical solar position (Solstices, Equinox, Diurnal rotation, Southern Hemisphere)
 npx vitest run tests/unit/solar-position.test.ts
 
-# 2. Test geometric shadow projection, provenance tracking, and future scenarios
+# 2. Test geometric shadow projection, rooftop receiver elevation, provenance tracking, and diurnal access
 npx vitest run tests/unit/shadow-engine.test.ts
 
-# 3. Full project test suite (69 tests across 9 test files)
+# 3. Full project test suite (97 tests across 12 test files)
 npm test
 
 # 4. Production build verification
 npm run build
 ```
+
+For in-depth mathematical derivations and municipal planning integration details, see [FUTURE_AWARE_SOLAR_SHADING.md](file:///Users/aaradhya/Downloads/newesturjasetu/docs/FUTURE_AWARE_SOLAR_SHADING.md).

@@ -45,6 +45,11 @@ export async function POST(req: NextRequest) {
         widthM: placement.widthM,
         bearingDeg: placement.bearingDeg,
         panelTiltDeg: params.panelTiltDeg ?? 22,
+        receiverElevationAboveGroundM:
+          body.solarPlacement?.receiverElevationAboveGroundM ??
+          params.receiverElevationAboveGroundM ??
+          params.rooftopHeightM ??
+          0,
       };
 
       // Check if latest analysis already cached surrounding features
@@ -72,6 +77,8 @@ export async function POST(req: NextRequest) {
         widthM: Number(sp.widthM) || 200,
         bearingDeg: Number(sp.bearingDeg) || 0,
         panelTiltDeg: Number(sp.panelTiltDeg) || 22,
+        receiverElevationAboveGroundM:
+          Number(sp.receiverElevationAboveGroundM ?? sp.rooftopHeightM) || 0,
       };
     } else {
       return errorResponse(
@@ -110,7 +117,11 @@ export async function POST(req: NextRequest) {
       solarPlacement,
       simulationTime,
       surroundingFeatures,
-      scenarioConfig
+      scenarioConfig,
+      {
+        annualBaselineMwh: typeof body.annualBaselineMwh === "number" ? body.annualBaselineMwh : undefined,
+        futureScenarioMeta: body.futureScenarioMeta,
+      }
     );
 
     return successResponse({

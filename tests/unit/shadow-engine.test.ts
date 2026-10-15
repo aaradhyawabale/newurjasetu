@@ -206,8 +206,112 @@ describe("Shadow-of-the-Future: Geometric Shadow Engine & Scenarios", () => {
 
       // Explicit limitations check
       expect(result.limitations.length).toBeGreaterThanOrEqual(4);
-      expect(result.limitations.some((l) => l.includes("Instantaneous geometric snapshot"))).toBe(true);
+      expect(result.limitations.some((l) => l.includes("Geometric beam projection"))).toBe(true);
       expect(result.limitations.some((l) => l.includes("Hypothetical distinction"))).toBe(true);
+    });
+
+    it("applies rooftop receiver elevation offsetting: structures lower than receiver rooftop cast no shadow", () => {
+      // Proposed rooftop solar array atop an 18-meter commercial roof
+      const solarRooftopPlacement = {
+        lat: 28.6139,
+        lng: 77.209,
+        lengthM: 80,
+        widthM: 60,
+        bearingDeg: 0,
+        receiverElevationAboveGroundM: 18.0,
+      };
+
+      const winterSolsticeNoon = {
+        isoDate: "2026-12-21T06:30:00.000Z", // 12:00 IST
+        timezoneOffsetMinutes: 330,
+      };
+
+      // Adjacent low 12-meter building directly South
+      const lowSouthBuilding: StandardizedGeoFeature = dummyFeature({ heightM: 12.0 });
+
+      // 1. Elevated rooftop array (18m): 12m building is below array horizon -> 0% shadow
+      const elevatedResult = simulateSolarShading(
+        solarRooftopPlacement,
+        winterSolsticeNoon,
+        [lowSouthBuilding],
+        { includeExistingBuildings: true, hypotheticalBuildings: [] }
+      );
+
+      expect(elevatedResult.baseline.shadedAreaM2).toBe(0);
+      expect(elevatedResult.baseline.unshadedPercentage).toBe(100);
+
+      // 2. Ground-mounted array (0m): 12m building casts shadow on array
+      const groundPlacement = {
+        ...solarRooftopPlacement,
+        receiverElevationAboveGroundM: 0,
+      };
+      const groundResult = simulateSolarShading(
+        groundPlacement,
+        winterSolsticeNoon,
+        [lowSouthBuilding],
+        { includeExistingBuildings: true, hypotheticalBuildings: [] }
+      );
+
+      // At Dec 21 solar noon in Delhi, sun elevation is ~38°, so a 12m building South casts ~15m shadow
+      // When placed adjacent, ground result has higher shaded area than the rooftop result
+      expect(groundResult.baseline.unshadedPercentage).toBeLessThanOrEqual(elevatedResult.baseline.unshadedPercentage);
+    });
+
+    it("evaluates diurnal solar access and Solar Access Ratio (SAR) across daylight hours", () => {
+      const solarPlacement = {
+        lat: 28.6139,
+        lng: 77.209,
+        lengthM: 80,
+        widthM: 60,
+        bearingDeg: 0,
+        receiverElevationAboveGroundM: 0,
+      };
+
+      const simTime = {
+        isoDate: "2026-06-21T06:30:00.000Z", // Summer Solstice
+        timezoneOffsetMinutes: 330,
+      };
+
+      const tallTower = {
+        id: "tall-tower-approved",
+        name: "Approved 60m Masterplan Hub",
+        lat: 28.6132, // South
+        lng: 77.209,
+        lengthM: 40,
+        widthM: 40,
+        heightM: 60,
+        status: "hypothetical_proposal" as const,
+        developmentStatus: "approved_development" as const,
+        targetYear: 2028,
+        sourceDescription: "City Masterplan Permit #1042",
+      };
+
+      const result = simulateSolarShading(
+        solarPlacement,
+        simTime,
+        [],
+        { includeExistingBuildings: false, hypotheticalBuildings: [tallTower] },
+        { annualBaselineMwh: 120 }
+      );
+
+      expect(result.diurnalProfile).toBeDefined();
+      const dp = result.diurnalProfile!;
+      expect(dp.presetDateLabel).toContain("Summer Solstice");
+      expect(dp.diurnalSamples.length).toBe(6); // 07:00, 09:00, 11:00, 13:00, 15:00, 17:00
+      expect(dp.solarAccessRatioBaseline).toBeGreaterThanOrEqual(0.9);
+      expect(dp.solarAccessRatioScenario).toBeLessThanOrEqual(dp.solarAccessRatioBaseline);
+
+      // Annual generation screening loss derived from SAR
+      expect(dp.annualGenerationImpact).toBeDefined();
+      expect(dp.annualGenerationImpact!.baselineAnnualMwh).toBe(120);
+      expect(dp.annualGenerationImpact!.screeningMethodology).toContain("Direct-beam insolation loss proxy");
+
+      // Check obstruction status and metadata
+      const obs = result.obstructingBuildings.find((b) => b.id === tallTower.id);
+      if (obs) {
+        expect(obs.developmentStatus).toBe("approved_development");
+        expect(obs.obstructionNotes).toContain("Approved Permit");
+      }
     });
   });
 });

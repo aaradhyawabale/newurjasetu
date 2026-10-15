@@ -19,11 +19,18 @@ export interface SolarPosition {
   apparentSolarTime: string; // HH:MM true solar time
 }
 
+export type DevelopmentStatus =
+  | "existing_observed" // Verified observed building in OSM
+  | "approved_development" // Documented approved planning permit
+  | "proposed_development" // Publicly documented masterplan proposal
+  | "hypothetical_scenario"; // User-created what-if test scenario
+
 export interface BuildingObstructionFeature {
   id: string;
   name: string;
   source: "osm_overpass" | "user_hypothetical";
   category: string;
+  developmentStatus?: DevelopmentStatus;
   footprint: Feature<Polygon | MultiPolygon>;
   heightM: number;
   heightProvenance: HeightProvenance;
@@ -45,6 +52,10 @@ export interface HypotheticalBuilding {
   bearingDeg?: number;
   heightM: number;
   status: "hypothetical_proposal" | "hypothetical_height_variant";
+  developmentStatus?: DevelopmentStatus;
+  targetYear?: number;
+  confidence?: "high" | "medium" | "speculative";
+  sourceDescription?: string;
   notes?: string;
 }
 
@@ -55,6 +66,9 @@ export interface SolarPlacementInput {
   widthM: number;
   bearingDeg: number;
   panelTiltDeg?: number;
+  panelAzimuthDeg?: number;
+  receiverElevationAboveGroundM?: number; // 0m = ground mount, >0m = rooftop mount (e.g. 15m)
+  rooftopHeightM?: number; // alias
 }
 
 export interface SimulationTimeInput {
@@ -88,6 +102,49 @@ export interface ProvenanceSummary {
   hypotheticalCount: number;
 }
 
+export interface DiurnalSamplePoint {
+  hour: number; // 6 to 18
+  timeDisplay: string; // e.g. "09:00"
+  isoDate: string;
+  solarPosition: SolarPosition;
+  baselineShadedPercentage: number;
+  baselineUnshadedPercentage: number;
+  scenarioShadedPercentage: number;
+  scenarioUnshadedPercentage: number;
+  deltaShadedPercentage: number;
+  clearskyGhiWm2: number; // Theoretical clear-sky flux (W/m²)
+}
+
+export interface DiurnalSolarAccessSummary {
+  presetDateLabel: string; // "Summer Solstice (Jun 21)", "Equinox (Mar 21)", "Winter Solstice (Dec 21)"
+  simulatedDateIso: string;
+  baselineSunlightHours: number; // Hours with >= 50% unshaded array
+  scenarioSunlightHours: number;
+  deltaSunlightHours: number;
+  diurnalSamples: DiurnalSamplePoint[];
+  solarAccessRatioBaseline: number; // 0 to 1 weighted by insolation
+  solarAccessRatioScenario: number;
+  annualGenerationImpact?: {
+    baselineAnnualMwh: number;
+    scenarioAnnualMwh: number;
+    deltaAnnualMwh: number;
+    percentageLoss: number;
+    screeningMethodology: string;
+  };
+}
+
+export interface FutureScenarioDefinition {
+  scenarioId: string;
+  name: string;
+  targetYear: number;
+  status: DevelopmentStatus;
+  confidence: "high" | "medium" | "speculative";
+  sourceDescription: string;
+  includeExistingBuildings: boolean;
+  defaultUnknownBuildingHeightM?: number;
+  buildings: HypotheticalBuilding[];
+}
+
 export interface SolarShadingResult {
   simulationTime: {
     isoDate: string;
@@ -107,6 +164,8 @@ export interface SolarShadingResult {
   obstructingBuildings: BuildingObstructionFeature[];
   allShadowPolygons: Feature<Polygon>[];
   shadedFootprintOverlap?: Feature<Polygon | MultiPolygon> | null;
+  diurnalProfile?: DiurnalSolarAccessSummary;
+  futureScenarioMeta?: FutureScenarioDefinition;
   provenanceSummary: ProvenanceSummary;
   limitations: string[];
 }

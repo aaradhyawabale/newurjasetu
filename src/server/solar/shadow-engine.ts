@@ -13,6 +13,10 @@ import {
   ShadingMetrics,
   ProvenanceSummary,
   SolarShadingResult,
+  DiurnalSamplePoint,
+  DiurnalSolarAccessSummary,
+  FutureScenarioDefinition,
+  DevelopmentStatus,
 } from "./types";
 
 const DEFAULT_FLOOR_HEIGHT_M = 3.2; // Standard architectural ceiling + slab height (URDPFI / NBC India)
@@ -246,14 +250,198 @@ export function calculateShadedAreaM2(
 }
 
 /**
- * Runs the complete "Shadow-of-the-Future" future-aware solar shading simulation.
- * Compares the existing baseline built environment against user-defined hypothetical scenarios.
+ * Calculates diurnal solar access profile across daylight hours for a representative day.
+ */
+export function calculateDiurnalSolarAccess(params: {
+  solarPlacement: SolarPlacementInput;
+  baseDate: Date;
+  timezoneOffsetMinutes: number;
+  solarFootprint: Feature<Polygon>;
+  buildingFeatures: StandardizedGeoFeature[];
+  scenarioConfig: ShadingScenarioConfig;
+  receiverElevationM: number;
+  annualBaselineMwh?: number;
+}): DiurnalSolarAccessSummary {
+  const {
+    solarPlacement,
+    baseDate,
+    timezoneOffsetMinutes,
+    solarFootprint,
+    buildingFeatures,
+    scenarioConfig,
+    receiverElevationM,
+    annualBaselineMwh,
+  } = params;
+
+  // Derive preset date label
+  const month = baseDate.getUTCMonth(); // 0 to 11
+  let presetDateLabel = "Selected Date";
+  if (month === 5) presetDateLabel = "Summer Solstice (Jun 21)";
+  else if (month === 2) presetDateLabel = "Spring Equinox (Mar 21)";
+  else if (month === 8) presetDateLabel = "Autumn Equinox (Sep 21)";
+  else if (month === 11) presetDateLabel = "Winter Solstice (Dec 21)";
+
+  // Sample daytime hours from 07:00 to 17:00 at 2-hour increments
+  const sampleHours = [7, 9, 11, 13, 15, 17];
+  const diurnalSamples: DiurnalSamplePoint[] = [];
+
+  let totalClearSkyFlux = 0;
+  let weightedBaselineUnshaded = 0;
+  let weightedScenarioUnshaded = 0;
+
+  let baselineSunlightHours = 0;
+  let scenarioSunlightHours = 0;
+
+  const dateStr = baseDate.toISOString().substring(0, 10);
+
+  for (const hour of sampleHours) {
+    // Construct local time date: hour:00
+    // e.g. IST +5:30 means local 09:00 is 03:30 UTC
+    const localMs = new Date(`${dateStr}T${String(hour).padStart(2, "0")}:00:00Z`).getTime();
+    const utcDate = new Date(localMs - timezoneOffsetMinutes * 60000);
+
+    const solPos = calculateSolarPosition(solarPlacement.lat, solarPlacement.lng, utcDate, timezoneOffsetMinutes);
+
+    if (!solPos.isDaylight || solPos.elevationDeg <= 1.0) {
+      diurnalSamples.push({
+        hour,
+        timeDisplay: `${String(hour).padStart(2, "0")}:00`,
+        isoDate: utcDate.toISOString(),
+        solarPosition: solPos,
+        baselineShadedPercentage: 0,
+        baselineUnshadedPercentage: 0,
+        scenarioShadedPercentage: 0,
+        scenarioUnshadedPercentage: 0,
+        deltaShadedPercentage: 0,
+        clearskyGhiWm2: 0,
+      });
+      continue;
+    }
+
+    // Theoretical clear-sky direct beam irradiance
+    const elevRad = solPos.elevationDeg * (Math.PI / 180.0);
+    const clearskyGhiWm2 = Math.round(1000 * Math.pow(Math.sin(elevRad), 1.15));
+    totalClearSkyFlux += clearskyGhiWm2;
+
+    // 1. Baseline shadows for this hour
+    const baselineShadows: Feature<Polygon>[] = [];
+    for (const b of buildingFeatures) {
+      const bRes = resolveBuildingHeight(b, {
+        defaultUnknownHeightM: scenarioConfig.defaultUnknownBuildingHeightM,
+      });
+      const effectiveHeight = Math.max(0, bRes.heightM - receiverElevationM);
+      if (effectiveHeight > 0) {
+        const shadow = projectGroundShadow(
+          { type: "Feature", properties: b.attributes, geometry: b.geometry as Polygon | MultiPolygon },
+          effectiveHeight,
+          solPos.elevationDeg,
+          solPos.azimuthDeg
+        );
+        if (shadow) baselineShadows.push(shadow);
+      }
+    }
+
+    // 2. Scenario shadows for this hour
+    const scenarioShadows: Feature<Polygon>[] = [];
+    if (scenarioConfig.includeExistingBuildings) {
+      for (const b of buildingFeatures) {
+        const override = scenarioConfig.modifiedExistingBuildingHeights?.[b.id];
+        const sRes = resolveBuildingHeight(b, {
+          userOverrideHeightM: override,
+          defaultUnknownHeightM: scenarioConfig.defaultUnknownBuildingHeightM,
+        });
+        const effectiveHeight = Math.max(0, sRes.heightM - receiverElevationM);
+        if (effectiveHeight > 0) {
+          const shadow = projectGroundShadow(
+            { type: "Feature", properties: b.attributes, geometry: b.geometry as Polygon | MultiPolygon },
+            effectiveHeight,
+            solPos.elevationDeg,
+            solPos.azimuthDeg
+          );
+          if (shadow) scenarioShadows.push(shadow);
+        }
+      }
+    }
+
+    // Add hypothetical future buildings
+    for (const hb of scenarioConfig.hypotheticalBuildings) {
+      const effectiveHypoHeight = Math.max(0, hb.heightM - receiverElevationM);
+      if (effectiveHypoHeight > 0) {
+        const hbFootprint = createFootprintPolygon(hb.lat, hb.lng, hb.lengthM, hb.widthM, hb.bearingDeg || 0);
+        const shadow = projectGroundShadow(hbFootprint, effectiveHypoHeight, solPos.elevationDeg, solPos.azimuthDeg);
+        if (shadow) scenarioShadows.push(shadow);
+      }
+    }
+
+    const bCalc = calculateShadedAreaM2(solarFootprint, baselineShadows);
+    const sCalc = calculateShadedAreaM2(solarFootprint, scenarioShadows);
+
+    weightedBaselineUnshaded += (bCalc.unshadedPercentage / 100.0) * clearskyGhiWm2;
+    weightedScenarioUnshaded += (sCalc.unshadedPercentage / 100.0) * clearskyGhiWm2;
+
+    if (bCalc.unshadedPercentage >= 50) baselineSunlightHours += 2; // Each sample represents ~2h
+    if (sCalc.unshadedPercentage >= 50) scenarioSunlightHours += 2;
+
+    diurnalSamples.push({
+      hour,
+      timeDisplay: `${String(hour).padStart(2, "0")}:00`,
+      isoDate: utcDate.toISOString(),
+      solarPosition: solPos,
+      baselineShadedPercentage: bCalc.shadedPercentage,
+      baselineUnshadedPercentage: bCalc.unshadedPercentage,
+      scenarioShadedPercentage: sCalc.shadedPercentage,
+      scenarioUnshadedPercentage: sCalc.unshadedPercentage,
+      deltaShadedPercentage: Math.round((sCalc.shadedPercentage - bCalc.shadedPercentage) * 10) / 10,
+      clearskyGhiWm2,
+    });
+  }
+
+  const sarBaseline = totalClearSkyFlux > 0 ? Math.round((weightedBaselineUnshaded / totalClearSkyFlux) * 100) / 100 : 1;
+  const sarScenario = totalClearSkyFlux > 0 ? Math.round((weightedScenarioUnshaded / totalClearSkyFlux) * 100) / 100 : 1;
+
+  let annualGenerationImpact: DiurnalSolarAccessSummary["annualGenerationImpact"] = undefined;
+  if (typeof annualBaselineMwh === "number" && annualBaselineMwh > 0 && sarBaseline > 0) {
+    const lossRatio = Math.max(0, (sarBaseline - sarScenario) / sarBaseline);
+    const scenarioAnnualMwh = Math.round(annualBaselineMwh * (1 - lossRatio));
+    const deltaAnnualMwh = Math.round(annualBaselineMwh - scenarioAnnualMwh);
+    const percentageLoss = Math.round(lossRatio * 1000) / 10;
+
+    annualGenerationImpact = {
+      baselineAnnualMwh: annualBaselineMwh,
+      scenarioAnnualMwh,
+      deltaAnnualMwh,
+      percentageLoss,
+      screeningMethodology:
+        "Direct-beam insolation loss proxy derived from diurnal sampling weighted by clear-sky solar elevation curve. Does not model diffuse sky or albedo.",
+    };
+  }
+
+  return {
+    presetDateLabel,
+    simulatedDateIso: baseDate.toISOString(),
+    baselineSunlightHours,
+    scenarioSunlightHours,
+    deltaSunlightHours: scenarioSunlightHours - baselineSunlightHours,
+    diurnalSamples,
+    solarAccessRatioBaseline: sarBaseline,
+    solarAccessRatioScenario: sarScenario,
+    annualGenerationImpact,
+  };
+}
+
+/**
+ * Runs the complete future-aware solar shading simulation.
+ * Compares the existing baseline built environment against user-defined future scenarios.
  */
 export function simulateSolarShading(
   solarPlacement: SolarPlacementInput,
   simulationTime: SimulationTimeInput,
   surroundingFeatures: StandardizedGeoFeature[],
-  scenarioConfig: ShadingScenarioConfig
+  scenarioConfig: ShadingScenarioConfig,
+  options?: {
+    annualBaselineMwh?: number;
+    futureScenarioMeta?: FutureScenarioDefinition;
+  }
 ): SolarShadingResult {
   const simDate = new Date(simulationTime.isoDate);
   const tzOffset = simulationTime.timezoneOffsetMinutes ?? 0;
@@ -271,7 +459,10 @@ export function simulateSolarShading(
   );
   const totalSolarAreaM2 = Math.round(turf.area(solarFootprint));
 
-  // 3. Filter existing surrounding buildings from geographic evidence
+  // 3. Extract receiver elevation (rooftop vs ground-mounted)
+  const receiverElevationM = solarPlacement.receiverElevationAboveGroundM ?? solarPlacement.rooftopHeightM ?? 0;
+
+  // 4. Filter existing surrounding buildings from geographic evidence
   const buildingFeatures = surroundingFeatures.filter(
     (f) =>
       f.category === "building" &&
@@ -290,7 +481,7 @@ export function simulateSolarShading(
   const scenarioObstructions: BuildingObstructionFeature[] = [];
   const scenarioShadows: Feature<Polygon>[] = [];
 
-  // 4. Process existing mapped buildings
+  // 5. Process existing mapped buildings
   for (const b of buildingFeatures) {
     const footprint = {
       type: "Feature" as const,
@@ -313,13 +504,16 @@ export function simulateSolarShading(
     else if (baselineHeightRes.provenance === "default_assumption") defaultAssumedCount++;
     else unavailableCount++;
 
+    // Calculate effective height above the solar receiver (for rooftop solar)
+    const effectiveBaselineHeightM = Math.max(0, baselineHeightRes.heightM - receiverElevationM);
+
     // Cast baseline shadow
     let bShadow: Feature<Polygon> | null = null;
     let bIntersects = false;
     let bOverlapM2 = 0;
 
-    if (solarPos.isDaylight && baselineHeightRes.heightM > 0) {
-      bShadow = projectGroundShadow(footprint, baselineHeightRes.heightM, solarPos.elevationDeg, solarPos.azimuthDeg);
+    if (solarPos.isDaylight && effectiveBaselineHeightM > 0) {
+      bShadow = projectGroundShadow(footprint, effectiveBaselineHeightM, solarPos.elevationDeg, solarPos.azimuthDeg);
       if (bShadow) {
         baselineShadows.push(bShadow);
         try {
@@ -336,11 +530,17 @@ export function simulateSolarShading(
       }
     }
 
+    const receiverNote =
+      receiverElevationM > 0
+        ? ` Receiver at ${receiverElevationM}m elevation (effective obstruction height: ${effectiveBaselineHeightM}m).`
+        : "";
+
     baselineObstructions.push({
       id: b.id,
       name: b.label || `Building ${b.id.substring(0, 8)}`,
       source: "osm_overpass",
       category: b.subCategory || "building",
+      developmentStatus: "existing_observed",
       footprint,
       heightM: baselineHeightRes.heightM,
       heightProvenance: baselineHeightRes.provenance,
@@ -349,7 +549,7 @@ export function simulateSolarShading(
       shadowPolygon: bShadow || undefined,
       castsShadowOnSolar: bIntersects,
       overlapAreaM2: bOverlapM2,
-      obstructionNotes: baselineHeightRes.notes,
+      obstructionNotes: baselineHeightRes.notes + receiverNote,
     });
 
     // Scenario height resolution (may have hypothetical height variant override)
@@ -359,12 +559,14 @@ export function simulateSolarShading(
       defaultUnknownHeightM: scenarioConfig.defaultUnknownBuildingHeightM,
     });
 
+    const effectiveScenarioHeightM = Math.max(0, scenarioHeightRes.heightM - receiverElevationM);
+
     let sShadow: Feature<Polygon> | null = null;
     let sIntersects = false;
     let sOverlapM2 = 0;
 
-    if (scenarioConfig.includeExistingBuildings && solarPos.isDaylight && scenarioHeightRes.heightM > 0) {
-      sShadow = projectGroundShadow(footprint, scenarioHeightRes.heightM, solarPos.elevationDeg, solarPos.azimuthDeg);
+    if (scenarioConfig.includeExistingBuildings && solarPos.isDaylight && effectiveScenarioHeightM > 0) {
+      sShadow = projectGroundShadow(footprint, effectiveScenarioHeightM, solarPos.elevationDeg, solarPos.azimuthDeg);
       if (sShadow) {
         scenarioShadows.push(sShadow);
         try {
@@ -386,6 +588,7 @@ export function simulateSolarShading(
       name: b.label || `Building ${b.id.substring(0, 8)}`,
       source: "osm_overpass",
       category: b.subCategory || "building",
+      developmentStatus: scenarioOverride ? "hypothetical_scenario" : "existing_observed",
       footprint,
       heightM: scenarioHeightRes.heightM,
       heightProvenance: scenarioHeightRes.provenance,
@@ -394,22 +597,24 @@ export function simulateSolarShading(
       shadowPolygon: sShadow || undefined,
       castsShadowOnSolar: sIntersects,
       overlapAreaM2: sOverlapM2,
-      obstructionNotes: scenarioHeightRes.notes,
+      obstructionNotes: scenarioHeightRes.notes + receiverNote,
     });
   }
 
-  // 5. Process user-proposed hypothetical buildings (future scenarios)
+  // 6. Process user-proposed hypothetical / approved / proposed future buildings
   const hypotheticalCount = scenarioConfig.hypotheticalBuildings.length;
   for (const hb of scenarioConfig.hypotheticalBuildings) {
     const hbFootprint = createFootprintPolygon(hb.lat, hb.lng, hb.lengthM, hb.widthM, hb.bearingDeg || 0);
     const distM = calculateDistanceMeters(solarPlacement.lat, solarPlacement.lng, hb.lat, hb.lng);
 
+    const effectiveHypoHeightM = Math.max(0, hb.heightM - receiverElevationM);
+
     let hShadow: Feature<Polygon> | null = null;
     let hIntersects = false;
     let hOverlapM2 = 0;
 
-    if (solarPos.isDaylight && hb.heightM > 0) {
-      hShadow = projectGroundShadow(hbFootprint, hb.heightM, solarPos.elevationDeg, solarPos.azimuthDeg);
+    if (solarPos.isDaylight && effectiveHypoHeightM > 0) {
+      hShadow = projectGroundShadow(hbFootprint, effectiveHypoHeightM, solarPos.elevationDeg, solarPos.azimuthDeg);
       if (hShadow) {
         scenarioShadows.push(hShadow);
         try {
@@ -426,11 +631,20 @@ export function simulateSolarShading(
       }
     }
 
+    const devStatus: DevelopmentStatus = hb.developmentStatus || "hypothetical_scenario";
+    const statusNote =
+      devStatus === "approved_development"
+        ? "[Documented Approved Development]"
+        : devStatus === "proposed_development"
+        ? "[Publicly Documented Proposal]"
+        : "[User-Created Hypothetical What-If]";
+
     scenarioObstructions.push({
       id: hb.id,
-      name: hb.name || `Hypothetical Tower (${hb.heightM}m)`,
+      name: hb.name || `Proposed Structure (${hb.heightM}m)`,
       source: "user_hypothetical",
       category: "hypothetical_proposal",
+      developmentStatus: devStatus,
       footprint: hbFootprint,
       heightM: hb.heightM,
       heightProvenance: "hypothetical_user",
@@ -438,11 +652,11 @@ export function simulateSolarShading(
       shadowPolygon: hShadow || undefined,
       castsShadowOnSolar: hIntersects,
       overlapAreaM2: hOverlapM2,
-      obstructionNotes: hb.notes || "Hypothetical proposed structure defined for what-if future shading analysis.",
+      obstructionNotes: `${statusNote} ${hb.notes || "Evaluated for future-aware solar shading."}`,
     });
   }
 
-  // 6. Calculate baseline and scenario shading metrics
+  // 7. Calculate baseline and scenario shading metrics
   const baselineCalc = calculateShadedAreaM2(solarFootprint, baselineShadows);
   const scenarioCalc = calculateShadedAreaM2(solarFootprint, scenarioShadows);
 
@@ -470,7 +684,7 @@ export function simulateSolarShading(
     ),
   };
 
-  // 7. Calculate Delta
+  // 8. Calculate Delta
   const deltaShadedAreaM2 = scenarioMetrics.shadedAreaM2 - baselineMetrics.shadedAreaM2;
   const deltaShadedPercentage =
     Math.round((scenarioMetrics.shadedPercentage - baselineMetrics.shadedPercentage) * 10) / 10;
@@ -480,13 +694,13 @@ export function simulateSolarShading(
 
   if (deltaShadedAreaM2 > 0) {
     exposureImpact = "increased_shading";
-    summaryText = `Future scenario increases solar array shading by +${deltaShadedAreaM2} m² (+${deltaShadedPercentage}%), reducing unshaded exposure to ${scenarioMetrics.unshadedPercentage}%.`;
+    summaryText = `Future scenario increases solar array shading by +${deltaShadedAreaM2} m² (+${deltaShadedPercentage}%), reducing unshaded exposure from ${baselineMetrics.unshadedPercentage}% down to ${scenarioMetrics.unshadedPercentage}%.`;
   } else if (deltaShadedAreaM2 < 0) {
     exposureImpact = "decreased_shading";
     summaryText = `Future scenario decreases shading by ${Math.abs(deltaShadedAreaM2)} m² (${Math.abs(deltaShadedPercentage)}%), increasing unshaded exposure to ${scenarioMetrics.unshadedPercentage}%.`;
   }
 
-  // Format local time display
+  // 9. Format local time display
   const localDate = new Date(simDate.getTime() + tzOffset * 60000);
   const localTimeDisplay = `${localDate.toISOString().substring(0, 10)} ${localDate.toISOString().substring(11, 16)} (UTC${tzOffset >= 0 ? "+" : ""}${Math.floor(tzOffset / 60)}:${String(Math.abs(tzOffset % 60)).padStart(2, "0")})`;
 
@@ -499,12 +713,24 @@ export function simulateSolarShading(
     hypotheticalCount,
   };
 
+  // 10. Diurnal Solar Access Profile Calculation
+  const diurnalProfile = calculateDiurnalSolarAccess({
+    solarPlacement,
+    baseDate: simDate,
+    timezoneOffsetMinutes: tzOffset,
+    solarFootprint,
+    buildingFeatures,
+    scenarioConfig,
+    receiverElevationM,
+    annualBaselineMwh: options?.annualBaselineMwh,
+  });
+
   const limitations = [
-    "Instantaneous geometric snapshot: Evaluates direct beam obstruction at the simulated hour, not annual cumulative kilowatt-hour generation loss.",
+    "Geometric beam projection: Evaluates direct astronomical sunlight ray paths. Diffuse sky radiation and ground reflection (albedo) are not modeled.",
+    `Receiver elevation offset: Modeled at ${receiverElevationM}m above ground level. Buildings shorter than this elevation cannot cast direct shadow on the panels.`,
     "Planar ground approximation: Terrain between building base and solar array is evaluated as locally flat without micro-relief 3D mesh.",
     "Hypothetical distinction: User-proposed structures are strictly hypothetical what-if simulations and do NOT represent approved or confirmed municipal master plans.",
-    "Beam radiation only: Diffuse sky irradiance and ground reflection (albedo) are not modeled in geometric ray-casting.",
-    "Height data uncertainty: Buildings without explicit tags rely on storey inferences or conservative default exclusions as documented.",
+    "Height data uncertainty: Buildings without explicit tags rely on storey inferences (3.2m/floor) or conservative default exclusions as documented.",
   ];
 
   return {
@@ -526,6 +752,8 @@ export function simulateSolarShading(
     obstructingBuildings: scenarioObstructions.filter((o) => o.castsShadowOnSolar),
     allShadowPolygons: scenarioShadows,
     shadedFootprintOverlap: scenarioCalc.overlapGeom,
+    diurnalProfile,
+    futureScenarioMeta: options?.futureScenarioMeta,
     provenanceSummary,
     limitations,
   };
