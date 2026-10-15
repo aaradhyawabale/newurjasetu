@@ -6,6 +6,23 @@ import {
 } from "@/server/analysis-engine/engine";
 import { ConflictingFeature } from "@/server/analysis-engine/validation";
 
+export interface EquityAccessibilitySummary {
+  bufferRadiusM: number;
+  catchmentAreaKm2: number;
+  connectedArterialsCount: number;
+  underservedZoneFlag: boolean;
+  accessibilityTier: "High Access" | "Moderate Access" | "Isolated";
+  disclaimer: string;
+}
+
+export interface InfrastructureSpecificMetric {
+  label: string;
+  value: string | number;
+  unit?: string;
+  interpretation: string;
+  limitation?: string;
+}
+
 export interface CandidateImpactSummary {
   spatialFootprintM2: number;
   arterialDistanceM: number | null;
@@ -13,6 +30,11 @@ export interface CandidateImpactSummary {
   accessQuality: "Optimal" | "Acceptable" | "Constrained" | "Unknown";
   solarPotentialAnnualMwh: number | null;
   solarSpecificYieldKwhPerKwp: number | null;
+  solarShadingLossPct?: number | null;
+  gridSubstationDistanceM?: number | null;
+  gridFeasibilityStatus?: "Optimal (<1km)" | "Acceptable (1-3km)" | "Constrained (>3km)" | "Unassessed";
+  infrastructureSpecificMetrics?: Record<string, InfrastructureSpecificMetric>;
+  equityAccessibility?: EquityAccessibilitySummary;
   serviceCatchmentProxy: {
     bufferRadiusM: number;
     nearbyAmenitiesCount: number;
@@ -117,6 +139,48 @@ export interface BaselineSiteCondition {
   environmentalNotice: string;
 }
 
+export interface BaselineComparisonMetric {
+  metricId: string;
+  label: string;
+  unit?: string;
+  baselineType: "status_quo" | "naive_proximity";
+  baselineValue: number | null;
+  baselineValueText: string;
+  candidateValue: number | null;
+  candidateValueText: string;
+  absoluteDelta: number | null;
+  percentageChange: number | null;
+  interpretation: string;
+  limitations: string;
+}
+
+export interface ScenarioBaselineEvaluation {
+  statusQuo: {
+    description: string;
+    civilFootprintM2: number;
+    newCapacityAdded: number;
+    newServiceReachM2: number;
+  };
+  naiveProximityBaseline: {
+    description: string;
+    arterialDistanceM: number | null;
+    baselineScore: number;
+  };
+  metricsByCandidate: Record<string, BaselineComparisonMetric[]>;
+  limitations: string[];
+}
+
+export interface CandidateTradeoffItem {
+  placementId: string;
+  label: string;
+  rank: number;
+  primaryAdvantage: string;
+  primaryDisadvantage: string;
+  differentiatingFactors: string[];
+  criticalTradeoffSummary: string;
+  epistemicLimitations: string[];
+}
+
 export interface ScenarioComparisonResult {
   scenarioId?: string;
   scenarioName?: string;
@@ -136,6 +200,10 @@ export interface ScenarioComparisonResult {
     modeledVsObservedNotice: string;
     keyTradeoffs: string[];
   };
+  baselineEvaluation?: ScenarioBaselineEvaluation;
+  tradeoffs?: CandidateTradeoffItem[];
+  equityAccessibilityMatrix?: Record<string, EquityAccessibilitySummary>;
   executiveSummary: string;
   generatedAt: string;
 }
+

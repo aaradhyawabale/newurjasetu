@@ -8,12 +8,17 @@ import {
 } from "@/server/analysis-engine/engine";
 import { ConflictingFeature } from "@/server/analysis-engine/validation";
 import {
+  BaselineComparisonMetric,
   BaselineSiteCondition,
   CandidateImpactSummary,
   CandidateRanking,
   CandidateSummary,
+  CandidateTradeoffItem,
   CandidateUncertaintyProfile,
   CriterionDelta,
+  EquityAccessibilitySummary,
+  InfrastructureSpecificMetric,
+  ScenarioBaselineEvaluation,
   ScenarioComparisonResult,
   SpatialSeparationPair,
 } from "./types";
@@ -128,6 +133,27 @@ export function buildCandidateSummary(params: {
       ? Math.round(amenityCriterion.rawMetric)
       : null;
 
+  // Extract substation distance specifically for electrical grid feasibility
+  const substationCriterion = report.criteria?.find(
+    (c) =>
+      c.id.includes("substation") ||
+      c.id.includes("power") ||
+      c.id.includes("grid") ||
+      c.label.toLowerCase().includes("substation") ||
+      c.label.toLowerCase().includes("grid")
+  );
+  const gridSubstationDistanceM =
+    typeof substationCriterion?.rawMetric === "number"
+      ? Math.round(substationCriterion.rawMetric)
+      : null;
+
+  let gridFeasibilityStatus: CandidateImpactSummary["gridFeasibilityStatus"] = "Unassessed";
+  if (gridSubstationDistanceM !== null) {
+    if (gridSubstationDistanceM <= 1000) gridFeasibilityStatus = "Optimal (<1km)";
+    else if (gridSubstationDistanceM <= 3000) gridFeasibilityStatus = "Acceptable (1-3km)";
+    else gridFeasibilityStatus = "Constrained (>3km)";
+  }
+
   // Assess access quality
   let accessQuality: CandidateImpactSummary["accessQuality"] = "Unknown";
   if (arterialDistanceM !== null) {
@@ -136,9 +162,10 @@ export function buildCandidateSummary(params: {
     else accessQuality = "Constrained";
   }
 
-  // Solar potential screening if Solar Farm
+  // Solar potential & shading screening if Solar Farm
   let solarPotentialAnnualMwh: number | null = null;
   let solarSpecificYieldKwhPerKwp: number | null = null;
+  let solarShadingLossPct: number | null = null;
 
   if (placement.type === "Solar Farm") {
     const ghiCriterion = report.criteria?.find((c) => c.id.includes("solar_ghi"));
@@ -150,6 +177,7 @@ export function buildCandidateSummary(params: {
     const annualHoursEquiv = ghiDaily * 365;
     solarSpecificYieldKwhPerKwp = Math.round(annualHoursEquiv * pr);
     solarPotentialAnnualMwh = Math.round((capacityKw * solarSpecificYieldKwhPerKwp) / 1000);
+    solarShadingLossPct = placement.params?.shadingPct ?? 3.5;
   }
 
   // Environmental exclusion count
@@ -177,6 +205,105 @@ export function buildCandidateSummary(params: {
       );
     }).length || (nearestAmenityDistanceM !== null && nearestAmenityDistanceM <= 1000 ? 1 : 0);
 
+  // Part D: Equity and Accessibility Summary
+  const bufferRadiusM = 500;
+  const catchmentAreaKm2 = Math.round(Math.PI * Math.pow(bufferRadiusM / 1000, 2) * 100) / 100;
+  const connectedArterialsCount = arterialDistanceM !== null && arterialDistanceM <= 300 ? 1 : 0;
+  const underservedZoneFlag =
+    nearbyAmenitiesCount === 0 || (arterialDistanceM !== null && arterialDistanceM > 500);
+  const accessibilityTier: EquityAccessibilitySummary["accessibilityTier"] =
+    accessQuality === "Optimal"
+      ? "High Access"
+      : accessQuality === "Acceptable"
+      ? "Moderate Access"
+      : "Isolated";
+
+  const equityAccessibility: EquityAccessibilitySummary = {
+    bufferRadiusM,
+    catchmentAreaKm2,
+    connectedArterialsCount,
+    underservedZoneFlag,
+    accessibilityTier,
+    disclaimer:
+      "Straight-line Euclidean catchment (0.79 km²) does not guarantee pedestrian or vehicular network routing. Demographic metrics are excluded due to absence of verified census data.",
+  };
+
+  // Part B: Domain-Specific Impact Metrics
+  const infrastructureSpecificMetrics: Record<string, InfrastructureSpecificMetric> = {};
+  if (placement.type === "Solar Farm") {
+    if (solarPotentialAnnualMwh !== null) {
+      infrastructureSpecificMetrics["solarGeneration"] = {
+        label: "Estimated Annual Solar Yield",
+        value: `${solarPotentialAnnualMwh.toLocaleString()} MWh/yr`,
+        unit: "MWh/yr",
+        interpretation: "Modeled annual energy production based on regional GHI and 78% PR.",
+        limitation: "Screening model; real yield depends on inverter efficiency and monthly soiling.",
+      };
+    }
+    if (solarSpecificYieldKwhPerKwp !== null) {
+      infrastructureSpecificMetrics["specificYield"] = {
+        label: "Specific Yield",
+        value: `${solarSpecificYieldKwhPerKwp} kWh/kWp`,
+        unit: "kWh/kWp",
+        interpretation: "Normalized annual electricity yield per kilowatt-peak of installed DC solar.",
+      };
+    }
+    if (solarShadingLossPct !== null) {
+      infrastructureSpecificMetrics["shadingSensitivity"] = {
+        label: "Horizon & Obstacle Shading Sensitivity",
+        value: `${solarShadingLossPct}%`,
+        unit: "%",
+        interpretation: "Modeled irradiance reduction from nearby structures and horizon profiles.",
+        limitation: "Calculated from available OpenStreetMap building geometries and heights.",
+      };
+    }
+    infrastructureSpecificMetrics["gridFeasibility"] = {
+      label: "Grid Interconnection Feasibility",
+      value: gridFeasibilityStatus,
+      interpretation: gridSubstationDistanceM !== null
+        ? `Substation located approximately ${gridSubstationDistanceM}m from candidate footprint.`
+        : "Substation coordinates unobserved in public data; distribution study required.",
+      limitation: "Grid capacity and transformer headroom must be verified with utility operator.",
+    };
+  } else if (placement.type === "EV Charging Station") {
+    infrastructureSpecificMetrics["arterialProximity"] = {
+      label: "Vehicle Arterial Accessibility",
+      value: arterialDistanceM !== null ? `${arterialDistanceM} m` : "Unmeasured",
+      unit: "m",
+      interpretation: "Physical distance to closest primary or secondary vehicle corridor.",
+    };
+    infrastructureSpecificMetrics["gridFeasibility"] = {
+      label: "Grid Power Delivery Feasibility",
+      value: gridFeasibilityStatus,
+      interpretation: "High-power fast charger (DCFC) siting requires high-voltage distribution access.",
+    };
+    infrastructureSpecificMetrics["catchmentCoverage"] = {
+      label: "Service Catchment Coverage",
+      value: `${catchmentAreaKm2} km²`,
+      unit: "km²",
+      interpretation: "500m Euclidean radial service catchment for EV drivers and urban visitors.",
+    };
+  } else {
+    infrastructureSpecificMetrics["arterialAccess"] = {
+      label: "Access Corridor Distance",
+      value: arterialDistanceM !== null ? `${arterialDistanceM} m` : "Unmeasured",
+      unit: "m",
+      interpretation: "Direct distance to primary transit and road connection.",
+    };
+    infrastructureSpecificMetrics["amenityReach"] = {
+      label: "Nearby Amenity Count (500m)",
+      value: nearbyAmenitiesCount,
+      interpretation: "Count of supporting health, education, or transport nodes within buffer.",
+    };
+    infrastructureSpecificMetrics["catchmentArea"] = {
+      label: "Geographic Service Reach",
+      value: `${catchmentAreaKm2} km²`,
+      unit: "km²",
+      interpretation: "Standard 500m radius Euclidean geographic area.",
+      limitation: "Does not reflect verified census population or transit travel times.",
+    };
+  }
+
   const impacts: CandidateImpactSummary = {
     spatialFootprintM2: footprintAreaM2,
     arterialDistanceM,
@@ -184,6 +311,11 @@ export function buildCandidateSummary(params: {
     accessQuality,
     solarPotentialAnnualMwh,
     solarSpecificYieldKwhPerKwp,
+    solarShadingLossPct,
+    gridSubstationDistanceM,
+    gridFeasibilityStatus,
+    infrastructureSpecificMetrics,
+    equityAccessibility,
     serviceCatchmentProxy: {
       bufferRadiusM: 500,
       nearbyAmenitiesCount,
@@ -226,6 +358,7 @@ export function buildCandidateSummary(params: {
   };
 }
 
+
 /**
  * Computes comparative multi-candidate analysis across candidate placements.
  */
@@ -262,10 +395,31 @@ export function compareCandidates(
           "Modeled impacts are geometric and spatial estimations derived from OpenStreetMap, Open-Meteo, and NASA POWER datasets. Real-world civil engineering outcomes require on-site geotechnical surveying, utility locates, and environmental impact assessments.",
         keyTradeoffs: [],
       },
+      baselineEvaluation: {
+        statusQuo: {
+          description: "Status Quo (No Civil Construction / Existing Infrastructure Only)",
+          civilFootprintM2: 0,
+          newCapacityAdded: 0,
+          newServiceReachM2: 0,
+        },
+        naiveProximityBaseline: {
+          description: "Naive Proximity Baseline (Unoptimized Road-Adjacent Siting Heuristic)",
+          arterialDistanceM: null,
+          baselineScore: 50,
+        },
+        metricsByCandidate: {},
+        limitations: [
+          "Baselines represent mathematical reference anchors.",
+          "No demographic population counts or financial returns are claimed without verified census data.",
+        ],
+      },
+      tradeoffs: [],
+      equityAccessibilityMatrix: {},
       executiveSummary: "No candidates available for comparison.",
       generatedAt,
     };
   }
+
 
   // 1. Determine comparability mode
   const uniqueTypes = Array.from(new Set(candidates.map((c) => c.type)));
@@ -528,7 +682,201 @@ export function compareCandidates(
     }
   }
 
-  // 7. Executive Summary
+  // 7. Baseline Evaluation (Part C: Explicit Multi-Baseline Comparison)
+  const statusQuo = {
+    description: "Status Quo (No Civil Construction / Existing Infrastructure Only)",
+    civilFootprintM2: 0,
+    newCapacityAdded: 0,
+    newServiceReachM2: 0,
+  };
+
+  const naiveProximityBaseline = {
+    description: "Naive Proximity Baseline (Unoptimized Road-Adjacent Siting Heuristic)",
+    arterialDistanceM: 150,
+    baselineScore: 50,
+  };
+
+  const metricsByCandidate: Record<string, BaselineComparisonMetric[]> = {};
+  candidates.forEach((cand) => {
+    const list: BaselineComparisonMetric[] = [];
+
+    // 1. Suitability vs Status Quo
+    list.push({
+      metricId: "suitability_status_quo",
+      label: "Suitability Score vs Status Quo",
+      unit: "pts",
+      baselineType: "status_quo",
+      baselineValue: 0,
+      baselineValueText: "0 pts (No Siting)",
+      candidateValue: cand.overallScore,
+      candidateValueText: `${cand.overallScore} pts (${cand.scoreBand})`,
+      absoluteDelta: cand.overallScore,
+      percentageChange: null, // Mathematical guard: division by zero avoided
+      interpretation: `Provides ${cand.overallScore} suitability points above undeveloped state.`,
+      limitations: "Multicriteria suitability index; does not equate to monetary investment returns.",
+    });
+
+    // 2. Suitability vs Naive Baseline
+    const naiveDelta = cand.overallScore - 50;
+    const naivePct = Math.round((naiveDelta / 50) * 100);
+    list.push({
+      metricId: "suitability_naive",
+      label: "Suitability Score vs Naive Siting",
+      unit: "pts",
+      baselineType: "naive_proximity",
+      baselineValue: 50,
+      baselineValueText: "50 pts (Neutral Benchmark)",
+      candidateValue: cand.overallScore,
+      candidateValueText: `${cand.overallScore} pts`,
+      absoluteDelta: naiveDelta,
+      percentageChange: naivePct,
+      interpretation: `${naiveDelta >= 0 ? "+" : ""}${naiveDelta} pts (${naivePct >= 0 ? "+" : ""}${naivePct}%) relative to naive baseline.`,
+      limitations: "Assumes standard roadside placement with unvalidated multicriteria scoring.",
+    });
+
+    // 3. Civil Ground Disturbance Footprint
+    list.push({
+      metricId: "footprint_delta",
+      label: "Civil Footprint Added",
+      unit: "m²",
+      baselineType: "status_quo",
+      baselineValue: 0,
+      baselineValueText: "0 m² (Undeveloped)",
+      candidateValue: cand.footprintAreaM2,
+      candidateValueText: `${cand.footprintAreaM2.toLocaleString()} m²`,
+      absoluteDelta: cand.footprintAreaM2,
+      percentageChange: null,
+      interpretation: `Converts ${cand.footprintAreaM2.toLocaleString()} m² of land area to infrastructure footprint.`,
+      limitations: "Bounding envelope only; ignores contractor staging and temporary access easements.",
+    });
+
+    // 4. Domain-specific additions
+    if (cand.type === "Solar Farm" && cand.impacts.solarPotentialAnnualMwh !== null) {
+      list.push({
+        metricId: "solar_yield_delta",
+        label: "Renewable Generation Added",
+        unit: "MWh/yr",
+        baselineType: "status_quo",
+        baselineValue: 0,
+        baselineValueText: "0 MWh/yr",
+        candidateValue: cand.impacts.solarPotentialAnnualMwh,
+        candidateValueText: `~${cand.impacts.solarPotentialAnnualMwh.toLocaleString()} MWh/yr`,
+        absoluteDelta: cand.impacts.solarPotentialAnnualMwh,
+        percentageChange: null,
+        interpretation: `Adds an estimated ${cand.impacts.solarPotentialAnnualMwh.toLocaleString()} MWh/yr clean energy generation.`,
+        limitations: "NASA POWER climatology model; seasonal dust soiling and inverter clipping not observed on-site.",
+      });
+    } else if (cand.impacts.arterialDistanceM !== null) {
+      const roadDelta = cand.impacts.arterialDistanceM - 150;
+      list.push({
+        metricId: "arterial_access_delta",
+        label: "Arterial Road Setback vs Baseline Standard",
+        unit: "m",
+        baselineType: "naive_proximity",
+        baselineValue: 150,
+        baselineValueText: "150 m",
+        candidateValue: cand.impacts.arterialDistanceM,
+        candidateValueText: `${cand.impacts.arterialDistanceM} m`,
+        absoluteDelta: roadDelta,
+        percentageChange: Math.round((roadDelta / 150) * 100),
+        interpretation: roadDelta <= 0
+          ? `${Math.abs(roadDelta)}m closer to arterial network than 150m baseline standard.`
+          : `${roadDelta}m further from arterial network than 150m baseline standard.`,
+        limitations: "Measured as straight-line Euclidean distance to road centerline.",
+      });
+    }
+
+    metricsByCandidate[cand.placementId] = list;
+  });
+
+  const baselineEvaluation: ScenarioBaselineEvaluation = {
+    statusQuo,
+    naiveProximityBaseline,
+    metricsByCandidate,
+    limitations: [
+      "Baselines represent mathematical and spatial reference anchors (Status Quo = 0 added footprint; Naive Baseline = 50-pt roadside benchmark).",
+      "No population counts or financial returns are claimed without verified census tables and utility power purchase tariffs.",
+      "Percentage improvements over zero baseline are mathematically undefined and reported as net absolute additions.",
+    ],
+  };
+
+  // 8. Decision Trade-Offs (Part E)
+  const tradeoffs: CandidateTradeoffItem[] = ranking.map((r) => {
+    const cand = candidates.find((c) => c.placementId === r.placementId)!;
+    const diffs: string[] = [
+      `Overall Score: ${cand.overallScore}/100 (${cand.scoreBand})`,
+      `Arterial Access: ${cand.impacts.accessQuality} (${cand.impacts.arterialDistanceM !== null ? cand.impacts.arterialDistanceM + "m" : "unmeasured"})`,
+      `Mandatory Violations: ${cand.mandatoryViolationsCount}`,
+    ];
+    if (cand.impacts.solarPotentialAnnualMwh !== null) {
+      diffs.push(`Solar Yield: ~${cand.impacts.solarPotentialAnnualMwh} MWh/yr (${cand.impacts.solarSpecificYieldKwhPerKwp} kWh/kWp)`);
+    } else {
+      diffs.push(`Footprint: ${cand.footprintAreaM2.toLocaleString()} m²`);
+    }
+
+    let summaryText = "";
+    if (r.hasMandatoryViolation) {
+      summaryText = `Site violates statutory spatial exclusions. Siting unacceptable without project boundary adjustment or mitigation.`;
+    } else if (r.rank === 1) {
+      summaryText = `Balanced high-scoring placement with zero mandatory conflicts and optimal accessibility.`;
+    } else {
+      summaryText = `Viable alternative placement trailing Rank 1 by ${sortedCandidates[0].overallScore - cand.overallScore} points.`;
+    }
+
+    const epistemicLimitations: string[] = [
+      "Straight-line Euclidean catchment proxy (not network travel-time isochrone)",
+      cand.impacts.gridFeasibilityStatus === "Unassessed"
+        ? "Electrical substation location unobserved in public data"
+        : `Grid distance is spatial proxy (${cand.impacts.gridFeasibilityStatus}); requires utility study`,
+      "Demographic population figures not estimated due to lack of ward-level census data",
+    ];
+
+    return {
+      placementId: cand.placementId,
+      label: cand.label,
+      rank: r.rank,
+      primaryAdvantage: r.topAdvantages[0] || "Meets spatial envelope requirements",
+      primaryDisadvantage: r.topDisadvantages[0] || (cand.hasMandatoryViolation ? "Mandatory statutory exclusion" : "No critical constraints identified"),
+      differentiatingFactors: diffs,
+      criticalTradeoffSummary: summaryText,
+      epistemicLimitations,
+    };
+  });
+
+  // 9. Equity & Accessibility Matrix (Part D)
+  const equityAccessibilityMatrix: Record<string, EquityAccessibilitySummary> = {};
+  candidates.forEach((cand) => {
+    if (cand.impacts.equityAccessibility) {
+      equityAccessibilityMatrix[cand.placementId] = cand.impacts.equityAccessibility;
+    } else {
+      const bufferRadiusM = 500;
+      const catchmentAreaKm2 = Math.round(Math.PI * Math.pow(bufferRadiusM / 1000, 2) * 100) / 100;
+      const connectedArterialsCount =
+        cand.impacts.arterialDistanceM !== null && cand.impacts.arterialDistanceM <= 300 ? 1 : 0;
+      const underservedZoneFlag =
+        (cand.impacts.serviceCatchmentProxy?.nearbyAmenitiesCount ?? 0) === 0 ||
+        (cand.impacts.arterialDistanceM !== null && cand.impacts.arterialDistanceM > 500);
+      const accessibilityTier: EquityAccessibilitySummary["accessibilityTier"] =
+        cand.impacts.accessQuality === "Optimal"
+          ? "High Access"
+          : cand.impacts.accessQuality === "Acceptable"
+          ? "Moderate Access"
+          : "Isolated";
+
+      equityAccessibilityMatrix[cand.placementId] = {
+        bufferRadiusM,
+        catchmentAreaKm2,
+        connectedArterialsCount,
+        underservedZoneFlag,
+        accessibilityTier,
+        disclaimer:
+          "Straight-line Euclidean catchment (0.79 km²) does not guarantee pedestrian or vehicular network routing. Demographic metrics are excluded due to absence of verified census data.",
+      };
+    }
+  });
+
+
+  // 10. Executive Summary
   const topCandidate = sortedCandidates[0];
   let executiveSummary = "";
   if (candidates.length === 1) {
@@ -561,7 +909,11 @@ export function compareCandidates(
         "Modeled impacts are geometric and spatial estimations derived from OpenStreetMap, Open-Meteo, and NASA POWER datasets. Real-world civil engineering outcomes require on-site geotechnical surveying, utility locates, and environmental impact assessments.",
       keyTradeoffs,
     },
+    baselineEvaluation,
+    tradeoffs,
+    equityAccessibilityMatrix,
     executiveSummary,
     generatedAt,
   };
 }
+

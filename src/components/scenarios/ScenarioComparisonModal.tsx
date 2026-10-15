@@ -21,6 +21,9 @@ import {
   ArrowRight,
   Sun,
   Ruler,
+  Scale,
+  Users,
+  Zap,
 } from "lucide-react";
 import { ScenarioComparisonResult, CandidateSummary } from "@/server/scenarios/types";
 import { StatusBadge } from "../ui/StatusBadge";
@@ -46,7 +49,10 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
-  const [activeTab, setActiveTab] = useState<"rankings" | "criteria" | "impact" | "uncertainty">("rankings");
+  const [activeTab, setActiveTab] = useState<
+    "rankings" | "tradeoffs" | "baseline" | "equity" | "criteria" | "uncertainty"
+  >("rankings");
+
 
   const loadComparison = async () => {
     setIsLoading(true);
@@ -217,47 +223,71 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
             )}
 
             {/* Navigation Tabs */}
-            <div className="px-6 border-b border-stone-200 flex gap-6 bg-white shrink-0">
+            <div className="px-6 border-b border-stone-200 flex gap-4 bg-white shrink-0 overflow-x-auto">
               <button
                 type="button"
                 onClick={() => setActiveTab("rankings")}
-                className={`py-3 text-xs font-bold border-b-2 flex items-center gap-1.5 transition-colors ${
+                className={`py-3 text-xs font-bold border-b-2 flex items-center gap-1.5 whitespace-nowrap transition-colors ${
                   activeTab === "rankings"
                     ? "border-emerald-700 text-emerald-800"
                     : "border-transparent text-stone-500 hover:text-stone-800"
                 }`}
               >
                 <Trophy className="w-4 h-4" />
-                <span>Rankings & Overview ({comparison.candidates.length})</span>
+                <span>Rankings ({comparison.candidates.length})</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("tradeoffs")}
+                className={`py-3 text-xs font-bold border-b-2 flex items-center gap-1.5 whitespace-nowrap transition-colors ${
+                  activeTab === "tradeoffs"
+                    ? "border-emerald-700 text-emerald-800"
+                    : "border-transparent text-stone-500 hover:text-stone-800"
+                }`}
+              >
+                <Scale className="w-4 h-4" />
+                <span>Decision Trade-Offs</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("baseline")}
+                className={`py-3 text-xs font-bold border-b-2 flex items-center gap-1.5 whitespace-nowrap transition-colors ${
+                  activeTab === "baseline"
+                    ? "border-emerald-700 text-emerald-800"
+                    : "border-transparent text-stone-500 hover:text-stone-800"
+                }`}
+              >
+                <TrendingUp className="w-4 h-4" />
+                <span>Baseline Comparison</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("equity")}
+                className={`py-3 text-xs font-bold border-b-2 flex items-center gap-1.5 whitespace-nowrap transition-colors ${
+                  activeTab === "equity"
+                    ? "border-emerald-700 text-emerald-800"
+                    : "border-transparent text-stone-500 hover:text-stone-800"
+                }`}
+              >
+                <Users className="w-4 h-4" />
+                <span>Equity & Catchment</span>
               </button>
               <button
                 type="button"
                 onClick={() => setActiveTab("criteria")}
-                className={`py-3 text-xs font-bold border-b-2 flex items-center gap-1.5 transition-colors ${
+                className={`py-3 text-xs font-bold border-b-2 flex items-center gap-1.5 whitespace-nowrap transition-colors ${
                   activeTab === "criteria"
                     ? "border-emerald-700 text-emerald-800"
                     : "border-transparent text-stone-500 hover:text-stone-800"
                 }`}
               >
                 <GitCompare className="w-4 h-4" />
-                <span>Criteria Differential Matrix ({comparison.criteriaMatrix.length})</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab("impact")}
-                className={`py-3 text-xs font-bold border-b-2 flex items-center gap-1.5 transition-colors ${
-                  activeTab === "impact"
-                    ? "border-emerald-700 text-emerald-800"
-                    : "border-transparent text-stone-500 hover:text-stone-800"
-                }`}
-              >
-                <TrendingUp className="w-4 h-4" />
-                <span>Impact Simulation & Baseline</span>
+                <span>Criteria Matrix ({comparison.criteriaMatrix.length})</span>
               </button>
               <button
                 type="button"
                 onClick={() => setActiveTab("uncertainty")}
-                className={`py-3 text-xs font-bold border-b-2 flex items-center gap-1.5 transition-colors ${
+                className={`py-3 text-xs font-bold border-b-2 flex items-center gap-1.5 whitespace-nowrap transition-colors ${
                   activeTab === "uncertainty"
                     ? "border-emerald-700 text-emerald-800"
                     : "border-transparent text-stone-500 hover:text-stone-800"
@@ -267,6 +297,7 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
                 <span>Data Quality & Uncertainty</span>
               </button>
             </div>
+
 
             {/* Tab Panes */}
             <div className="flex-1 overflow-y-auto p-6 bg-stone-50/50">
@@ -535,118 +566,370 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
                 </div>
               )}
 
-              {/* TAB 3: SPATIAL IMPACT & BASELINE SIMULATION */}
-              {activeTab === "impact" && (
+              {/* TAB: DECISION TRADE-OFFS (PART E) */}
+              {activeTab === "tradeoffs" && (
                 <div className="flex flex-col gap-5">
-                  {/* Baseline vs Proposed Card */}
                   <div className="p-4 rounded-panel bg-white border border-stone-200 shadow-2xs">
-                    <h4 className="text-xs font-bold font-mono uppercase tracking-wider text-stone-900 mb-2 flex items-center gap-1.5">
-                      <Layers className="w-4 h-4 text-emerald-700" />
-                      <span>Baseline Site Condition vs Proposed Infrastructure Scenarios</span>
+                    <h4 className="text-xs font-bold font-mono uppercase tracking-wider text-stone-900 mb-1 flex items-center gap-1.5">
+                      <Scale className="w-4 h-4 text-emerald-700" />
+                      <span>Decision Trade-Offs & Siting Differentiators</span>
                     </h4>
+                    <p className="text-xs text-stone-600">
+                      Transparent accounting of key advantages, disadvantages, differentiating drivers, and epistemic uncertainties across candidate sites.
+                    </p>
+                  </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
-                      <div className="p-3 rounded-control bg-stone-50 border border-stone-200">
-                        <div className="text-[10px] font-mono uppercase text-stone-400 font-bold">
-                          Pre-Construction Baseline
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {(comparison.tradeoffs || []).map((item) => {
+                      const cand = comparison.candidates.find((c) => c.placementId === item.placementId);
+                      const isWinner = item.rank === 1;
+
+                      return (
+                        <div
+                          key={item.placementId}
+                          className={`p-4 rounded-panel bg-white border shadow-2xs flex flex-col justify-between gap-3 ${
+                            isWinner
+                              ? "border-emerald-600/70 ring-1 ring-emerald-500/20"
+                              : "border-stone-200"
+                          }`}
+                        >
+                          <div>
+                            {/* Header */}
+                            <div className="flex items-center justify-between border-b border-stone-100 pb-2">
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded uppercase ${
+                                    isWinner ? "bg-emerald-700 text-white" : "bg-stone-100 text-stone-700"
+                                  }`}
+                                >
+                                  Rank #{item.rank}
+                                </span>
+                                <h4 className="text-xs font-bold text-stone-900 truncate max-w-[200px]">
+                                  {item.label}
+                                </h4>
+                              </div>
+                              <span className="text-[11px] font-mono text-stone-500 font-bold">
+                                {cand?.overallScore}/100
+                              </span>
+                            </div>
+
+                            {/* Critical Tradeoff Summary */}
+                            <div
+                              className={`mt-3 p-2.5 rounded text-xs leading-relaxed font-sans ${
+                                isWinner
+                                  ? "bg-emerald-50/70 text-emerald-950 border border-emerald-200"
+                                  : "bg-stone-50 text-stone-800 border border-stone-200"
+                              }`}
+                            >
+                              <span className="font-bold block text-[10px] font-mono uppercase text-stone-500 mb-0.5">
+                                Trade-off Rationale
+                              </span>
+                              {item.criticalTradeoffSummary}
+                            </div>
+
+                            {/* Primary Advantage & Disadvantage */}
+                            <div className="grid grid-cols-1 gap-2 mt-3 text-xs">
+                              <div className="p-2 rounded bg-emerald-50/40 border border-emerald-100 flex items-start gap-2">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700 shrink-0 mt-0.5" />
+                                <div>
+                                  <span className="font-bold text-[10px] uppercase font-mono text-emerald-800 block">
+                                    Primary Advantage
+                                  </span>
+                                  <span className="text-stone-800">{item.primaryAdvantage}</span>
+                                </div>
+                              </div>
+
+                              <div className="p-2 rounded bg-amber-50/40 border border-amber-100 flex items-start gap-2">
+                                <AlertTriangle className="w-3.5 h-3.5 text-amber-700 shrink-0 mt-0.5" />
+                                <div>
+                                  <span className="font-bold text-[10px] uppercase font-mono text-amber-800 block">
+                                    Primary Disadvantage / Constraint
+                                  </span>
+                                  <span className="text-stone-800">{item.primaryDisadvantage}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Differentiating Factors */}
+                            <div className="mt-3">
+                              <span className="text-[10px] font-mono uppercase font-bold text-stone-400 block mb-1">
+                                Differentiating Siting Metrics
+                              </span>
+                              <ul className="space-y-1 text-xs text-stone-700">
+                                {item.differentiatingFactors.map((diff, idx) => (
+                                  <li key={idx} className="flex items-center gap-1.5 font-mono text-[11px]">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-700 shrink-0" />
+                                    <span>{diff}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          </div>
+
+                          {/* Epistemic Limitations */}
+                          <div className="mt-2 pt-2 border-t border-stone-100">
+                            <span className="text-[10px] font-mono uppercase font-bold text-stone-400 block mb-1">
+                              Methodological Boundaries & Unknowns
+                            </span>
+                            <div className="space-y-0.5 text-[10px] text-stone-500 font-mono">
+                              {item.epistemicLimitations.map((lim, idx) => (
+                                <div key={idx}>• {lim}</div>
+                              ))}
+                            </div>
+                          </div>
                         </div>
-                        <div className="text-xs font-bold text-stone-800 mt-1">
-                          {comparison.baselineComparison.baseline.preConstructionState}
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* TAB: BASELINE COMPARISON (PART C) */}
+              {activeTab === "baseline" && (
+                <div className="flex flex-col gap-5">
+                  <div className="p-4 rounded-panel bg-white border border-stone-200 shadow-2xs">
+                    <h4 className="text-xs font-bold font-mono uppercase tracking-wider text-stone-900 mb-1 flex items-center gap-1.5">
+                      <TrendingUp className="w-4 h-4 text-emerald-700" />
+                      <span>Multi-Baseline Comparative Simulation</span>
+                    </h4>
+                    <p className="text-xs text-stone-600">
+                      Evaluates candidates against explicit baselines: Status Quo (undeveloped baseline state) and Naive Proximity Baseline (unoptimized road-adjacent placement).
+                    </p>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3 text-xs">
+                      <div className="p-2.5 rounded bg-stone-50 border border-stone-200">
+                        <span className="text-[10px] font-mono uppercase text-stone-500 font-bold block">
+                          Baseline 1: Status Quo State
+                        </span>
+                        <div className="font-semibold text-stone-800 mt-0.5">
+                          {comparison.baselineEvaluation?.statusQuo.description}
                         </div>
-                        <p className="text-xs text-stone-600 mt-1">
-                          {comparison.baselineComparison.baseline.environmentalNotice}
-                        </p>
+                        <div className="text-[11px] text-stone-500 font-mono mt-0.5">
+                          0 m² new footprint • 0 kW added load/generation • Natural terrain undisturbed
+                        </div>
                       </div>
 
-                      <div className="p-3 rounded-control bg-emerald-50/40 border border-emerald-200">
-                        <div className="text-[10px] font-mono uppercase text-emerald-800 font-bold">
-                          Modeled Civil Impact vs Observed Outcome
+                      <div className="p-2.5 rounded bg-stone-50 border border-stone-200">
+                        <span className="text-[10px] font-mono uppercase text-stone-500 font-bold block">
+                          Baseline 2: Naive Siting Standard
+                        </span>
+                        <div className="font-semibold text-stone-800 mt-0.5">
+                          {comparison.baselineEvaluation?.naiveProximityBaseline.description}
                         </div>
-                        <p className="text-xs text-stone-700 mt-1 leading-snug">
-                          {comparison.baselineComparison.modeledVsObservedNotice}
-                        </p>
+                        <div className="text-[11px] text-stone-500 font-mono mt-0.5">
+                          150m standard arterial setback • 50-point neutral multicriteria baseline
+                        </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Impact Metrics Breakdown per Candidate */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {comparison.candidates.map((cand) => (
-                      <div
-                        key={cand.placementId}
-                        className="p-4 rounded-panel bg-white border border-stone-200 shadow-2xs flex flex-col gap-3"
-                      >
-                        <div className="flex items-center justify-between border-b border-stone-100 pb-2">
-                          <div>
-                            <span className="text-[10px] font-mono text-stone-400 uppercase">
-                              Impact Simulation
-                            </span>
-                            <h4 className="text-xs font-bold text-stone-900">{cand.label}</h4>
-                          </div>
-                          <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded bg-stone-100 text-stone-700">
-                            {cand.type}
-                          </span>
-                        </div>
+                  {/* Candidate Metrics Table vs Baselines */}
+                  <div className="space-y-4">
+                    {comparison.candidates.map((cand) => {
+                      const metrics = comparison.baselineEvaluation?.metricsByCandidate[cand.placementId] || [];
 
-                        {/* Impact Grid */}
-                        <div className="grid grid-cols-2 gap-2 text-xs">
-                          <div className="p-2.5 rounded bg-stone-50 border border-stone-100">
-                            <span className="text-[10px] font-mono text-stone-400 uppercase block">
-                              Arterial Road Proximity
-                            </span>
-                            <span className="text-sm font-bold font-mono text-stone-900">
-                              {cand.impacts.arterialDistanceM !== null
-                                ? `${cand.impacts.arterialDistanceM} m`
-                                : "N/A"}
-                            </span>
-                            <span className="text-[10px] font-mono text-stone-500 block mt-0.5">
-                              Quality: {cand.impacts.accessQuality}
-                            </span>
-                          </div>
-
-                          <div className="p-2.5 rounded bg-stone-50 border border-stone-100">
-                            <span className="text-[10px] font-mono text-stone-400 uppercase block">
-                              Geodesic Footprint
-                            </span>
-                            <span className="text-sm font-bold font-mono text-stone-900">
-                              {cand.footprintAreaM2.toLocaleString()} m²
-                            </span>
-                            <span className="text-[10px] font-mono text-stone-500 block mt-0.5">
-                              {cand.lengthM}m × {cand.widthM}m
-                            </span>
-                          </div>
-
-                          {cand.type === "Solar Farm" && cand.impacts.solarPotentialAnnualMwh !== null && (
-                            <div className="p-2.5 rounded bg-amber-50/50 border border-amber-200 col-span-2">
-                              <span className="text-[10px] font-mono text-amber-800 uppercase block font-bold flex items-center gap-1">
-                                <Sun className="w-3.5 h-3.5 text-amber-600" />
-                                <span>Solar Screening Generation Estimate</span>
+                      return (
+                        <div
+                          key={cand.placementId}
+                          className="rounded-panel border border-stone-200 bg-white overflow-hidden shadow-2xs"
+                        >
+                          <div className="px-4 py-2.5 bg-stone-50/80 border-b border-stone-200 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-stone-900">{cand.label}</span>
+                              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-stone-200/70 text-stone-700">
+                                {cand.type}
                               </span>
-                              <div className="flex items-baseline justify-between mt-1">
-                                <span className="text-base font-bold font-mono text-amber-950">
-                                  ~{cand.impacts.solarPotentialAnnualMwh.toLocaleString()} MWh/yr
-                                </span>
-                                <span className="text-[11px] font-mono text-amber-800">
-                                  {cand.impacts.solarSpecificYieldKwhPerKwp} kWh/kWp specific yield
-                                </span>
-                              </div>
                             </div>
-                          )}
-
-                          <div className="p-2.5 rounded bg-stone-50 border border-stone-100 col-span-2">
-                            <span className="text-[10px] font-mono text-stone-400 uppercase block">
-                              Service Catchment Proxy (500m Buffer)
+                            <span className="text-xs font-mono font-bold text-emerald-800">
+                              Suitability: {cand.overallScore}/100 ({cand.scoreBand})
                             </span>
-                            <div className="text-xs font-semibold text-stone-800 mt-0.5">
-                              {cand.impacts.serviceCatchmentProxy.nearbyAmenitiesCount} facilities/services within 500m
-                            </div>
-                            <p className="text-[10px] text-stone-500 mt-1 italic leading-tight">
-                              {cand.impacts.serviceCatchmentProxy.limitations}
-                            </p>
+                          </div>
+
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-left text-xs border-collapse">
+                              <thead>
+                                <tr className="border-b border-stone-200 bg-stone-100/50 text-[10px] font-mono text-stone-500 uppercase">
+                                  <th className="py-2 px-3 font-semibold">Evaluation Metric</th>
+                                  <th className="py-2 px-3 font-semibold">Reference Baseline</th>
+                                  <th className="py-2 px-3 font-semibold">Baseline Value</th>
+                                  <th className="py-2 px-3 font-semibold">Candidate Value</th>
+                                  <th className="py-2 px-3 font-semibold text-center">Absolute Delta (Δ)</th>
+                                  <th className="py-2 px-3 font-semibold text-center">% Change</th>
+                                  <th className="py-2 px-3 font-semibold">Interpretation & Method Notice</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-stone-100 font-sans">
+                                {metrics.map((m) => (
+                                  <tr key={m.metricId} className="hover:bg-stone-50/60">
+                                    <td className="py-2.5 px-3 font-bold text-stone-900">{m.label}</td>
+                                    <td className="py-2.5 px-3 font-mono text-stone-600">
+                                      {m.baselineType === "status_quo" ? "Status Quo" : "Naive Proximity"}
+                                    </td>
+                                    <td className="py-2.5 px-3 font-mono text-stone-600">{m.baselineValueText}</td>
+                                    <td className="py-2.5 px-3 font-mono font-bold text-stone-900">
+                                      {m.candidateValueText}
+                                    </td>
+                                    <td className="py-2.5 px-3 font-mono font-bold text-center">
+                                      {m.absoluteDelta !== null ? (
+                                        <span
+                                          className={
+                                            m.absoluteDelta > 0
+                                              ? "text-emerald-800"
+                                              : m.absoluteDelta < 0
+                                              ? "text-amber-700"
+                                              : "text-stone-500"
+                                          }
+                                        >
+                                          {m.absoluteDelta > 0 ? `+${m.absoluteDelta}` : m.absoluteDelta}{" "}
+                                          {m.unit || ""}
+                                        </span>
+                                      ) : (
+                                        "--"
+                                      )}
+                                    </td>
+                                    <td className="py-2.5 px-3 font-mono text-center">
+                                      {m.percentageChange !== null ? (
+                                        <span
+                                          className={`px-1.5 py-0.5 rounded text-[11px] font-bold ${
+                                            m.percentageChange > 0
+                                              ? "bg-emerald-100 text-emerald-800"
+                                              : m.percentageChange < 0
+                                              ? "bg-amber-100 text-amber-800"
+                                              : "bg-stone-100 text-stone-600"
+                                          }`}
+                                        >
+                                          {m.percentageChange > 0
+                                            ? `+${m.percentageChange}%`
+                                            : `${m.percentageChange}%`}
+                                        </span>
+                                      ) : (
+                                        <span className="text-[10px] text-stone-400 font-mono">
+                                          Net Addition
+                                        </span>
+                                      )}
+                                    </td>
+                                    <td className="py-2.5 px-3 text-stone-600 text-[11px] max-w-xs">
+                                      <div>{m.interpretation}</div>
+                                      <div className="text-[10px] text-stone-400 font-mono mt-0.5">
+                                        {m.limitations}
+                                      </div>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
                           </div>
                         </div>
-                      </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Baseline Limitations Notice */}
+                  <div className="p-3 rounded-control bg-stone-100 text-stone-600 text-[11px] font-mono space-y-1">
+                    <span className="font-bold text-stone-800 uppercase block">
+                      Comparative Baseline Disclosure:
+                    </span>
+                    {(comparison.baselineEvaluation?.limitations || []).map((lim, idx) => (
+                      <div key={idx}>• {lim}</div>
                     ))}
+                  </div>
+                </div>
+              )}
+
+              {/* TAB: EQUITY & ACCESSIBILITY (PART D) */}
+              {activeTab === "equity" && (
+                <div className="flex flex-col gap-5">
+                  {/* Strict Geographic Disclaimer */}
+                  <div className="p-3.5 rounded-panel bg-amber-50/80 border border-amber-200/80 flex items-start gap-3 text-xs text-amber-950">
+                    <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                    <div className="leading-relaxed">
+                      <span className="font-bold block uppercase text-[10px] font-mono text-amber-800">
+                        Equity & Accessibility Geographic Disclosures
+                      </span>
+                      Service catchments are geometric approximations calculated using a standard 500m Euclidean radial buffer (0.79 km²). They do NOT calculate census population figures, demographic distributions, or transit network routing. Inferences regarding underserved communities are based strictly on observed absence of mapped OpenStreetMap civic and transit nodes.
+                    </div>
+                  </div>
+
+                  {/* Candidate Equity Cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {comparison.candidates.map((cand) => {
+                      const eq = comparison.equityAccessibilityMatrix?.[cand.placementId] || cand.impacts.equityAccessibility;
+
+                      return (
+                        <div
+                          key={cand.placementId}
+                          className="p-4 rounded-panel bg-white border border-stone-200 shadow-2xs flex flex-col gap-3"
+                        >
+                          <div className="flex items-center justify-between border-b border-stone-100 pb-2">
+                            <div>
+                              <span className="text-[10px] font-mono text-stone-400 uppercase">
+                                Accessibility Catchment
+                              </span>
+                              <h4 className="text-xs font-bold text-stone-900">{cand.label}</h4>
+                            </div>
+                            <span
+                              className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded uppercase ${
+                                eq?.accessibilityTier === "High Access"
+                                  ? "bg-emerald-100 text-emerald-800"
+                                  : eq?.accessibilityTier === "Moderate Access"
+                                  ? "bg-amber-100 text-amber-800"
+                                  : "bg-red-100 text-red-800"
+                              }`}
+                            >
+                              {eq?.accessibilityTier || "Unassessed"}
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div className="p-2.5 rounded bg-stone-50 border border-stone-100">
+                              <span className="text-[10px] font-mono text-stone-400 uppercase block">
+                                Catchment Area (500m)
+                              </span>
+                              <span className="text-sm font-bold font-mono text-stone-900">
+                                {eq?.catchmentAreaKm2 ?? 0.79} km²
+                              </span>
+                              <span className="text-[10px] font-mono text-stone-500 block mt-0.5">
+                                Euclidean radial boundary
+                              </span>
+                            </div>
+
+                            <div className="p-2.5 rounded bg-stone-50 border border-stone-100">
+                              <span className="text-[10px] font-mono text-stone-400 uppercase block">
+                                Connected Arterials
+                              </span>
+                              <span className="text-sm font-bold font-mono text-stone-900">
+                                {eq?.connectedArterialsCount ?? 0}
+                              </span>
+                              <span className="text-[10px] font-mono text-stone-500 block mt-0.5">
+                                Arterial within 300m
+                              </span>
+                            </div>
+
+                            <div className="p-2.5 rounded bg-stone-50 border border-stone-100 col-span-2">
+                              <span className="text-[10px] font-mono text-stone-400 uppercase block">
+                                Service Zone Status
+                              </span>
+                              <div className="font-semibold text-stone-800 mt-0.5">
+                                {eq?.underservedZoneFlag ? (
+                                  <span className="text-amber-800 flex items-center gap-1">
+                                    <AlertTriangle className="w-3.5 h-3.5 text-amber-700" />
+                                    <span>Underserved Facility Zone — Elevated Siting Priority</span>
+                                  </span>
+                                ) : (
+                                  <span className="text-emerald-800 flex items-center gap-1">
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
+                                    <span>Integrated Service Zone — Proximate Supporting Nodes</span>
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[10px] text-stone-500 font-mono mt-1">
+                                {cand.impacts.serviceCatchmentProxy.nearbyAmenitiesCount} civic amenities observed in immediate 500m radius.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
 
                   {/* Geodesic Spatial Separation Matrix */}
@@ -654,7 +937,7 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
                     <div className="p-4 rounded-panel bg-white border border-stone-200 shadow-2xs">
                       <h4 className="text-xs font-bold font-mono uppercase tracking-wider text-stone-900 mb-2 flex items-center gap-1.5">
                         <Ruler className="w-4 h-4 text-emerald-700" />
-                        <span>Candidate Geodesic Separation Matrix</span>
+                        <span>Candidate Geodesic Separation Matrix (Cannibalization Guard)</span>
                       </h4>
                       <div className="space-y-1.5 mt-2">
                         {comparison.spatialSeparation.map((sep, idx) => (
@@ -675,6 +958,7 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
                   )}
                 </div>
               )}
+
 
               {/* TAB 4: DATA QUALITY & UNCERTAINTY */}
               {activeTab === "uncertainty" && (

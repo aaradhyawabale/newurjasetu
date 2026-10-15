@@ -344,4 +344,125 @@ describe("Scenario Simulator & Candidate Comparison Unit Tests", () => {
     expect(summary.impacts.serviceCatchmentProxy.limitations).toContain("straight-line geographic proximity only");
     expect(summary.impacts.serviceCatchmentProxy.limitations).toContain("Does not account for census population figures");
   });
+
+  it("derives infrastructure-specific metrics for solar farms including yield, shading sensitivity, and grid feasibility", () => {
+    const solarSummary = buildCandidateSummary({
+      placement: {
+        id: "p-solar",
+        scenarioId: "sc-solar",
+        type: "Solar Farm",
+        lat: 28.61,
+        lng: 77.20,
+        lengthM: 100,
+        widthM: 100, // 10,000 m²
+        bearingDeg: 180,
+        params: { capacityKw: 500, shadingPct: 4.2 },
+        createdAt: new Date(),
+      },
+      analysis: {
+        id: "an-solar",
+        engineVersion: "1.0.0",
+        overallScore: 84,
+        scoreBand: "High Suitability",
+        result: JSON.stringify({
+          engineVersion: "1.0.0",
+          timestamp: new Date().toISOString(),
+          placementSnapshot: {
+            id: "p-solar",
+            type: "Solar Farm",
+            lat: 28.61,
+            lng: 77.20,
+            lengthM: 100,
+            widthM: 100,
+            bearingDeg: 180,
+            areaM2: 10000,
+            params: { capacityKw: 500 },
+          },
+          validation: { status: "pass", proposedAreaM2: 10000, allowedAreaRange: { minM2: 0, maxM2: 100000, reason: "" }, conflicts: [], messages: [] },
+          criteria: [
+            { id: "c_solar_ghi", label: "Solar GHI", value: "5.5 kWh/m²/day", rawMetric: 5.5, score: 90, weight: 35, status: "optimal", benchmark: "GHI > 5.0" },
+            { id: "c_grid_substation", label: "Electrical Substation Proximity", value: "850 m", rawMetric: 850, score: 85, weight: 25, status: "optimal", benchmark: "Within 1000m" },
+          ],
+          overall: { score: 84, band: "High Suitability", tone: "positive", confidence: 0.85, verdictSummary: "Solar site" },
+          supporting: [],
+          risks: [],
+          dataGaps: [],
+          evidence: [],
+          limitations: [],
+          narrativeText: "",
+        }),
+        createdAt: new Date(),
+      },
+      scenarioName: "Solar Development Scenario",
+    });
+
+    expect(solarSummary.impacts.solarPotentialAnnualMwh).toBeGreaterThan(500);
+    expect(solarSummary.impacts.solarSpecificYieldKwhPerKwp).toBeGreaterThan(1200);
+    expect(solarSummary.impacts.solarShadingLossPct).toBe(4.2);
+    expect(solarSummary.impacts.gridSubstationDistanceM).toBe(850);
+    expect(solarSummary.impacts.gridFeasibilityStatus).toBe("Optimal (<1km)");
+    expect(solarSummary.impacts.infrastructureSpecificMetrics?.["solarGeneration"]).toBeDefined();
+    expect(solarSummary.impacts.infrastructureSpecificMetrics?.["shadingSensitivity"]).toBeDefined();
+    expect(solarSummary.impacts.infrastructureSpecificMetrics?.["gridFeasibility"]).toBeDefined();
+  });
+
+  it("calculates multi-baseline comparisons against Status Quo and Naive Proximity with mathematical division guards", () => {
+    const result = compareCandidates([mockCandidateA, mockCandidateB]);
+
+    expect(result.baselineEvaluation).toBeDefined();
+    expect(result.baselineEvaluation?.statusQuo.civilFootprintM2).toBe(0);
+    expect(result.baselineEvaluation?.naiveProximityBaseline.baselineScore).toBe(50);
+
+    const candAMetrics = result.baselineEvaluation?.metricsByCandidate["cand-a"];
+    expect(candAMetrics).toBeDefined();
+    expect(candAMetrics?.length).toBeGreaterThanOrEqual(3);
+
+    // Status quo delta: candidate score (88) - 0 = +88 pts, percentageChange must be null (division by zero avoided)
+    const statusQuoMetric = candAMetrics?.find((m) => m.metricId === "suitability_status_quo");
+    expect(statusQuoMetric).toBeDefined();
+    expect(statusQuoMetric?.absoluteDelta).toBe(88);
+    expect(statusQuoMetric?.percentageChange).toBeNull();
+
+    // Naive baseline delta: candidate score (88) - 50 = +38 pts, percentageChange = +76%
+    const naiveMetric = candAMetrics?.find((m) => m.metricId === "suitability_naive");
+    expect(naiveMetric).toBeDefined();
+    expect(naiveMetric?.absoluteDelta).toBe(38);
+    expect(naiveMetric?.percentageChange).toBe(76);
+
+    // Civil footprint: candidate footprint (4800) - 0 = +4800 m²
+    const footprintMetric = candAMetrics?.find((m) => m.metricId === "footprint_delta");
+    expect(footprintMetric).toBeDefined();
+    expect(footprintMetric?.absoluteDelta).toBe(4800);
+    expect(footprintMetric?.percentageChange).toBeNull();
+  });
+
+  it("computes equity and accessibility metrics with radial buffer and explicit disclaimers", () => {
+    const result = compareCandidates([mockCandidateA, mockCandidateB]);
+
+    expect(result.equityAccessibilityMatrix).toBeDefined();
+    const eqA = result.equityAccessibilityMatrix?.["cand-a"];
+    expect(eqA).toBeDefined();
+    expect(eqA?.bufferRadiusM).toBe(500);
+    expect(eqA?.catchmentAreaKm2).toBe(0.79);
+    expect(eqA?.accessibilityTier).toBe("High Access"); // arterialDistanceM = 25m <= 100m
+    expect(eqA?.connectedArterialsCount).toBe(1);
+    expect(eqA?.disclaimer).toContain("Demographic metrics are excluded");
+    expect(eqA?.disclaimer).toContain("Straight-line Euclidean catchment");
+  });
+
+  it("generates comprehensive decision trade-off profiles explaining ranking drivers and epistemic bounds", () => {
+    const result = compareCandidates([mockCandidateA, mockCandidateB]);
+
+    expect(result.tradeoffs).toBeDefined();
+    expect(result.tradeoffs).toHaveLength(2);
+
+    const leaderTradeoff = result.tradeoffs?.find((t) => t.placementId === "cand-a");
+    expect(leaderTradeoff).toBeDefined();
+    expect(leaderTradeoff?.rank).toBe(1);
+    expect(leaderTradeoff?.primaryAdvantage).toContain("Arterial Road Proximity");
+    expect(leaderTradeoff?.criticalTradeoffSummary).toContain("Balanced high-scoring placement");
+    expect(leaderTradeoff?.differentiatingFactors.length).toBeGreaterThanOrEqual(3);
+    expect(leaderTradeoff?.epistemicLimitations.length).toBeGreaterThanOrEqual(2);
+  });
 });
+
