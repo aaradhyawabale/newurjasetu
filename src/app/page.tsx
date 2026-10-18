@@ -16,6 +16,7 @@ import {
   Droplets,
   Route,
   Trees,
+  Zap,
 } from "lucide-react";
 
 export default async function HomePage() {
@@ -39,7 +40,7 @@ export default async function HomePage() {
         const newScenario = await prisma.scenario.create({
           data: {
             userId: user.id,
-            name: "Untitled scenario",
+            name: "Pune EV Infrastructure Master Plan 2026",
           },
         });
         scenarios = [newScenario];
@@ -144,6 +145,7 @@ export default async function HomePage() {
               { name: "Transit Station", cat: "Transport", icon: Route },
               { name: "Drainage", cat: "Utilities", icon: Droplets },
               { name: "Solar Farm", cat: "Energy", icon: Sun },
+              { name: "EV Charging Station", cat: "Transport", icon: Zap },
             ].map((tool) => (
               <div
                 key={tool.name}

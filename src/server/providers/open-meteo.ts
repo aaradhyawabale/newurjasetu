@@ -5,6 +5,7 @@ import {
   setCachedResponse,
   withInFlightDedup,
 } from "./cache";
+import { getPuneSnapshotElevation } from "./snapshot-loader";
 
 const ELEVATION_BASE =
   process.env.OPEN_METEO_ELEVATION_URL || "https://api.open-meteo.com/v1/elevation";
@@ -176,6 +177,12 @@ export class OpenMeteoProvider {
             };
           }
         }
+
+        const puneElevation = getPuneSnapshotElevation(lat, lng);
+        if (puneElevation) {
+          return puneElevation;
+        }
+
         throw normalizedErr;
       }
     });

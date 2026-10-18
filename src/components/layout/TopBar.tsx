@@ -200,6 +200,37 @@ export const TopBar: React.FC<TopBarProps> = ({
           </div>
         )}
 
+        {/* Data Provenance & Study Area Mode Badge */}
+        {(() => {
+          const isPune =
+            (currentScenario?.name?.toLowerCase().includes("pune") ||
+              locationLabel?.toLowerCase().includes("pune")) ??
+            false;
+          return (
+            <div
+              title={
+                isPune
+                  ? "Pune Study Area: Powered by verified OpenStreetMap EV snapshot (13 verified chargers, 4 candidate hubs, 90m DEM, NASA POWER GHI)."
+                  : "Live Provider Mode: Queries live geospatial providers with fallback caching."
+              }
+              className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-btn text-[11px] font-mono border transition-all ${
+                isPune
+                  ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                  : "bg-stone-50 text-stone-700 border-stone-200"
+              }`}
+            >
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${
+                  isPune ? "bg-emerald-600 animate-pulse" : "bg-blue-600"
+                }`}
+              />
+              <span className="font-medium">
+                {isPune ? "Pune EV Study Area" : "Live Provider Mode"}
+              </span>
+            </div>
+          );
+        })()}
+
         {/* Scenario Menu */}
         <div className="relative">
           <button

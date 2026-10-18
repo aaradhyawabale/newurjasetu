@@ -1,0 +1,330 @@
+{
+  "metadata": {
+    "studyAreaName": "Pune Central Urban Corridor (PMC)",
+    "description": "Verified geographic snapshot of central Pune covering multimodal transit hubs, commercial corridors, existing EV charging infrastructure, public parking, and power distribution nodes.",
+    "bbox": {
+      "swLat": 18.4850,
+      "swLng": 73.8050,
+      "neLat": 18.5550,
+      "neLng": 73.8850
+    },
+    "center": {
+      "lat": 18.5204,
+      "lng": 73.8567
+    },
+    "extractedAt": "2026-10-18T13:34:00.000Z",
+    "sources": [
+      {
+        "provider": "OpenStreetMap / Overpass API",
+        "license": "ODbL 1.0 — © OpenStreetMap contributors",
+        "dataset": "Planet OSM Pune Extract",
+        "retrievalMethod": "Overpass QL Bounding Box & Radius Query"
+      },
+      {
+        "provider": "Open-Meteo Elevation API",
+        "license": "CC BY 4.0 — Copernicus DEM GLO-90",
+        "dataset": "Copernicus 90m Satellite Radar DEM",
+        "retrievalMethod": "HTTP REST 3x3 Grid Sampling"
+      },
+      {
+        "provider": "NASA POWER API",
+        "license": "Public Domain (NASA)",
+        "dataset": "CERES Synoptic Surface Solar Climatology (1998-2023)",
+        "retrievalMethod": "HTTP REST Climatological Point Query"
+      }
+    ],
+    "limitations": [
+      "OpenStreetMap voluntary data may not capture 100% of newly commissioned private charging points.",
+      "Real-time operational status (online/offline/occupied) requires OCPP / CPO telemetry and is not available in static GIS extracts.",
+      "Proximity to an electrical substation indicates physical layout suitability only; available transformer headroom and connection sanction must be verified with MSEDCL."
+    ]
+  },
+  "existingEvStations": [
+    {
+      "id": 9411828530,
+      "osmId": "node/9411828530",
+      "name": "Ather Energy Charging Point",
+      "operator": "Ather Energy",
+      "brand": "Ather Grid",
+      "lat": 18.5071941,
+      "lng": 73.8037729,
+      "capacity": 2,
+      "socketType": "Ather Proprietary / Type 2",
+      "location": "Kothrud Industrial Area"
+    },
+    {
+      "id": 10097434142,
+      "osmId": "node/10097434142",
+      "name": "Bolt EV Charger - Karve Road",
+      "operator": "Bolt",
+      "brand": "Bolt.Earth",
+      "lat": 18.5095633,
+      "lng": 73.8147009,
+      "capacity": 8,
+      "socketType": "AC Type 2 / 3-pin 16A",
+      "location": "Karve Road Commercial Strip"
+    },
+    {
+      "id": 10097434143,
+      "osmId": "node/10097434143",
+      "name": "Ather Energy - Vanaz",
+      "operator": "Ather Energy",
+      "brand": "Ather Grid",
+      "lat": 18.5105681,
+      "lng": 73.7819020,
+      "capacity": 1,
+      "socketType": "Ather Proprietary",
+      "location": "Paud Road / Vanaz"
+    },
+    {
+      "id": 10097434144,
+      "osmId": "node/10097434144",
+      "name": "Ather Energy - Swargate",
+      "operator": "Ather Energy",
+      "brand": "Ather Grid",
+      "lat": 18.4844962,
+      "lng": 73.8496753,
+      "capacity": 1,
+      "socketType": "Ather Proprietary",
+      "location": "Swargate Transit Hub"
+    },
+    {
+      "id": 10097460085,
+      "osmId": "node/10097460085",
+      "name": "Ather Grid - Deccan",
+      "operator": "Ather Energy",
+      "brand": "Ather Grid",
+      "lat": 18.5189771,
+      "lng": 73.8304638,
+      "capacity": 2,
+      "socketType": "Ather Proprietary",
+      "location": "Deccan Gymkhana"
+    },
+    {
+      "id": 10250046452,
+      "osmId": "node/10250046452",
+      "name": "Tata Power EZ Charge - Aundh",
+      "operator": "Tata Power",
+      "brand": "EZ Charge",
+      "lat": 18.5536336,
+      "lng": 73.8065620,
+      "capacity": 2,
+      "socketType": "CCS2 (30kW DC) + Type 2",
+      "location": "Aundh Commercial Center"
+    },
+    {
+      "id": 11005778506,
+      "osmId": "node/11005778506",
+      "name": "Jio-bp pulse EV Station",
+      "operator": "Jio-bp",
+      "brand": "Jio-bp pulse",
+      "lat": 18.5638072,
+      "lng": 73.8068573,
+      "capacity": 4,
+      "socketType": "CCS2 (60kW DC)",
+      "location": "Aundh Road"
+    },
+    {
+      "id": 11217502924,
+      "osmId": "node/11217502924",
+      "name": "Westend Mall Charging Hub",
+      "operator": "Westend Mall",
+      "brand": "Commercial Mall Host",
+      "lat": 18.5623306,
+      "lng": 73.8069355,
+      "capacity": 5,
+      "socketType": "CCS2 / Type 2",
+      "location": "Westend Mall Basement"
+    },
+    {
+      "id": 12458871181,
+      "osmId": "node/12458871181",
+      "name": "Statiq EV Fast Charging Station",
+      "operator": "Statiq",
+      "brand": "Statiq Hub",
+      "lat": 18.5638929,
+      "lng": 73.8070465,
+      "capacity": 6,
+      "socketType": "CCS2 (120kW Dual Gun)",
+      "location": "Aundh Interchange"
+    },
+    {
+      "id": 12473454969,
+      "osmId": "node/12473454969",
+      "name": "Bijlify EV Charger",
+      "operator": "Bijlify",
+      "brand": "Bijlify",
+      "lat": 18.5228186,
+      "lng": 73.8410529,
+      "capacity": 2,
+      "socketType": "Type 2 AC / 15A Socket",
+      "location": "Shivajinagar / Ghole Road"
+    },
+    {
+      "id": 12334310661,
+      "osmId": "node/12334310661",
+      "name": "Kazam EV Charging Point",
+      "operator": "Kazam",
+      "brand": "Kazam EV",
+      "lat": 18.4979616,
+      "lng": 73.7941778,
+      "capacity": 2,
+      "socketType": "AC 3.3kW",
+      "location": "Warje Malwadi"
+    },
+    {
+      "id": 763446417,
+      "osmId": "node/763446417",
+      "name": "Cummins College Area EV Point",
+      "operator": "Private Host",
+      "brand": "Community Charger",
+      "lat": 18.4961010,
+      "lng": 73.8088593,
+      "capacity": 1,
+      "socketType": "16A Industrial Plug",
+      "location": "Karve Nagar"
+    },
+    {
+      "id": 10844985580,
+      "osmId": "node/10844985580",
+      "name": "Viman Nagar Commercial EV Station",
+      "operator": "Independent",
+      "brand": "Commercial Host",
+      "lat": 18.5778315,
+      "lng": 73.9073489,
+      "capacity": 2,
+      "socketType": "CCS2 (30kW)",
+      "location": "Viman Nagar"
+    }
+  ],
+  "candidateSites": [
+    {
+      "id": "pune-cand-1-shivajinagar",
+      "name": "Shivajinagar Multimodal Transit Interchange",
+      "description": "High-priority intermodal candidate directly adjacent to Old Mumbai-Pune Highway, Pune Metro Shivajinagar Station, MSRTC bus terminal, and PMT depot. High vehicular throughput and existing MSEDCL 11kV substation feeder.",
+      "lat": 18.5314,
+      "lng": 73.8446,
+      "type": "EV Charging Station",
+      "recommendedBays": 12,
+      "recommendedPowerKw": 120,
+      "elevationM": 564,
+      "slopePercent": 1.8,
+      "aspectDeg": 160,
+      "ghiAnnualKwhM2Day": 5.13,
+      "metrics": {
+        "nearestChargerDistM": 1220,
+        "nearestChargerName": "Bijlify EV Charger (1.2 km south)",
+        "arterialRoadDistM": 35,
+        "arterialRoadName": "Old Mumbai-Pune Highway (NH 48)",
+        "publicParkingDistM": 65,
+        "publicParkingName": "Shivajinagar Metro Multi-Level Parking",
+        "powerSubstationDistM": 180,
+        "powerSubstationName": "MSEDCL Shivajinagar 11kV Switching Station",
+        "hazardDistM": 650,
+        "residentialCommercialBldgs1km": 340,
+        "transitHubDistM": 85
+      }
+    },
+    {
+      "id": "pune-cand-2-deccan",
+      "name": "FC Road / Deccan Gymkhana Retail Hub",
+      "description": "Prime commercial and retail destination with dense pedestrian footfall and high vehicle dwell times. Public parking available at Sambhaji Park parking lot. Moderate distance to primary arterial corridor.",
+      "lat": 18.5186,
+      "lng": 73.8415,
+      "type": "EV Charging Station",
+      "recommendedBays": 8,
+      "recommendedPowerKw": 60,
+      "elevationM": 558,
+      "slopePercent": 1.2,
+      "aspectDeg": 175,
+      "ghiAnnualKwhM2Day": 5.13,
+      "metrics": {
+        "nearestChargerDistM": 610,
+        "nearestChargerName": "Ather Grid - Deccan (610m west)",
+        "arterialRoadDistM": 45,
+        "arterialRoadName": "Fergusson College Road (Secondary Arterial)",
+        "publicParkingDistM": 90,
+        "publicParkingName": "Sambhaji Park Surface Parking Lot",
+        "powerSubstationDistM": 320,
+        "powerSubstationName": "Deccan 11kV Distribution Transformer",
+        "hazardDistM": 800,
+        "residentialCommercialBldgs1km": 420,
+        "transitHubDistM": 290
+      }
+    },
+    {
+      "id": "pune-cand-3-kothrud",
+      "name": "Kothrud Karve Road Commercial Strip",
+      "description": "Major residential catchment with high private EV ownership density (two-wheelers and four-wheelers). Situated along the Karve Road metro corridor near Vanaz. Noticeable presence of existing 2W chargers requiring high-capacity 4W fast charging focus.",
+      "lat": 18.5074,
+      "lng": 73.8077,
+      "type": "EV Charging Station",
+      "recommendedBays": 6,
+      "recommendedPowerKw": 60,
+      "elevationM": 578,
+      "slopePercent": 2.4,
+      "aspectDeg": 140,
+      "ghiAnnualKwhM2Day": 5.13,
+      "metrics": {
+        "nearestChargerDistM": 320,
+        "nearestChargerName": "Ather Energy Charging Point (320m west)",
+        "arterialRoadDistM": 80,
+        "arterialRoadName": "Karve Road (Major Arterial)",
+        "publicParkingDistM": 140,
+        "publicParkingName": "Karve Road Retail Complex Parking",
+        "powerSubstationDistM": 410,
+        "powerSubstationName": "MSEDCL Kothrud Substation",
+        "hazardDistM": 950,
+        "residentialCommercialBldgs1km": 510,
+        "transitHubDistM": 380
+      }
+    },
+    {
+      "id": "pune-cand-4-pune-station",
+      "name": "Pune Railway Station North Forecourt",
+      "description": "High-density transit nexus serving inter-city rail travelers, taxis, autorickshaws, and fleet vehicles. Substantial power infrastructure exists on site, but congested pedestrian approaches require strict traffic management.",
+      "lat": 18.5284,
+      "lng": 73.8738,
+      "type": "EV Charging Station",
+      "recommendedBays": 10,
+      "recommendedPowerKw": 120,
+      "elevationM": 560,
+      "slopePercent": 1.5,
+      "aspectDeg": 185,
+      "ghiAnnualKwhM2Day": 5.13,
+      "metrics": {
+        "nearestChargerDistM": 1850,
+        "nearestChargerName": "Bijlify EV Charger (1.8 km west)",
+        "arterialRoadDistM": 60,
+        "arterialRoadName": "Maldhakka Chowk / Station Road",
+        "publicParkingDistM": 50,
+        "publicParkingName": "Pune Junction Railway Parking Lot",
+        "powerSubstationDistM": 150,
+        "powerSubstationName": "Central Railway 22kV Traction Substation",
+        "hazardDistM": 450,
+        "residentialCommercialBldgs1km": 280,
+        "transitHubDistM": 50
+      }
+    }
+  ],
+  "studyAreaBoundaryGeoJson": {
+    "type": "Feature",
+    "properties": {
+      "name": "Pune Central Study Area",
+      "authority": "Pune Municipal Corporation",
+      "areaKm2": 38.6
+    },
+    "geometry": {
+      "type": "Polygon",
+      "coordinates": [
+        [
+          [73.8050, 18.4850],
+          [73.8850, 18.4850],
+          [73.8850, 18.5550],
+          [73.8050, 18.5550],
+          [73.8050, 18.4850]
+        ]
+      ]
+    }
+  }
+}

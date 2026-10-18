@@ -441,6 +441,64 @@ export const INFRASTRUCTURE_WEIGHT_PROFILES: Record<InfrastructureTypeId, Weight
       },
     },
   ],
+  "EV Charging Station": [
+    {
+      id: "baseline",
+      name: "Standard Balanced EV Planning",
+      description: "Default balanced weighting reflecting urban EV infrastructure guidelines.",
+      rationale: "Balances unserved gap demand, arterial ingress/egress, retail/parking host amenities, and electrical grid proximity.",
+      weights: {
+        ev_gap_separation: 0.25,
+        arterial_access: 0.20,
+        parking_commercial_host: 0.20,
+        power_grid_proximity: 0.15,
+        terrain_slope: 0.10,
+        osm_coverage: 0.10,
+      },
+    },
+    {
+      id: "transit_retail",
+      name: "Transit & Commercial Host Priority",
+      description: "Prioritizes co-location with public parking, metro stations, and commercial dwell destinations.",
+      rationale: "Maximizes charging utilization where drivers park for shopping, dining, or multimodal transit.",
+      weights: {
+        ev_gap_separation: 0.15,
+        arterial_access: 0.15,
+        parking_commercial_host: 0.35,
+        power_grid_proximity: 0.15,
+        terrain_slope: 0.10,
+        osm_coverage: 0.10,
+      },
+    },
+    {
+      id: "highway_corridor",
+      name: "High-Power Highway Corridor Priority",
+      description: "Emphasizes swift arterial connection and high-power electrical distribution access.",
+      rationale: "Ideal for high-throughput DC fast-charging plazas serving inter-city and highway commuters.",
+      weights: {
+        ev_gap_separation: 0.15,
+        arterial_access: 0.35,
+        parking_commercial_host: 0.10,
+        power_grid_proximity: 0.25,
+        terrain_slope: 0.10,
+        osm_coverage: 0.05,
+      },
+    },
+    {
+      id: "equity_gap",
+      name: "Underserved District Equity Priority",
+      description: "Directs charging investments into underserved neighborhoods with zero or few existing chargers.",
+      rationale: "Expands geographic coverage equity to prevent charging deserts in peripheral wards.",
+      weights: {
+        ev_gap_separation: 0.40,
+        arterial_access: 0.20,
+        parking_commercial_host: 0.15,
+        power_grid_proximity: 0.10,
+        terrain_slope: 0.05,
+        osm_coverage: 0.10,
+      },
+    },
+  ],
 };
 
 /**

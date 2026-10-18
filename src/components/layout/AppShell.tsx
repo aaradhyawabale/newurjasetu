@@ -47,12 +47,13 @@ export const AppShell: React.FC<AppShellProps> = ({
   const [currentScenarioId, setCurrentScenarioId] = useState<string>(initialScenarioId);
 
   // State: Tools & Placements
-  const [activeTool, setActiveTool] = useState<string>("Hospital");
+  const initialIsPune = initialScenarios.some((s) => s.name?.toLowerCase().includes("pune"));
+  const [activeTool, setActiveTool] = useState<string>(initialIsPune ? "EV Charging Station" : "Hospital");
   const [activePlacement, setActivePlacement] = useState<any | null>(null);
   const [locationLabel, setLocationLabel] = useState<string>("");
   const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number }>({
-    lat: 28.6139,
-    lng: 77.2090, // Default New Delhi coordinates
+    lat: initialIsPune ? 18.5204 : 28.6139,
+    lng: initialIsPune ? 73.8567 : 77.2090,
   });
 
   // State: Select Area 2-click bounding box

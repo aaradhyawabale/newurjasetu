@@ -17,6 +17,7 @@ import {
   History,
   Download,
   Info,
+  Zap,
 } from "lucide-react";
 import { InfrastructureTypeId, INFRASTRUCTURE_TYPES } from "@/config/infra-types";
 
@@ -60,6 +61,7 @@ export const ToolSidebar: React.FC<ToolSidebarProps> = ({
     { id: "Transit Station", label: "Transit Station", icon: TrainFront },
     { id: "Drainage", label: "Drainage", icon: Droplets },
     { id: "Solar Farm", label: "Solar Farm", icon: Sun },
+    { id: "EV Charging Station", label: "EV Charging Station", icon: Zap },
     { id: "Remove", label: "Remove", icon: Trash2, isAction: true },
   ];
 
@@ -81,7 +83,7 @@ export const ToolSidebar: React.FC<ToolSidebarProps> = ({
           <span className="text-[11px] font-mono uppercase tracking-wider font-semibold text-stone-500">
             Urban Tools
           </span>
-          <span className="text-[10px] font-mono text-stone-400">10 Types</span>
+          <span className="text-[10px] font-mono text-stone-400">11 Types</span>
         </div>
 
         <nav className="p-2 flex flex-col gap-0.5">

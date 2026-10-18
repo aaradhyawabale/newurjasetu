@@ -23,6 +23,8 @@ import {
   scoreSolarGhi,
   scoreOsmDataCoverage,
   scoreManningHydraulicCapacity,
+  scoreEvStationSeparation,
+  scoreHostParkingDistance,
   determineSuitabilityBand,
 } from "./scoring";
 import { OsmElement, StandardizedGeoFeature, StandardizedFeatureCategory } from "../providers/types";
@@ -322,6 +324,12 @@ export async function runAnalysisEngine(params: {
       "Utility-scale PV land requirement assumes ~8,000 m²/MWp (0.8 ha/MWp) packing factor and optimal fixed-tilt angle approximately equal to |latitude|."
     );
   }
+  if (type === "EV Charging Station") {
+    assumptions.push(
+      "EV charging layout models dedicated parking bays with safe vehicle turning radii, ingress/egress setbacks, and distribution transformer clearance.",
+      "Service catchment assumes a standard 500m urban walking radius for dwell activities during vehicle charging."
+    );
+  }
 
   const limitations: string[] = [
     "Indicative suitability heuristics for preliminary planning and site screening only.",
@@ -329,6 +337,13 @@ export async function runAnalysisEngine(params: {
     "OpenStreetMap is volunteered geographic data; features may be unmapped or outdated in emerging areas.",
     "Thresholds and criteria weights represent default heuristics — verify against local municipal master plans and building codes (NEEDS VERIFICATION).",
   ];
+
+  if (type === "EV Charging Station") {
+    limitations.push(
+      "Electrical grid proximity indicates physical distance to distribution equipment only; available transformer capacity and grid interconnection sanction must be verified with utility operator (MSEDCL).",
+      "Real-time charger status (occupied/idle/faulted) and live telemetry require OCPP integration and cannot be inferred from static map records."
+    );
+  }
 
   // =========================================================================
   // STEP 3 & 4: RETRIEVE GEOGRAPHIC EVIDENCE & VALIDATE DATA QUALITY/COVERAGE
@@ -649,6 +664,12 @@ export async function runAnalysisEngine(params: {
   let nearestTransitDistM = 9999;
   let nearestShadeObstructionDistM = 9999;
   let nearestIncompatibleLanduseDistM = 9999;
+  let nearestEvChargerDistM = 9999;
+  let nearestEvChargerName: string | undefined;
+  let evChargersCountR2 = 0;
+  let nearestParkingOrCommercialDistM = 9999;
+  let nearestParkingOrCommercialName: string | undefined;
+  let nearestPowerName: string | undefined;
 
   let residentialBldgsCount = 0;
   let commercialBldgsCount = 0;
@@ -797,7 +818,10 @@ export async function runAnalysisEngine(params: {
 
     // Power infrastructure
     if (tags.power) {
-      if (distM < nearestPowerDistM) nearestPowerDistM = distM;
+      if (distM < nearestPowerDistM) {
+        nearestPowerDistM = distM;
+        nearestPowerName = tags.name || tags.operator || `Power ${tags.power}`;
+      }
     }
 
     // Parks & open space
@@ -883,6 +907,30 @@ export async function runAnalysisEngine(params: {
     ) {
       if (distM < nearestTransitDistM) nearestTransitDistM = distM;
       if (distM <= 800) transitStopsCount++;
+    }
+
+    // Existing EV Charging Stations
+    if (tags.amenity === "charging_station") {
+      evChargersCountR2++;
+      if (distM < nearestEvChargerDistM) {
+        nearestEvChargerDistM = distM;
+        nearestEvChargerName = tags.name || tags.operator || tags.brand || "Existing EV Station";
+      }
+    }
+
+    // Public Parking & Commercial Dwell Hosts
+    if (
+      tags.amenity === "parking" ||
+      tags.shop === "mall" ||
+      tags.shop === "supermarket" ||
+      tags.amenity === "marketplace" ||
+      tags.amenity === "fuel"
+    ) {
+      if (distM < nearestParkingOrCommercialDistM) {
+        nearestParkingOrCommercialDistM = distM;
+        nearestParkingOrCommercialName =
+          tags.name || (tags.amenity === "parking" ? "Public Parking" : "Commercial Hub");
+      }
     }
   }
 
@@ -1294,7 +1342,43 @@ export async function runAnalysisEngine(params: {
           break;
 
         case "utility_power_proximity":
+        // EV Infrastructure Gap / Spatial Separation
+        case "ev_gap_separation": {
+          const gapDist = nearestEvChargerDistM === 9999 ? 2500 : nearestEvChargerDistM;
+          metricVal = Math.round(gapDist);
+          scoreObj = scoreEvStationSeparation(gapDist);
+          if (gapDist >= 1000) {
+            supporting.push(
+              `High underserved gap opportunity: nearest existing EV charger is ${Math.round(gapDist)}m away [evd_osm_r1].`
+            );
+          } else if (gapDist < 300) {
+            risks.push(
+              `Close proximity to existing EV charger (${Math.round(gapDist)}m, ${nearestEvChargerName || "nearby station"}); potential traffic congestion or cannibalization risk [evd_osm_r1].`
+            );
+          }
+          break;
+        }
+
+        // Public Parking & Commercial Dwell Host Proximity
+        case "parking_commercial_host": {
+          const hostDist = nearestParkingOrCommercialDistM === 9999 ? 1500 : nearestParkingOrCommercialDistM;
+          metricVal = Math.round(hostDist);
+          scoreObj = scoreHostParkingDistance(hostDist);
+          if (hostDist <= 120) {
+            supporting.push(
+              `Excellent host co-location: public parking or commercial dwell amenities within ${Math.round(hostDist)}m (${nearestParkingOrCommercialName || "Host facility"}) [evd_osm_r1].`
+            );
+          } else if (hostDist > 400) {
+            risks.push(
+              `Distance to host parking or commercial amenities is ${Math.round(hostDist)}m; drivers lack dwell amenities during charging [evd_osm_r1].`
+            );
+          }
+          break;
+        }
+
+        // Grid Power Distribution
         case "grid_substation_proximity":
+        case "power_grid_proximity":
           metricVal = nearestPowerDistM;
           evidenceIds = ["evd_osm_r2"];
           if (nearestPowerDistM <= 800) {
@@ -1304,7 +1388,7 @@ export async function runAnalysisEngine(params: {
               formattedValue: `${Math.round(nearestPowerDistM)} m to power grid`,
             };
             supporting.push(
-              `Close electrical grid proximity: power infrastructure mapped within ${Math.round(nearestPowerDistM)}m [evd_osm_r2].`
+              `Close electrical grid proximity: power infrastructure mapped within ${Math.round(nearestPowerDistM)}m (${nearestPowerName || "Substation/Feeder"}) [evd_osm_r2].`
             );
           } else if (nearestPowerDistM <= 2000) {
             scoreObj = {
@@ -1325,6 +1409,11 @@ export async function runAnalysisEngine(params: {
               `Extended feeder line required: nearest mapped power infrastructure is ${
                 nearestPowerDistM > 5000 ? "> 5km" : `${Math.round(nearestPowerDistM)}m`
               } away [evd_osm_r2].`
+            );
+          }
+          if (type === "EV Charging Station") {
+            recommendations.push(
+              "Distribution substation proximity is a physical routing indicator; available transformer headroom and connection sanction must be formally verified with MSEDCL."
             );
           }
           break;

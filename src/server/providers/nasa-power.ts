@@ -5,6 +5,7 @@ import {
   setCachedResponse,
   withInFlightDedup,
 } from "./cache";
+import { getPuneSnapshotSolar } from "./snapshot-loader";
 
 const NASA_POWER_BASE =
   process.env.NASA_POWER_API_URL ||
@@ -200,6 +201,12 @@ export class NasaPowerProvider {
             };
           }
         }
+
+        const puneSolar = getPuneSnapshotSolar(lat, lng);
+        if (puneSolar) {
+          return puneSolar;
+        }
+
         throw normalizedErr;
       }
     });

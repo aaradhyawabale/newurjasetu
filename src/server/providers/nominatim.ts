@@ -5,6 +5,10 @@ import {
   setCachedResponse,
   withInFlightDedup,
 } from "./cache";
+import {
+  getPuneGeocodeResults,
+  getPuneReverseGeocodeResult,
+} from "./snapshot-loader";
 import { OSM_LICENSE } from "./overpass";
 
 const USER_AGENT =
@@ -98,6 +102,8 @@ export class NominatimProvider {
           maxStaleHours: 168,
         });
         if (staleEntry) return staleEntry.data;
+        const puneMatches = getPuneGeocodeResults(cleanQuery);
+        if (puneMatches && puneMatches.length > 0) return puneMatches;
         return [];
       }
     });
@@ -155,6 +161,8 @@ export class NominatimProvider {
           maxStaleHours: 168,
         });
         if (staleEntry) return staleEntry.data.label;
+        const puneReverse = getPuneReverseGeocodeResult(lat, lng);
+        if (puneReverse) return puneReverse.displayName;
         return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
       }
     });

@@ -37,6 +37,22 @@ export function scoreGapNeed(existingCountWithinRadius: number): MetricScore {
   return { score: 25, status: "constrained", formattedValue: `${existingCountWithinRadius} nearby (saturated)` };
 }
 
+export function scoreEvStationSeparation(distMeters: number): MetricScore {
+  if (distMeters >= 1200) return { score: 96, status: "optimal", formattedValue: `${Math.round(distMeters)} m (critical gap opportunity)` };
+  if (distMeters >= 600) return { score: 85, status: "optimal", formattedValue: `${Math.round(distMeters)} m (favorable spacing)` };
+  if (distMeters >= 300) return { score: 65, status: "acceptable", formattedValue: `${Math.round(distMeters)} m (moderate spacing)` };
+  if (distMeters >= 150) return { score: 40, status: "suboptimal", formattedValue: `${Math.round(distMeters)} m (dense clustering)` };
+  return { score: 20, status: "constrained", formattedValue: `${Math.round(distMeters)} m (cannibalization risk)` };
+}
+
+export function scoreHostParkingDistance(distMeters: number): MetricScore {
+  if (distMeters <= 50) return { score: 100, status: "optimal", formattedValue: `${Math.round(distMeters)} m (co-located with parking/host)` };
+  if (distMeters <= 120) return { score: 88, status: "optimal", formattedValue: `${Math.round(distMeters)} m (immediate pedestrian reach)` };
+  if (distMeters <= 250) return { score: 70, status: "acceptable", formattedValue: `${Math.round(distMeters)} m (short walking distance)` };
+  if (distMeters <= 500) return { score: 45, status: "suboptimal", formattedValue: `${Math.round(distMeters)} m (moderate walk)` };
+  return { score: 20, status: "constrained", formattedValue: `${Math.round(distMeters)} m (isolated roadside)` };
+}
+
 export function scoreSolarGhi(ghiKwhM2Day: number): MetricScore {
   if (ghiKwhM2Day >= 5.4) return { score: 100, status: "optimal", formattedValue: `${ghiKwhM2Day} kWh/m²/day` };
   if (ghiKwhM2Day >= 4.8) return { score: 86, status: "optimal", formattedValue: `${ghiKwhM2Day} kWh/m²/day` };

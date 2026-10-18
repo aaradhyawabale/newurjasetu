@@ -8,7 +8,8 @@ export type InfrastructureTypeId =
   | "Building"
   | "Transit Station"
   | "Drainage"
-  | "Solar Farm";
+  | "Solar Farm"
+  | "EV Charging Station";
 
 export interface ParameterDefinition {
   id: string;
@@ -933,6 +934,108 @@ export const INFRASTRUCTURE_TYPES: Record<InfrastructureTypeId, InfrastructureTy
       },
     ],
   },
+  "EV Charging Station": {
+    id: "EV Charging Station",
+    label: "EV Charging Station",
+    category: "Transport",
+    description: "Electric vehicle charging hub requiring arterial road accessibility, host parking amenities, distribution grid proximity, and strategic spatial separation from existing chargers.",
+    icon: "Zap",
+    defaultLengthM: 25,
+    defaultWidthM: 15,
+    minAreaM2: 150,
+    maxAreaM2: 10000,
+    searchRadiusR1M: 500,
+    searchRadiusR2M: 2000,
+    parameters: [
+      {
+        id: "bayCount",
+        label: "Planned Charging Bays",
+        type: "number",
+        unit: "bays",
+        defaultValue: 6,
+        min: 2,
+        max: 32,
+        step: 2,
+        helperText: "Number of designated vehicle charging bays.",
+      },
+      {
+        id: "chargerPowerKw",
+        label: "Charger Power Rating",
+        type: "select",
+        defaultValue: "60",
+        options: [
+          { label: "22 kW AC Fast (Destination)", value: "22" },
+          { label: "60 kW DC Fast (Commercial)", value: "60" },
+          { label: "120 kW DC Ultra-Fast (Highway/Transit)", value: "120" },
+          { label: "240 kW DC Hyper-Hub", value: "240" },
+        ],
+        helperText: "Individual charger peak power output capacity.",
+      },
+      {
+        id: "gridDedicatedTransformer",
+        label: "Dedicated Step-Down Transformer",
+        type: "boolean",
+        defaultValue: true,
+        helperText: "Requires dedicated 11kV/415V transformer on site.",
+      },
+    ],
+    criteria: [
+      {
+        id: "ev_gap_separation",
+        label: "EV Infrastructure Gap / Separation",
+        weight: 0.25,
+        unit: "m",
+        benchmark: "Distance to nearest existing EV charging station > 500m indicates underserved district (NEEDS VERIFICATION)",
+        description: "Evaluates spatial separation from existing public chargers to identify unserved gap zones and avoid cannibalization.",
+        sourceProvider: "overpass",
+      },
+      {
+        id: "arterial_access",
+        label: "Arterial Road Accessibility",
+        weight: 0.20,
+        unit: "m",
+        benchmark: "Distance to primary/secondary road < 250m (NEEDS VERIFICATION)",
+        description: "Direct vehicular ingress and egress from primary and secondary traffic corridors.",
+        sourceProvider: "overpass",
+      },
+      {
+        id: "parking_commercial_host",
+        label: "Public Parking & Retail Host Proximity",
+        weight: 0.20,
+        unit: "m",
+        benchmark: "Distance to public parking lot, mall, or commercial market < 200m (NEEDS VERIFICATION)",
+        description: "Proximity to designated parking facilities and retail dwell amenities for charging vehicle drivers.",
+        sourceProvider: "overpass",
+      },
+      {
+        id: "power_grid_proximity",
+        label: "Grid Distribution Proximity",
+        weight: 0.15,
+        unit: "m",
+        benchmark: "Distance to power substation or distribution line < 500m (NEEDS VERIFICATION)",
+        description: "Physical proximity to electrical distribution infrastructure (preliminary indicator; does not prove sanctioned transformer capacity).",
+        sourceProvider: "overpass",
+      },
+      {
+        id: "terrain_slope",
+        label: "Terrain Slope & Flatness",
+        weight: 0.10,
+        unit: "%",
+        benchmark: "Slope < 5% for accessible parking bays and drainage (NEEDS VERIFICATION)",
+        description: "Low slope ground reduces civil grading and ensures safe vehicle maneuvering.",
+        sourceProvider: "open-meteo",
+      },
+      {
+        id: "osm_coverage",
+        label: "OSM Data Density Confidence",
+        weight: 0.10,
+        unit: "pts/km²",
+        benchmark: "Adequate mapped baseline features to substantiate assessment (NEEDS VERIFICATION)",
+        description: "Volunteered geographic data confidence indicator.",
+        sourceProvider: "osm-coverage",
+      },
+    ],
+  },
 };
 
 export interface SeparationRuleConfig {
@@ -1068,6 +1171,18 @@ export const INFRASTRUCTURE_SEPARATION_RULES: Record<InfrastructureTypeId, Separ
     allowRailwayIntersection: false,
     allowBuildingIntersection: false,
     standardReference: "MNRE / CEA Utility-Scale Solar PV Siting & Grid Interconnection Heuristics (NEEDS VERIFICATION)",
+  },
+  "EV Charging Station": {
+    minHazardBufferM: 50,
+    minRailwayBufferM: 20,
+    minMotorwayBufferM: 10,
+    maxRoadAccessDistanceM: 250,
+    maxSlopePercent: 6.0,
+    minSameTypeSpacingM: 300,
+    allowWaterwayIntersection: false,
+    allowRailwayIntersection: false,
+    allowBuildingIntersection: false,
+    standardReference: "Ministry of Power / CEA EV Charging Infrastructure Guidelines (2022) & URDPFI Urban Siting Norms (NEEDS VERIFICATION)",
   },
 };
 

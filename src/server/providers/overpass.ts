@@ -12,6 +12,7 @@ import {
   setCachedResponse,
   withInFlightDedup,
 } from "./cache";
+import { getPuneSnapshotOverpass } from "./snapshot-loader";
 import * as turf from "@turf/turf";
 import type { Feature, Geometry } from "geojson";
 
@@ -170,6 +171,12 @@ export class OverpassProvider {
             }),
           };
         }
+
+        const puneSnapshot = getPuneSnapshotOverpass(lat, lng, boundedRadiusM);
+        if (puneSnapshot) {
+          return puneSnapshot;
+        }
+
         throw liveErr;
       }
     });
@@ -422,6 +429,14 @@ export function classifyOsmTags(tags: Record<string, string>): {
   }
 
   if (tags.amenity) {
+    if (tags.amenity === "charging_station") {
+      return {
+        category: "amenity",
+        subCategory: "charging_station",
+        label: tags.name || tags.operator || tags.brand || "EV Charging Station",
+        missingAttributes: tags.capacity ? missingAttributes : [...missingAttributes, "capacity"],
+      };
+    }
     return {
       category: "amenity",
       subCategory: tags.amenity,
