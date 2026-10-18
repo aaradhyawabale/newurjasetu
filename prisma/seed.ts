@@ -3,49 +3,54 @@ import bcrypt from "bcryptjs";
 import { runAnalysisEngine } from "../src/server/analysis-engine/engine";
 import { generateCacheKey } from "../src/server/providers/cache";
 import {
-  loadPuneSnapshot,
-  getPuneSnapshotOverpass,
-  getPuneSnapshotElevation,
-  getPuneSnapshotSolar,
+  CityId,
+  loadSnapshot,
+  getSnapshotOverpass,
+  getSnapshotElevation,
+  getSnapshotSolar,
 } from "../src/server/providers/snapshot-loader";
 
 const prisma = new PrismaClient();
 
-async function main() {
-  console.log("🌱 Seeding UrjaSetu database with Pune EV Master Plan...");
+async function seedCityScenario(
+  user: { id: string; email: string },
+  city: CityId,
+  scenarioName: string
+) {
+  console.log(`\n📌 Seeding Scenario for ${city.toUpperCase()}: "${scenarioName}"...`);
 
-  // 1. Create or retrieve demo user
-  const demoEmail = "demo@urjasetu.gov.in";
-  const passwordHash = await bcrypt.hash("UrjaSetuDemo2026!", 12);
-
-  const user = await prisma.user.upsert({
-    where: { email: demoEmail },
-    update: { passwordHash, name: "Urban Infrastructure Planner (PMC)" },
-    create: {
-      email: demoEmail,
-      passwordHash,
-      name: "Urban Infrastructure Planner (PMC)",
-    },
+  // Check if scenario already exists for this user to avoid duplicates
+  let scenario = await prisma.scenario.findFirst({
+    where: { userId: user.id, name: scenarioName },
   });
-  console.log(`✓ Demo user ready: ${user.email} (${user.id})`);
 
-  // 2. Create Pune EV Master Plan Scenario
-  const scenario = await prisma.scenario.create({
-    data: {
-      userId: user.id,
-      name: "Pune EV Infrastructure Master Plan 2026",
-    },
-  });
-  console.log(`✓ Created Scenario: "${scenario.name}" (${scenario.id})`);
+  if (!scenario) {
+    scenario = await prisma.scenario.create({
+      data: {
+        userId: user.id,
+        name: scenarioName,
+      },
+    });
+    console.log(`  ✓ Created Scenario: "${scenario.name}" (${scenario.id})`);
+  } else {
+    console.log(`  ✓ Scenario already exists: "${scenario.name}" (${scenario.id})`);
+  }
 
-  // 3. Load verified Pune snapshot
-  const snapshot = loadPuneSnapshot();
+  const snapshot = loadSnapshot(city);
   console.log(
-    `✓ Loaded Pune Snapshot: ${snapshot.candidateSites.length} candidates, ${snapshot.existingEvStations.length} existing EV stations.`
+    `  ✓ Loaded ${city.toUpperCase()} Snapshot: ${snapshot.candidateSites.length} candidates, ${snapshot.existingEvStations.length} existing EV stations.`
   );
 
-  // 4. Create Placements, seed ProviderCache, and execute Analysis
   for (const cand of snapshot.candidateSites) {
+    // Check if placement already exists
+    const existing = await prisma.placement.findFirst({
+      where: { scenarioId: scenario.id, label: cand.name },
+    });
+    if (existing) {
+      console.log(`  ✓ Candidate placement already exists: "${cand.name}"`);
+      continue;
+    }
+
     const lengthM = cand.recommendedBays * 3.5;
     const widthM = 15;
 
@@ -69,7 +74,7 @@ async function main() {
     });
 
     // Seed ProviderCache entries for Overpass, Open-Meteo, and NASA POWER
-    const overpassData = getPuneSnapshotOverpass(cand.lat, cand.lng, 2000);
+    const overpassData = getSnapshotOverpass(cand.lat, cand.lng, 2000);
     if (overpassData) {
       const keyR1 = generateCacheKey("overpass", { lat: cand.lat, lng: cand.lng, radiusM: 500 });
       const keyR2 = generateCacheKey("overpass", { lat: cand.lat, lng: cand.lng, radiusM: 2000 });
@@ -87,7 +92,7 @@ async function main() {
       });
     }
 
-    const elevData = getPuneSnapshotElevation(cand.lat, cand.lng);
+    const elevData = getSnapshotElevation(cand.lat, cand.lng);
     if (elevData) {
       const elevKey = generateCacheKey("open_meteo_elevation", { lat: cand.lat, lng: cand.lng });
       const expiresAt = new Date(Date.now() + 72 * 3600 * 1000);
@@ -98,7 +103,7 @@ async function main() {
       });
     }
 
-    const solarData = getPuneSnapshotSolar(cand.lat, cand.lng);
+    const solarData = getSnapshotSolar(cand.lat, cand.lng);
     if (solarData) {
       const solarKey = generateCacheKey("nasa_power_solar", { lat: cand.lat, lng: cand.lng });
       const expiresAt = new Date(Date.now() + 72 * 3600 * 1000);
@@ -139,19 +144,43 @@ async function main() {
     });
 
     console.log(
-      `✓ Candidate analyzed: "${cand.name}" -> Score: ${analysisReport.overall.score}/100 (${analysisReport.overall.band}) [Analysis: ${savedAnalysis.id}]`
+      `  ✓ Candidate analyzed: "${cand.name}" -> Score: ${analysisReport.overall.score}/100 (${analysisReport.overall.band}) [Analysis: ${savedAnalysis.id}]`
     );
   }
+}
 
-  console.log("\n🎉 Database seeded successfully with Pune EV Master Plan scenario!");
+async function main() {
+  console.log("🌱 Seeding UrjaSetu database with Multi-City Master Plans (Pune, PCMC, Nashik)...");
+
+  // 1. Create or retrieve demo user
+  const demoEmail = "demo@urjasetu.gov.in";
+  const passwordHash = await bcrypt.hash("UrjaSetuDemo2026!", 12);
+
+  const user = await prisma.user.upsert({
+    where: { email: demoEmail },
+    update: { passwordHash, name: "Urban Infrastructure Planner (Maharashtra)" },
+    create: {
+      email: demoEmail,
+      passwordHash,
+      name: "Urban Infrastructure Planner (Maharashtra)",
+    },
+  });
+  console.log(`✓ Demo user ready: ${user.email} (${user.id})`);
+
+  // 2. Seed scenarios for all 3 target regions
+  await seedCityScenario(user, "pune", "Pune EV Infrastructure Master Plan 2026");
+  await seedCityScenario(user, "pcmc", "PCMC Industrial & Transit Corridor Plan 2026");
+  await seedCityScenario(user, "nashik", "Nashik Clean Energy & EV Master Plan 2026");
+
+  console.log("\n🎉 Database seeded successfully with Multi-City Master Plans!");
   console.log(`Demo Credentials:`);
   console.log(`  Email:    ${demoEmail}`);
   console.log(`  Password: UrjaSetuDemo2026!`);
 }
 
 main()
-  .catch((err) => {
-    console.error("❌ Seeding failed:", err);
+  .catch((e) => {
+    console.error("Seeding error:", e);
     process.exit(1);
   })
   .finally(async () => {

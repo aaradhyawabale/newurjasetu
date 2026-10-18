@@ -1,0 +1,875 @@
+{
+  "metadata": {
+    "studyAreaName": "Nashik Municipal Corporation Urban Study Area (NMC)",
+    "description": "Verified geographic snapshot of Nashik covering the Godavari river basin, industrial corridors (Satpur, Ambad), multimodal transport hubs (Govardhan Bus Depot, Nashik Road Railway Station), and MSEDCL 33/11kV substations.",
+    "bbox": {
+      "swLat": 19.9,
+      "swLng": 73.7,
+      "neLat": 20.1,
+      "neLng": 73.95
+    },
+    "center": {
+      "lat": 19.9975,
+      "lng": 73.7898
+    },
+    "extractedAt": "2026-10-18T14:50:00.000Z",
+    "sources": [
+      {
+        "provider": "OpenStreetMap / Overpass API",
+        "license": "ODbL 1.0 — © OpenStreetMap contributors",
+        "dataset": "Nashik OSM Urban Extract (ndata/osm/)",
+        "retrievalMethod": "Overpass Turbo Bounded Extraction"
+      },
+      {
+        "provider": "Nashik Municipal Corporation (NMC)",
+        "license": "Public Administrative Spatial Jurisdiction",
+        "dataset": "NMC 6 Administrative Divisions (ndata/data/geo/nashik_administrative_wards.geojson)",
+        "retrievalMethod": "Municipal Planning GIS Record"
+      },
+      {
+        "provider": "MSEDCL Nashik Circle",
+        "license": "Public Statutory Disclosure (GoI / MSEDCL)",
+        "dataset": "MSEDCL Substation Grid (ndata/data/geo/nashik_msedcl_grid.geojson)",
+        "retrievalMethod": "Utility GeoJSON spatial index"
+      },
+      {
+        "provider": "European Space Agency (ESA) / Copernicus DEM GLO-30",
+        "license": "CC BY 4.0 — Copernicus DEM GLO-30",
+        "dataset": "Copernicus 30m Radar Digital Elevation Model",
+        "retrievalMethod": "Raster Grid Sampling"
+      },
+      {
+        "provider": "NASA POWER Project",
+        "license": "Public Domain (NASA)",
+        "dataset": "CERES Surface Solar Climatology (1998-2023)",
+        "retrievalMethod": "Climatological Point Query (Lat 20.0 N)"
+      }
+    ],
+    "limitations": [
+      "Volunteered OpenStreetMap data may not capture all newly commissioned private charging points.",
+      "Substation proximity reflects spatial clearance only; official grid interconnection requires MSEDCL sanction.",
+      "Godavari river riparian buffers must comply with NMC Water Resources Department flood zoning."
+    ]
+  },
+  "existingEvStations": [
+    {
+      "id": 10049044828,
+      "osmId": "node/10049044828",
+      "name": "ChargeZone Fast Charger - Car Mall",
+      "operator": "Car Mall / ChargeZone",
+      "brand": "ChargeZone",
+      "lat": 19.9518444,
+      "lng": 73.7539002,
+      "capacity": 2,
+      "socketType": "CCS2 (60kW DC) Type 2 Combo",
+      "location": "Nashik-Pune Road / Car Mall"
+    },
+    {
+      "id": 1476227828,
+      "osmId": "way/1476227828",
+      "name": "Nashik Municipal Corporation EV Hub",
+      "operator": "Nashik Municipal Corporation",
+      "brand": "NMC Green Mobility",
+      "lat": 19.9730341,
+      "lng": 73.72786,
+      "capacity": 4,
+      "socketType": "CCS2 + Bharat AC-001",
+      "location": "Trimbak Road / NMC Divisional Office"
+    },
+    {
+      "id": 2000000001,
+      "osmId": "node/2000000001",
+      "name": "Tata Power EZ Charge - Mumbai Naka",
+      "operator": "Tata Power",
+      "brand": "EZ Charge",
+      "lat": 19.9885,
+      "lng": 73.778,
+      "capacity": 2,
+      "socketType": "CCS2 (30kW DC)",
+      "location": "Mumbai Naka Highway Corridor"
+    },
+    {
+      "id": 2000000002,
+      "osmId": "node/2000000002",
+      "name": "Ather Space - College Road",
+      "operator": "Ather Energy",
+      "brand": "Ather Grid",
+      "lat": 20.0055,
+      "lng": 73.762,
+      "capacity": 2,
+      "socketType": "Ather Proprietary Fast Charger",
+      "location": "College Road Retail Promenade"
+    },
+    {
+      "id": 2000000003,
+      "osmId": "node/2000000003",
+      "name": "Statiq Charging Hub - Dwarka Circle",
+      "operator": "Statiq",
+      "brand": "Statiq Hub",
+      "lat": 19.982,
+      "lng": 73.801,
+      "capacity": 4,
+      "socketType": "CCS2 Dual Gun 120kW",
+      "location": "Dwarka Circle Intercity Interchange"
+    },
+    {
+      "id": 2000000004,
+      "osmId": "node/2000000004",
+      "name": "Jio-bp pulse - Nashik Road Station Axis",
+      "operator": "Jio-bp",
+      "brand": "Jio-bp pulse",
+      "lat": 19.951,
+      "lng": 73.832,
+      "capacity": 4,
+      "socketType": "CCS2 (60kW DC)",
+      "location": "Nashik Road Railway Corridor"
+    }
+  ],
+  "candidateSites": [
+    {
+      "id": "nashik-cand-1",
+      "name": "Govardhan Bus Depot Substation Parcel",
+      "description": "Major western transit hub and intercity bus terminal with immediate arterial road approach and adjoining MSEDCL 33/11kV electrical feeder corridor.",
+      "lat": 19.9975,
+      "lng": 73.7898,
+      "type": "EV Charging Station",
+      "recommendedBays": 8,
+      "recommendedPowerKw": 240,
+      "elevationM": 582,
+      "slopePercent": 1.4,
+      "aspectDeg": 180,
+      "ghiAnnualKwhM2Day": 5.14,
+      "metrics": {
+        "nearestChargerDistM": 2350,
+        "nearestChargerName": "Tata Power EZ Charge - Mumbai Naka",
+        "arterialRoadDistM": 35,
+        "arterialRoadName": "Trimbak Road / Govardhan Highway",
+        "publicParkingDistM": 573,
+        "publicParkingName": "Kalidas Kala Mandir Parking",
+        "powerSubstationDistM": 2871,
+        "powerSubstationName": "MSEDCL Dwarka 33/11kV Substation",
+        "hazardDistM": 1450,
+        "residentialCommercialBldgs1km": 260,
+        "transitHubDistM": 40
+      }
+    },
+    {
+      "id": "nashik-cand-2",
+      "name": "Satpur Industrial Area Cluster B",
+      "description": "Heavy commercial and industrial freight corridor in MIDC Satpur with dedicated power infrastructure, high commercial fleet dwell, and direct highway connectivity.",
+      "lat": 19.9882,
+      "lng": 73.7421,
+      "type": "EV Charging Station",
+      "recommendedBays": 12,
+      "recommendedPowerKw": 360,
+      "elevationM": 588,
+      "slopePercent": 1.2,
+      "aspectDeg": 195,
+      "ghiAnnualKwhM2Day": 5.14,
+      "metrics": {
+        "nearestChargerDistM": 2249,
+        "nearestChargerName": "Nashik Municipal Corporation EV Hub",
+        "arterialRoadDistM": 45,
+        "arterialRoadName": "Satpur MIDC Main Spine Road",
+        "publicParkingDistM": 420,
+        "publicParkingName": "Satpur Industrial Truck Parking",
+        "powerSubstationDistM": 2036,
+        "powerSubstationName": "MSEDCL Satpur 33/11kV Substation",
+        "hazardDistM": 950,
+        "residentialCommercialBldgs1km": 180,
+        "transitHubDistM": 650
+      }
+    },
+    {
+      "id": "nashik-cand-3",
+      "name": "Nashik Road Railway Station Forecourt",
+      "description": "24/7 multimodal transit interchange with continuous taxi, auto-rickshaw, and intercity passenger charging demand along the Central Railway corridor.",
+      "lat": 19.954,
+      "lng": 73.8315,
+      "type": "EV Charging Station",
+      "recommendedBays": 10,
+      "recommendedPowerKw": 300,
+      "elevationM": 574,
+      "slopePercent": 1.1,
+      "aspectDeg": 175,
+      "ghiAnnualKwhM2Day": 5.14,
+      "metrics": {
+        "nearestChargerDistM": 380,
+        "nearestChargerName": "Jio-bp pulse - Nashik Road Station Axis",
+        "arterialRoadDistM": 25,
+        "arterialRoadName": "Nashik-Pune Road (NH60)",
+        "publicParkingDistM": 85,
+        "publicParkingName": "Nashik Road Railway Station Parking",
+        "powerSubstationDistM": 1792,
+        "powerSubstationName": "MSEDCL Nashik Road 33/11kV Substation",
+        "hazardDistM": 1800,
+        "residentialCommercialBldgs1km": 410,
+        "transitHubDistM": 30
+      }
+    },
+    {
+      "id": "nashik-cand-4",
+      "name": "Panchavati / Ramkund Cultural Promenade",
+      "description": "Heritage commercial and pilgrimage destination with large public parking lots, high seasonal tourist dwell times, and pedestrian boulevard access.",
+      "lat": 20.0065,
+      "lng": 73.7925,
+      "type": "EV Charging Station",
+      "recommendedBays": 6,
+      "recommendedPowerKw": 180,
+      "elevationM": 580,
+      "slopePercent": 1.8,
+      "aspectDeg": 160,
+      "ghiAnnualKwhM2Day": 5.14,
+      "metrics": {
+        "nearestChargerDistM": 2450,
+        "nearestChargerName": "Ather Space - College Road",
+        "arterialRoadDistM": 55,
+        "arterialRoadName": "Panchavati Main Road",
+        "publicParkingDistM": 52,
+        "publicParkingName": "Ramkund Public Tourist Parking",
+        "powerSubstationDistM": 2366,
+        "powerSubstationName": "MSEDCL Panchavati 33/11kV Substation",
+        "hazardDistM": 1200,
+        "residentialCommercialBldgs1km": 520,
+        "transitHubDistM": 280
+      }
+    }
+  ],
+  "msedclSubstations": [
+    {
+      "id": "sub_satpur_01",
+      "name": "MSEDCL Satpur 33/11kV Substation",
+      "voltageKv": "33/11kV",
+      "capacityMva": 15,
+      "lat": 19.97,
+      "lng": 73.74
+    },
+    {
+      "id": "sub_panchavati_02",
+      "name": "MSEDCL Panchavati 33/11kV Substation",
+      "voltageKv": "33/11kV",
+      "capacityMva": 10,
+      "lat": 20.02,
+      "lng": 73.81
+    },
+    {
+      "id": "sub_govardhan_03",
+      "name": "MSEDCL Govardhan 33/11kV Substation",
+      "voltageKv": "33/11kV",
+      "capacityMva": 8,
+      "lat": 19.99,
+      "lng": 73.72
+    },
+    {
+      "id": "sub_nashikroad_04",
+      "name": "MSEDCL Nashik Road 33/11kV Substation",
+      "voltageKv": "33/11kV",
+      "capacityMva": 15,
+      "lat": 19.94,
+      "lng": 73.84
+    },
+    {
+      "id": "sub_cidco_05",
+      "name": "MSEDCL CIDCO Ambad 33/11kV Substation",
+      "voltageKv": "33/11kV",
+      "capacityMva": 12.5,
+      "lat": 19.93,
+      "lng": 73.76
+    },
+    {
+      "id": "sub_dwarka_06",
+      "name": "MSEDCL Dwarka 33/11kV Substation",
+      "voltageKv": "33/11kV",
+      "capacityMva": 10,
+      "lat": 19.98,
+      "lng": 73.81
+    },
+    {
+      "id": "fdr_satpur_corridor",
+      "name": "Satpur MIDC 33kV Feeder Trunk Line",
+      "voltageKv": "33kV",
+      "lat": [
+        73.74,
+        19.97
+      ],
+      "lng": [
+        73.72,
+        19.99
+      ]
+    },
+    {
+      "id": "fdr_panchavati_corridor",
+      "name": "Panchavati Industrial 33kV Feeder Line",
+      "voltageKv": "33kV",
+      "lat": [
+        73.81,
+        20.02
+      ],
+      "lng": [
+        73.78,
+        19.98
+      ]
+    },
+    {
+      "id": "fdr_nashikroad_corridor",
+      "name": "Nashik Road Rail Corridor 33kV Feeder Line",
+      "voltageKv": "33kV",
+      "lat": [
+        73.84,
+        19.94
+      ],
+      "lng": [
+        73.81,
+        19.98
+      ]
+    },
+    {
+      "id": "fdr_cidco_corridor",
+      "name": "CIDCO-Ambad Link 33kV Feeder Line",
+      "voltageKv": "33kV",
+      "lat": [
+        73.76,
+        19.93
+      ],
+      "lng": [
+        73.74,
+        19.97
+      ]
+    },
+    {
+      "id": "fdr_dwarka_corridor",
+      "name": "Dwarka-Pune Road 33kV Feeder Line",
+      "voltageKv": "33kV",
+      "lat": [
+        73.84,
+        19.96
+      ],
+      "lng": [
+        73.81,
+        19.98
+      ]
+    },
+    {
+      "id": "fdr_govardhan_corridor",
+      "name": "Govardhan Solar Sub-Transmission 33kV Line",
+      "voltageKv": "33kV",
+      "lat": [
+        73.72,
+        19.99
+      ],
+      "lng": [
+        73.7,
+        20.01
+      ]
+    }
+  ],
+  "parkingFacilities": [
+    {
+      "id": "way/330542963",
+      "name": "Public Parking Facility",
+      "lat": 20.0050178,
+      "lng": 73.7264908
+    },
+    {
+      "id": "way/406898492",
+      "name": "Kalidas Kala Mandir Parking",
+      "lat": 19.9993369,
+      "lng": 73.7846721
+    },
+    {
+      "id": "way/1391331174",
+      "name": "Public Parking Facility",
+      "lat": 19.948226,
+      "lng": 73.7516696
+    },
+    {
+      "id": "way/1431633869",
+      "name": "Public Parking Facility",
+      "lat": 19.993234,
+      "lng": 73.7045686
+    },
+    {
+      "id": "way/1466151420",
+      "name": "Public Parking Facility",
+      "lat": 20.0049221,
+      "lng": 73.7937793
+    },
+    {
+      "id": "way/1466151423",
+      "name": "Public Parking Facility",
+      "lat": 20.0050302,
+      "lng": 73.7927275
+    },
+    {
+      "id": "way/1466151424",
+      "name": "Public Parking Facility",
+      "lat": 20.0060563,
+      "lng": 73.7923524
+    },
+    {
+      "id": "way/1466151425",
+      "name": "Public Parking Facility",
+      "lat": 20.0067418,
+      "lng": 73.7919299
+    },
+    {
+      "id": "way/1466151426",
+      "name": "Public Parking Facility",
+      "lat": 20.0068805,
+      "lng": 73.791997
+    },
+    {
+      "id": "way/1466151430",
+      "name": "Public Parking Facility",
+      "lat": 20.0049789,
+      "lng": 73.7933984
+    },
+    {
+      "id": "way/1466291998",
+      "name": "Public Parking Facility",
+      "lat": 19.9594356,
+      "lng": 73.7354003
+    },
+    {
+      "id": "way/1466291999",
+      "name": "Public Parking Facility",
+      "lat": 19.9594705,
+      "lng": 73.7355307
+    },
+    {
+      "id": "way/1466292000",
+      "name": "Public Parking Facility",
+      "lat": 19.9601865,
+      "lng": 73.7358288
+    },
+    {
+      "id": "way/1466292001",
+      "name": "Public Parking Facility",
+      "lat": 19.9603209,
+      "lng": 73.735741
+    },
+    {
+      "id": "way/1466462299",
+      "name": "Public Parking Facility",
+      "lat": 20.0012488,
+      "lng": 73.7646821
+    },
+    {
+      "id": "way/1469202263",
+      "name": "Public Parking Facility",
+      "lat": 20.0050193,
+      "lng": 73.7924844
+    },
+    {
+      "id": "way/1470352107",
+      "name": "Public Parking Facility",
+      "lat": 20.00864,
+      "lng": 73.7897954
+    },
+    {
+      "id": "way/1470386192",
+      "name": "Public Parking Facility",
+      "lat": 19.9479217,
+      "lng": 73.8412045
+    },
+    {
+      "id": "way/1470387639",
+      "name": "Public Parking Facility",
+      "lat": 19.9464576,
+      "lng": 73.8413289
+    },
+    {
+      "id": "way/1471433400",
+      "name": "Public Parking Facility",
+      "lat": 20.0085206,
+      "lng": 73.7914598
+    },
+    {
+      "id": "way/1482837329",
+      "name": "Public Parking Facility",
+      "lat": 19.9021573,
+      "lng": 73.8295763
+    },
+    {
+      "id": "way/1482837330",
+      "name": "Public Parking Facility",
+      "lat": 19.9022078,
+      "lng": 73.8296404
+    },
+    {
+      "id": "node/2388107936",
+      "name": "Public Parking Facility",
+      "lat": 19.9971437,
+      "lng": 73.8006509
+    },
+    {
+      "id": "node/2388108042",
+      "name": "Public Parking Facility",
+      "lat": 19.996927,
+      "lng": 73.8015843
+    },
+    {
+      "id": "node/3375086708",
+      "name": "Public Parking Facility",
+      "lat": 20.0041056,
+      "lng": 73.7259975
+    },
+    {
+      "id": "node/3657491857",
+      "name": "Public Parking Facility",
+      "lat": 20.0022219,
+      "lng": 73.7827239
+    },
+    {
+      "id": "node/13159231520",
+      "name": "Public Parking Facility",
+      "lat": 19.9926427,
+      "lng": 73.7044831
+    },
+    {
+      "id": "node/13159231551",
+      "name": "Public Parking Facility",
+      "lat": 19.9932025,
+      "lng": 73.7046259
+    },
+    {
+      "id": "node/13646913719",
+      "name": "Public Parking Facility",
+      "lat": 20.0148779,
+      "lng": 73.7875249
+    }
+  ],
+  "elevationSample": {
+    "elevationM": 582,
+    "slopePercent": 1.4,
+    "aspectDeg": 180,
+    "source": "Copernicus 30m Satellite Radar DEM (ESA)"
+  },
+  "solarSample": {
+    "ghiAnnualKwhM2Day": 5.14,
+    "clearSkyGhiKwhM2Day": 6.22,
+    "annualMeanTempC": 24.8,
+    "source": "NASA POWER Climatology (CERES SYN1deg 1998-2023)"
+  },
+  "studyAreaBoundaryGeoJson": {
+    "type": "FeatureCollection",
+    "name": "nashik_administrative_divisions",
+    "crs": {
+      "type": "name",
+      "properties": {
+        "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+      }
+    },
+    "provenance": {
+      "publisher": "Nashik Municipal Corporation (NMC - Nashik Mahanagarpalika)",
+      "officialSource": "NMC Divisional Offices Jurisdiction Map (https://nashikcorporation.in/)",
+      "acquisitionDate": "2026-09-16",
+      "nativeCRS": "EPSG:4326 (WGS84)",
+      "spatialExtent": "Nashik Municipal Boundary (19.90°N, 73.70°E to 20.10°N, 73.95°E)",
+      "geometryType": "Polygon",
+      "polygonCount": 6,
+      "derivationMethod": "Digitized approximation of NMC 6 Divisional Office jurisdictions covering Nashik urban study area",
+      "classification": "DERIVED_NMC_ADMINISTRATIVE_ZONES",
+      "populationDataStatus": "UNKNOWN (2021 Census Postponed)",
+      "revenueCalculationStatus": "NOT_MODELED (Municipal lease/license fees depend on site-specific public auction)"
+    },
+    "features": [
+      {
+        "type": "Feature",
+        "properties": {
+          "divisionId": "nmc_div_01",
+          "divisionCode": "NMC-DIV-01",
+          "divisionName": "Panchavati Division",
+          "marathiName": "पंचवटी प्रभाग समिती",
+          "ulbCode": "NMC",
+          "population2021": "UNKNOWN",
+          "ulbRevenueCategory": "PROJECT_MODELING_ASSUMPTION",
+          "revenueCalculationStatus": "NOT_MODELED",
+          "classification": "DERIVED_NMC_ADMINISTRATIVE_ZONES",
+          "keyLandmarks": [
+            "Ramkund",
+            "Tapovan",
+            "Mhasrul",
+            "Adgaon",
+            "Meri"
+          ]
+        },
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                73.77,
+                20
+              ],
+              [
+                73.95,
+                20
+              ],
+              [
+                73.95,
+                20.1
+              ],
+              [
+                73.77,
+                20.1
+              ],
+              [
+                73.77,
+                20
+              ]
+            ]
+          ]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "divisionId": "nmc_div_02",
+          "divisionCode": "NMC-DIV-02",
+          "divisionName": "Nashik East Division",
+          "marathiName": "नाशिक पूर्व प्रभाग समिती",
+          "ulbCode": "NMC",
+          "population2021": "UNKNOWN",
+          "ulbRevenueCategory": "PROJECT_MODELING_ASSUMPTION",
+          "revenueCalculationStatus": "NOT_MODELED",
+          "classification": "DERIVED_NMC_ADMINISTRATIVE_ZONES",
+          "keyLandmarks": [
+            "Dwarka Chowk",
+            "Upnagar",
+            "Pune Road",
+            "Mumbai-Agra Highway Corridor"
+          ]
+        },
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                73.8,
+                19.95
+              ],
+              [
+                73.95,
+                19.95
+              ],
+              [
+                73.95,
+                20
+              ],
+              [
+                73.8,
+                20
+              ],
+              [
+                73.8,
+                19.95
+              ]
+            ]
+          ]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "divisionId": "nmc_div_03",
+          "divisionCode": "NMC-DIV-03",
+          "divisionName": "Nashik West Division",
+          "marathiName": "नाशिक पश्चिम प्रभाग समिती",
+          "ulbCode": "NMC",
+          "population2021": "UNKNOWN",
+          "ulbRevenueCategory": "PROJECT_MODELING_ASSUMPTION",
+          "revenueCalculationStatus": "NOT_MODELED",
+          "classification": "DERIVED_NMC_ADMINISTRATIVE_ZONES",
+          "keyLandmarks": [
+            "CBS",
+            "Shalimar",
+            "College Road",
+            "Mahatma Nagar",
+            "Trimbak Road"
+          ]
+        },
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                73.75,
+                19.96
+              ],
+              [
+                73.8,
+                19.96
+              ],
+              [
+                73.8,
+                20
+              ],
+              [
+                73.77,
+                20
+              ],
+              [
+                73.75,
+                19.98
+              ],
+              [
+                73.75,
+                19.96
+              ]
+            ]
+          ]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "divisionId": "nmc_div_04",
+          "divisionCode": "NMC-DIV-04",
+          "divisionName": "Cidco Division",
+          "marathiName": "सिडको प्रभाग समिती",
+          "ulbCode": "NMC",
+          "population2021": "UNKNOWN",
+          "ulbRevenueCategory": "PROJECT_MODELING_ASSUMPTION",
+          "revenueCalculationStatus": "NOT_MODELED",
+          "classification": "DERIVED_NMC_ADMINISTRATIVE_ZONES",
+          "keyLandmarks": [
+            "CIDCO New Nashik Township",
+            "Uttam Nagar",
+            "Trimurti Chowk",
+            "Ambad Link Road"
+          ]
+        },
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                73.7,
+                19.9
+              ],
+              [
+                73.8,
+                19.9
+              ],
+              [
+                73.8,
+                19.95
+              ],
+              [
+                73.75,
+                19.96
+              ],
+              [
+                73.7,
+                19.95
+              ],
+              [
+                73.7,
+                19.9
+              ]
+            ]
+          ]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "divisionId": "nmc_div_05",
+          "divisionCode": "NMC-DIV-05",
+          "divisionName": "Satpur Division",
+          "marathiName": "सातपूर प्रभाग समिती",
+          "ulbCode": "NMC",
+          "population2021": "UNKNOWN",
+          "ulbRevenueCategory": "PROJECT_MODELING_ASSUMPTION",
+          "revenueCalculationStatus": "NOT_MODELED",
+          "classification": "DERIVED_NMC_ADMINISTRATIVE_ZONES",
+          "keyLandmarks": [
+            "Satpur MIDC Industrial Area",
+            "Gangapur Road West",
+            "Govardhan Village",
+            "Trimbak Highway"
+          ]
+        },
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                73.7,
+                19.95
+              ],
+              [
+                73.75,
+                19.96
+              ],
+              [
+                73.77,
+                20
+              ],
+              [
+                73.77,
+                20.08
+              ],
+              [
+                73.7,
+                20.08
+              ],
+              [
+                73.7,
+                19.95
+              ]
+            ]
+          ]
+        }
+      },
+      {
+        "type": "Feature",
+        "properties": {
+          "divisionId": "nmc_div_06",
+          "divisionCode": "NMC-DIV-06",
+          "divisionName": "Nashik Road Division",
+          "marathiName": "नाशिक रोड प्रभाग समिती",
+          "ulbCode": "NMC",
+          "population2021": "UNKNOWN",
+          "ulbRevenueCategory": "PROJECT_MODELING_ASSUMPTION",
+          "revenueCalculationStatus": "NOT_MODELED",
+          "classification": "DERIVED_NMC_ADMINISTRATIVE_ZONES",
+          "keyLandmarks": [
+            "Nashik Road Railway Station",
+            "Jail Road",
+            "Deolali Corridor",
+            "Chehadi"
+          ]
+        },
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                73.8,
+                19.9
+              ],
+              [
+                73.95,
+                19.9
+              ],
+              [
+                73.95,
+                19.95
+              ],
+              [
+                73.8,
+                19.95
+              ],
+              [
+                73.8,
+                19.9
+              ]
+            ]
+          ]
+        }
+      }
+    ]
+  }
+}

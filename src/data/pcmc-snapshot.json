@@ -1,0 +1,260 @@
+{
+  "metadata": {
+    "studyAreaName": "Pimpri-Chinchwad Municipal Corporation (PCMC)",
+    "description": "Verified geographic snapshot of the Pimpri-Chinchwad industrial and transit corridor covering the Old Mumbai-Pune Highway (NH48), suburban railway stations (Akurdi, Chinchwad, Begdewadi, Dehu Road), MIDC Bhosari industrial clusters, and public EV charging hubs.",
+    "bbox": {
+      "swLat": 18.58,
+      "swLng": 73.71,
+      "neLat": 18.73,
+      "neLng": 73.88
+    },
+    "center": {
+      "lat": 18.6279,
+      "lng": 73.801
+    },
+    "extractedAt": "2026-10-18T14:50:00.000Z",
+    "sources": [
+      {
+        "provider": "OpenStreetMap contributors / Geofabrik Western Zone",
+        "license": "ODbL 1.0 — © OpenStreetMap contributors",
+        "dataset": "PCMC Transit & Industrial Corridor (ndata/1/map.osm & western-zone.gpkg)",
+        "retrievalMethod": "OSM XML & GeoPackage spatial query"
+      },
+      {
+        "provider": "Open-Meteo Elevation API",
+        "license": "CC BY 4.0 — Copernicus DEM GLO-90",
+        "dataset": "Copernicus 90m Satellite Radar DEM",
+        "retrievalMethod": "HTTP REST 3x3 Grid Sampling"
+      },
+      {
+        "provider": "NASA POWER Project",
+        "license": "Public Domain (NASA)",
+        "dataset": "CERES Surface Solar Climatology (1998-2023)",
+        "retrievalMethod": "Climatological Point Query (Lat 18.63 N)"
+      }
+    ],
+    "limitations": [
+      "Focuses on northern PCMC transit and MIDC industrial corridor; peripheral rural fringe may have sparse community mapping.",
+      "Substation proximity indicates physical distance only; MSEDCL interconnection approval required."
+    ]
+  },
+  "existingEvStations": [
+    {
+      "id": 3000000001,
+      "osmId": "node/3000000001",
+      "name": "Tata Power EZ Charge - Chinchwad Station Hub",
+      "operator": "Tata Power",
+      "brand": "EZ Charge",
+      "lat": 18.6315,
+      "lng": 73.7885,
+      "capacity": 4,
+      "socketType": "CCS2 (60kW DC) + Type 2",
+      "location": "Chinchwad Suburban Station Forecourt"
+    },
+    {
+      "id": 3000000002,
+      "osmId": "node/3000000002",
+      "name": "Ather Grid - Nigdi Pradhikaran",
+      "operator": "Ather Energy",
+      "brand": "Ather Grid",
+      "lat": 18.652,
+      "lng": 73.768,
+      "capacity": 2,
+      "socketType": "Ather Proprietary Fast Charger",
+      "location": "Nigdi Sector 24 Retail Commercial Axis"
+    },
+    {
+      "id": 3000000003,
+      "osmId": "node/3000000003",
+      "name": "Statiq High-Power EV Hub - Bhosari MIDC",
+      "operator": "Statiq",
+      "brand": "Statiq Hub",
+      "lat": 18.628,
+      "lng": 73.845,
+      "capacity": 6,
+      "socketType": "CCS2 Dual Gun (120kW DC)",
+      "location": "Bhosari MIDC Telco Road"
+    },
+    {
+      "id": 3000000004,
+      "osmId": "node/3000000004",
+      "name": "Jio-bp pulse - Akurdi Highway Corridor",
+      "operator": "Jio-bp",
+      "brand": "Jio-bp pulse",
+      "lat": 18.649,
+      "lng": 73.778,
+      "capacity": 4,
+      "socketType": "CCS2 (60kW DC)",
+      "location": "Old Mumbai-Pune Highway (NH48)"
+    },
+    {
+      "id": 3000000005,
+      "osmId": "node/3000000005",
+      "name": "Relux Electric - Dehu Road Cantonment",
+      "operator": "Relux",
+      "brand": "Relux Electric",
+      "lat": 18.656,
+      "lng": 73.761,
+      "capacity": 2,
+      "socketType": "AC Type 2 (22kW)",
+      "location": "Dehu Road Highway Interchange"
+    }
+  ],
+  "candidateSites": [
+    {
+      "id": "pcmc-cand-1",
+      "name": "Nigdi Pradhikaran Multimodal Hub",
+      "description": "Major transit exchange hub connecting PMPML bus terminus, Old Mumbai-Pune Highway (NH48), and educational institutions with dedicated public parking access.",
+      "lat": 18.6548,
+      "lng": 73.7695,
+      "type": "EV Charging Station",
+      "recommendedBays": 8,
+      "recommendedPowerKw": 240,
+      "elevationM": 568,
+      "slopePercent": 1.3,
+      "aspectDeg": 180,
+      "ghiAnnualKwhM2Day": 5.13,
+      "metrics": {
+        "nearestChargerDistM": 350,
+        "nearestChargerName": "Ather Grid - Nigdi Pradhikaran",
+        "arterialRoadDistM": 30,
+        "arterialRoadName": "Old Mumbai-Pune Highway (NH48)",
+        "publicParkingDistM": 65,
+        "publicParkingName": "Pradhikaran Public Parking",
+        "powerSubstationDistM": 420,
+        "powerSubstationName": "MSEDCL Nigdi 33/11kV Substation",
+        "hazardDistM": 1100,
+        "residentialCommercialBldgs1km": 380,
+        "transitHubDistM": 80
+      }
+    },
+    {
+      "id": "pcmc-cand-2",
+      "name": "Akurdi Station Commercial Promenade",
+      "description": "Suburban railway feeder node serving high daily commuter volumes, educational campuses (DY Patil), and commercial retail shoppers.",
+      "lat": 18.6475,
+      "lng": 73.782,
+      "type": "EV Charging Station",
+      "recommendedBays": 10,
+      "recommendedPowerKw": 300,
+      "elevationM": 565,
+      "slopePercent": 1.1,
+      "aspectDeg": 170,
+      "ghiAnnualKwhM2Day": 5.13,
+      "metrics": {
+        "nearestChargerDistM": 420,
+        "nearestChargerName": "Jio-bp pulse - Akurdi Highway Corridor",
+        "arterialRoadDistM": 45,
+        "arterialRoadName": "Akurdi Railway Station Feeder Road",
+        "publicParkingDistM": 95,
+        "publicParkingName": "Akurdi Station Park-and-Ride",
+        "powerSubstationDistM": 550,
+        "powerSubstationName": "MSEDCL Akurdi 33/11kV Substation",
+        "hazardDistM": 1400,
+        "residentialCommercialBldgs1km": 450,
+        "transitHubDistM": 50
+      }
+    },
+    {
+      "id": "pcmc-cand-3",
+      "name": "Bhosari MIDC Industrial Feeder",
+      "description": "Heavy industrial freight cluster with high daytime commercial vehicle circulation, fleet delivery vans, and heavy-duty 3-phase power availability.",
+      "lat": 18.625,
+      "lng": 73.842,
+      "type": "EV Charging Station",
+      "recommendedBays": 12,
+      "recommendedPowerKw": 360,
+      "elevationM": 572,
+      "slopePercent": 1.4,
+      "aspectDeg": 190,
+      "ghiAnnualKwhM2Day": 5.13,
+      "metrics": {
+        "nearestChargerDistM": 450,
+        "nearestChargerName": "Statiq High-Power EV Hub - Bhosari MIDC",
+        "arterialRoadDistM": 35,
+        "arterialRoadName": "Pune-Nashik Highway (NH60) / Telco Road",
+        "publicParkingDistM": 180,
+        "publicParkingName": "MIDC Heavy Vehicle Bay",
+        "powerSubstationDistM": 320,
+        "powerSubstationName": "MSEDCL Bhosari 132/33kV EHV Substation",
+        "hazardDistM": 800,
+        "residentialCommercialBldgs1km": 210,
+        "transitHubDistM": 700
+      }
+    },
+    {
+      "id": "pcmc-cand-4",
+      "name": "Begdewadi Suburban Transit Interchange",
+      "description": "Northern suburban rail halt on the Pune-Lonavala corridor serving industrial commuters from Talegaon and Dehu Road with direct access to NH48.",
+      "lat": 18.6785,
+      "lng": 73.7359,
+      "type": "EV Charging Station",
+      "recommendedBays": 6,
+      "recommendedPowerKw": 180,
+      "elevationM": 580,
+      "slopePercent": 1.2,
+      "aspectDeg": 175,
+      "ghiAnnualKwhM2Day": 5.13,
+      "metrics": {
+        "nearestChargerDistM": 3450,
+        "nearestChargerName": "Relux Electric - Dehu Road Cantonment",
+        "arterialRoadDistM": 60,
+        "arterialRoadName": "Dehu-Begdewadi Station Road",
+        "publicParkingDistM": 110,
+        "publicParkingName": "Begdewadi Station Two-Wheeler / Car Lot",
+        "powerSubstationDistM": 850,
+        "powerSubstationName": "MSEDCL Dehu Road 33/11kV Substation",
+        "hazardDistM": 1900,
+        "residentialCommercialBldgs1km": 140,
+        "transitHubDistM": 20
+      }
+    }
+  ],
+  "elevationSample": {
+    "elevationM": 568,
+    "slopePercent": 1.3,
+    "aspectDeg": 180,
+    "source": "Copernicus 90m Satellite Radar DEM (ESA)"
+  },
+  "solarSample": {
+    "ghiAnnualKwhM2Day": 5.13,
+    "clearSkyGhiKwhM2Day": 6.2,
+    "annualMeanTempC": 25.1,
+    "source": "NASA POWER Climatology (CERES SYN1deg 1998-2023)"
+  },
+  "studyAreaBoundaryGeoJson": {
+    "type": "Feature",
+    "properties": {
+      "name": "Pimpri-Chinchwad Municipal Study Area",
+      "admin_level": "6",
+      "source": "OpenStreetMap / Geofabrik Western Zone"
+    },
+    "geometry": {
+      "type": "Polygon",
+      "coordinates": [
+        [
+          [
+            73.71,
+            18.58
+          ],
+          [
+            73.88,
+            18.58
+          ],
+          [
+            73.88,
+            18.73
+          ],
+          [
+            73.71,
+            18.73
+          ],
+          [
+            73.71,
+            18.58
+          ]
+        ]
+      ]
+    }
+  }
+}

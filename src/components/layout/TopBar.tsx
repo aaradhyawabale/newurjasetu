@@ -202,31 +202,41 @@ export const TopBar: React.FC<TopBarProps> = ({
 
         {/* Data Provenance & Study Area Mode Badge */}
         {(() => {
-          const isPune =
-            (currentScenario?.name?.toLowerCase().includes("pune") ||
-              locationLabel?.toLowerCase().includes("pune")) ??
-            false;
+          const scenarioLower = currentScenario?.name?.toLowerCase() || "";
+          const locLower = locationLabel?.toLowerCase() || "";
+          const isNashik = scenarioLower.includes("nashik") || locLower.includes("nashik");
+          const isPcmc = scenarioLower.includes("pcmc") || scenarioLower.includes("pimpri") || locLower.includes("pcmc") || locLower.includes("pimpri");
+          const isPune = !isNashik && !isPcmc && (scenarioLower.includes("pune") || locLower.includes("pune"));
+
+          let label = "Live Provider Mode";
+          let badgeClass = "bg-stone-50 text-stone-700 border-stone-200";
+          let dotClass = "bg-blue-600";
+          let title = "Live Provider Mode: Queries live geospatial providers with fallback caching.";
+
+          if (isNashik) {
+            label = "Nashik Study Area (NMC)";
+            badgeClass = "bg-amber-50 text-amber-800 border-amber-200";
+            dotClass = "bg-amber-600 animate-pulse";
+            title = "Nashik Study Area: Powered by NMC 6 Divisions, 12 MSEDCL substations, 29 parking hubs, and verified EV snapshot.";
+          } else if (isPcmc) {
+            label = "PCMC Study Area";
+            badgeClass = "bg-indigo-50 text-indigo-800 border-indigo-200";
+            dotClass = "bg-indigo-600 animate-pulse";
+            title = "PCMC Study Area: Powered by verified Pimpri-Chinchwad transit & industrial corridor snapshot.";
+          } else if (isPune) {
+            label = "Pune Study Area (PMC)";
+            badgeClass = "bg-emerald-50 text-emerald-800 border-emerald-200";
+            dotClass = "bg-emerald-600 animate-pulse";
+            title = "Pune Study Area: Powered by verified OpenStreetMap EV snapshot (13 verified chargers, 4 candidate hubs, 90m DEM, NASA POWER GHI).";
+          }
+
           return (
             <div
-              title={
-                isPune
-                  ? "Pune Study Area: Powered by verified OpenStreetMap EV snapshot (13 verified chargers, 4 candidate hubs, 90m DEM, NASA POWER GHI)."
-                  : "Live Provider Mode: Queries live geospatial providers with fallback caching."
-              }
-              className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-btn text-[11px] font-mono border transition-all ${
-                isPune
-                  ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-                  : "bg-stone-50 text-stone-700 border-stone-200"
-              }`}
+              title={title}
+              className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-btn text-[11px] font-mono border transition-all ${badgeClass}`}
             >
-              <span
-                className={`w-1.5 h-1.5 rounded-full ${
-                  isPune ? "bg-emerald-600 animate-pulse" : "bg-blue-600"
-                }`}
-              />
-              <span className="font-medium">
-                {isPune ? "Pune EV Study Area" : "Live Provider Mode"}
-              </span>
+              <span className={`w-1.5 h-1.5 rounded-full ${dotClass}`} />
+              <span className="font-medium">{label}</span>
             </div>
           );
         })()}

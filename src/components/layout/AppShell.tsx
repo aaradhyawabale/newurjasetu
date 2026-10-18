@@ -47,13 +47,24 @@ export const AppShell: React.FC<AppShellProps> = ({
   const [currentScenarioId, setCurrentScenarioId] = useState<string>(initialScenarioId);
 
   // State: Tools & Placements
-  const initialIsPune = initialScenarios.some((s) => s.name?.toLowerCase().includes("pune"));
-  const [activeTool, setActiveTool] = useState<string>(initialIsPune ? "EV Charging Station" : "Hospital");
+  const initialScenario = initialScenarios.find((s) => s.id === initialScenarioId) || initialScenarios[0];
+  const initialScName = initialScenario?.name?.toLowerCase() || "";
+  const initialIsNashik = initialScName.includes("nashik");
+  const initialIsPcmc = initialScName.includes("pcmc") || initialScName.includes("pimpri");
+  const initialIsPune = initialScName.includes("pune") || (!initialIsNashik && !initialIsPcmc);
+
+  const [activeTool, setActiveTool] = useState<string>("EV Charging Station");
   const [activePlacement, setActivePlacement] = useState<any | null>(null);
-  const [locationLabel, setLocationLabel] = useState<string>("");
+  const [locationLabel, setLocationLabel] = useState<string>(
+    initialIsNashik
+      ? "Nashik Urban Study Area (NMC)"
+      : initialIsPcmc
+      ? "Pimpri-Chinchwad Study Area (PCMC)"
+      : "Pune Central Study Area (PMC)"
+  );
   const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number }>({
-    lat: initialIsPune ? 18.5204 : 28.6139,
-    lng: initialIsPune ? 73.8567 : 77.2090,
+    lat: initialIsNashik ? 19.9975 : initialIsPcmc ? 18.6279 : 18.5204,
+    lng: initialIsNashik ? 73.7898 : initialIsPcmc ? 73.8010 : 73.8567,
   });
 
   // State: Select Area 2-click bounding box
@@ -127,12 +138,24 @@ export const AppShell: React.FC<AppShellProps> = ({
           setLocationLabel(first.label || `${first.lat.toFixed(4)}, ${first.lng.toFixed(4)}`);
         } else {
           setActivePlacement(null);
+          const currentSc = scenarios.find((s) => s.id === scenarioId);
+          const scName = currentSc?.name?.toLowerCase() || "";
+          if (scName.includes("nashik")) {
+            setMapCenter({ lat: 19.9975, lng: 73.7898 });
+            setLocationLabel("Nashik Urban Study Area (NMC)");
+          } else if (scName.includes("pcmc") || scName.includes("pimpri")) {
+            setMapCenter({ lat: 18.6279, lng: 73.8010 });
+            setLocationLabel("Pimpri-Chinchwad Study Area (PCMC)");
+          } else if (scName.includes("pune")) {
+            setMapCenter({ lat: 18.5204, lng: 73.8567 });
+            setLocationLabel("Pune Central Study Area (PMC)");
+          }
         }
       }
     } catch (err) {
       console.warn("Placements fetch error", err);
     }
-  }, []);
+  }, [scenarios]);
 
   useEffect(() => {
     loadHistory();

@@ -1,0 +1,190 @@
+{
+  "type": "FeatureCollection",
+  "name": "nashik_administrative_divisions",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+    }
+  },
+  "provenance": {
+    "publisher": "Nashik Municipal Corporation (NMC - Nashik Mahanagarpalika)",
+    "officialSource": "NMC Divisional Offices Jurisdiction Map (https://nashikcorporation.in/)",
+    "acquisitionDate": "2026-09-16",
+    "nativeCRS": "EPSG:4326 (WGS84)",
+    "spatialExtent": "Nashik Municipal Boundary (19.90°N, 73.70°E to 20.10°N, 73.95°E)",
+    "geometryType": "Polygon",
+    "polygonCount": 6,
+    "derivationMethod": "Digitized approximation of NMC 6 Divisional Office jurisdictions covering Nashik urban study area",
+    "classification": "DERIVED_NMC_ADMINISTRATIVE_ZONES",
+    "populationDataStatus": "UNKNOWN (2021 Census Postponed)",
+    "revenueCalculationStatus": "NOT_MODELED (Municipal lease/license fees depend on site-specific public auction)"
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "divisionId": "nmc_div_01",
+        "divisionCode": "NMC-DIV-01",
+        "divisionName": "Panchavati Division",
+        "marathiName": "पंचवटी प्रभाग समिती",
+        "ulbCode": "NMC",
+        "population2021": "UNKNOWN",
+        "ulbRevenueCategory": "PROJECT_MODELING_ASSUMPTION",
+        "revenueCalculationStatus": "NOT_MODELED",
+        "classification": "DERIVED_NMC_ADMINISTRATIVE_ZONES",
+        "keyLandmarks": ["Ramkund", "Tapovan", "Mhasrul", "Adgaon", "Meri"]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [73.77, 20.00],
+            [73.95, 20.00],
+            [73.95, 20.10],
+            [73.77, 20.10],
+            [73.77, 20.00]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "divisionId": "nmc_div_02",
+        "divisionCode": "NMC-DIV-02",
+        "divisionName": "Nashik East Division",
+        "marathiName": "नाशिक पूर्व प्रभाग समिती",
+        "ulbCode": "NMC",
+        "population2021": "UNKNOWN",
+        "ulbRevenueCategory": "PROJECT_MODELING_ASSUMPTION",
+        "revenueCalculationStatus": "NOT_MODELED",
+        "classification": "DERIVED_NMC_ADMINISTRATIVE_ZONES",
+        "keyLandmarks": ["Dwarka Chowk", "Upnagar", "Pune Road", "Mumbai-Agra Highway Corridor"]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [73.80, 19.95],
+            [73.95, 19.95],
+            [73.95, 20.00],
+            [73.80, 20.00],
+            [73.80, 19.95]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "divisionId": "nmc_div_03",
+        "divisionCode": "NMC-DIV-03",
+        "divisionName": "Nashik West Division",
+        "marathiName": "नाशिक पश्चिम प्रभाग समिती",
+        "ulbCode": "NMC",
+        "population2021": "UNKNOWN",
+        "ulbRevenueCategory": "PROJECT_MODELING_ASSUMPTION",
+        "revenueCalculationStatus": "NOT_MODELED",
+        "classification": "DERIVED_NMC_ADMINISTRATIVE_ZONES",
+        "keyLandmarks": ["CBS", "Shalimar", "College Road", "Mahatma Nagar", "Trimbak Road"]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [73.75, 19.96],
+            [73.80, 19.96],
+            [73.80, 20.00],
+            [73.77, 20.00],
+            [73.75, 19.98],
+            [73.75, 19.96]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "divisionId": "nmc_div_04",
+        "divisionCode": "NMC-DIV-04",
+        "divisionName": "Cidco Division",
+        "marathiName": "सिडको प्रभाग समिती",
+        "ulbCode": "NMC",
+        "population2021": "UNKNOWN",
+        "ulbRevenueCategory": "PROJECT_MODELING_ASSUMPTION",
+        "revenueCalculationStatus": "NOT_MODELED",
+        "classification": "DERIVED_NMC_ADMINISTRATIVE_ZONES",
+        "keyLandmarks": ["CIDCO New Nashik Township", "Uttam Nagar", "Trimurti Chowk", "Ambad Link Road"]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [73.70, 19.90],
+            [73.80, 19.90],
+            [73.80, 19.95],
+            [73.75, 19.96],
+            [73.70, 19.95],
+            [73.70, 19.90]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "divisionId": "nmc_div_05",
+        "divisionCode": "NMC-DIV-05",
+        "divisionName": "Satpur Division",
+        "marathiName": "सातपूर प्रभाग समिती",
+        "ulbCode": "NMC",
+        "population2021": "UNKNOWN",
+        "ulbRevenueCategory": "PROJECT_MODELING_ASSUMPTION",
+        "revenueCalculationStatus": "NOT_MODELED",
+        "classification": "DERIVED_NMC_ADMINISTRATIVE_ZONES",
+        "keyLandmarks": ["Satpur MIDC Industrial Area", "Gangapur Road West", "Govardhan Village", "Trimbak Highway"]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [73.70, 19.95],
+            [73.75, 19.96],
+            [73.77, 20.00],
+            [73.77, 20.08],
+            [73.70, 20.08],
+            [73.70, 19.95]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "divisionId": "nmc_div_06",
+        "divisionCode": "NMC-DIV-06",
+        "divisionName": "Nashik Road Division",
+        "marathiName": "नाशिक रोड प्रभाग समिती",
+        "ulbCode": "NMC",
+        "population2021": "UNKNOWN",
+        "ulbRevenueCategory": "PROJECT_MODELING_ASSUMPTION",
+        "revenueCalculationStatus": "NOT_MODELED",
+        "classification": "DERIVED_NMC_ADMINISTRATIVE_ZONES",
+        "keyLandmarks": ["Nashik Road Railway Station", "Jail Road", "Deolali Corridor", "Chehadi"]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [73.80, 19.90],
+            [73.95, 19.90],
+            [73.95, 19.95],
+            [73.80, 19.95],
+            [73.80, 19.90]
+          ]
+        ]
+      }
+    }
+  ]
+}

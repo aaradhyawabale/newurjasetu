@@ -9,3 +9,4 @@ dev.db-journal
 *.log
 *.tsbuildinfo
 .DS_Store
+ndata/

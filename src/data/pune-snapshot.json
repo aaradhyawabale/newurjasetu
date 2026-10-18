@@ -307,6 +307,18 @@
       }
     }
   ],
+  "elevationSample": {
+    "elevationM": 560,
+    "slopePercent": 1.2,
+    "aspectDeg": 180,
+    "source": "Copernicus 90m Satellite Radar DEM (ESA)"
+  },
+  "solarSample": {
+    "ghiAnnualKwhM2Day": 5.13,
+    "clearSkyGhiKwhM2Day": 6.20,
+    "annualMeanTempC": 25.2,
+    "source": "NASA POWER Climatology (CERES SYN1deg 1998-2023)"
+  },
   "studyAreaBoundaryGeoJson": {
     "type": "Feature",
     "properties": {
