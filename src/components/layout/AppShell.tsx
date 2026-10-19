@@ -17,6 +17,9 @@ import { ValidationResult } from "@/server/analysis-engine/validation";
 import { AnalysisReportResult } from "@/server/analysis-engine/engine";
 import { exportPlacementsToGeoJson, downloadJsonFile } from "@/lib/geojson-export";
 import { calculateDistanceMeters } from "@/server/gis/geometry";
+import * as turf from "@turf/turf";
+
+const LINEAR_TOOLS = ["Bridge", "Road", "Water Canal", "Drainage"];
 
 interface UserProfile {
   id: string;
@@ -70,6 +73,29 @@ export const AppShell: React.FC<AppShellProps> = ({
   // State: Select Area 2-click bounding box
   const [areaStartCorner, setAreaStartCorner] = useState<{ lat: number; lng: number } | null>(null);
   const [studyArea, setStudyArea] = useState<StudyAreaBounds | null>(null);
+
+  // State: 2-Click Linear & Footprint drawing mode (e.g. Bridge start -> endpoint)
+  const [linearStartPoint, setLinearStartPoint] = useState<{ lat: number; lng: number } | null>(null);
+  const [isTwoClickDrawMode, setIsTwoClickDrawMode] = useState<boolean>(false);
+
+  // Keyboard shortcut listener: Escape cancels active multi-click drawing modes
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (linearStartPoint || isTwoClickDrawMode) {
+          setLinearStartPoint(null);
+          setIsTwoClickDrawMode(false);
+          showToast("Placement drawing cancelled", "info");
+        }
+        if (areaStartCorner) {
+          setAreaStartCorner(null);
+          showToast("Study area selection cancelled", "info");
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [linearStartPoint, isTwoClickDrawMode, areaStartCorner, showToast]);
 
   // State: Validation & Analysis
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
@@ -182,26 +208,122 @@ export const AppShell: React.FC<AppShellProps> = ({
   };
 
   // Validate Footprint
-  const handleValidateFootprint = async (): Promise<ValidationResult | null> => {
-    if (!activePlacement || !activePlacement.id) return null;
+  const handleValidateFootprint = async (targetId?: string, silent = false): Promise<ValidationResult | null> => {
+    const idToValidate = typeof targetId === "string" ? targetId : activePlacement?.id;
+    if (!idToValidate) return null;
     setIsValidating(true);
     try {
-      const res = await fetch(`/api/placements/${activePlacement.id}/validate`, {
+      const res = await fetch(`/api/placements/${idToValidate}/validate`, {
         method: "POST",
       });
 
       if (res && res.ok) {
         const data = await res.json();
         setValidationResult(data.validation);
-        showToast("Footprint validated against site features", "info");
+        if (!silent) {
+          showToast("Footprint validated against site features", "info");
+        }
         return data.validation;
       }
     } catch (err) {
-      showToast("Site validation check failed", "error");
+      if (!silent) {
+        showToast("Site validation check failed", "error");
+      }
     } finally {
       setIsValidating(false);
     }
     return null;
+  };
+
+  const [isSmartFitting, setIsSmartFitting] = useState(false);
+  const [isBridgeRelocating, setIsBridgeRelocating] = useState(false);
+  const [isBridgePlanningApproaches, setIsBridgePlanningApproaches] = useState(false);
+  const [bridgeApproachData, setBridgeApproachData] = useState<any | null>(null);
+
+  // Smart Fit to Road & Open Land (Township Planner Auto-Fit)
+  const handleSmartFit = async () => {
+    if (!activePlacement || !activePlacement.id) return;
+    setIsSmartFitting(true);
+    try {
+      const res = await fetch(`/api/placements/${activePlacement.id}/smart-fit`, {
+        method: "POST",
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setActivePlacement(data.placement);
+        setValidationResult(data.validation);
+        showToast(
+          data.smartFit?.summary || "Fitted to open space with direct road frontage",
+          "success"
+        );
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        showToast(errData.error || "Could not auto-fit footprint to road frontage", "error");
+      }
+    } catch {
+      showToast("Smart fit calculation failed", "error");
+    } finally {
+      setIsSmartFitting(false);
+    }
+  };
+
+  // Bridge Township Planning: Relocate to Connected River Crossing
+  const handleBridgeRelocateToCrossing = async () => {
+    if (!activePlacement || !activePlacement.id) return;
+    setIsBridgeRelocating(true);
+    try {
+      const res = await fetch(`/api/placements/${activePlacement.id}/bridge-actions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "relocate_to_crossing" }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setActivePlacement(data.placement);
+        setValidationResult(data.validation);
+        setBridgeApproachData(null);
+        showToast(
+          data.message || "Relocated bridge to connected river crossing",
+          "success"
+        );
+      } else {
+        const err = await res.json().catch(() => ({}));
+        showToast(err.error || "Could not relocate bridge to nearby crossing", "error");
+      }
+    } catch {
+      showToast("Bridge relocation failed", "error");
+    } finally {
+      setIsBridgeRelocating(false);
+    }
+  };
+
+  // Bridge Township Planning: Plan & Trace Approach Road Corridors
+  const handleBridgePlanApproaches = async () => {
+    if (!activePlacement || !activePlacement.id) return;
+    setIsBridgePlanningApproaches(true);
+    try {
+      const res = await fetch(`/api/placements/${activePlacement.id}/bridge-actions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "get_appraisal" }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setBridgeApproachData(data.appraisal);
+        const sugg = data.appraisal?.recommendedActions?.suggestion2_approachRoads;
+        showToast(
+          `Generated approach corridors: ${Math.round(sugg?.totalApproachLengthM ?? 0)}m total extension (${sugg?.requiredRightOfWayM ?? 15}m RoW per IRC:SP:73).`,
+          "success"
+        );
+      } else {
+        showToast("Could not calculate approach corridors", "error");
+      }
+    } catch {
+      showToast("Approach calculation failed", "error");
+    } finally {
+      setIsBridgePlanningApproaches(false);
+    }
   };
 
   // Handle Map Click: Place or Move Pin, or Draw Study Area Box
@@ -236,6 +358,95 @@ export const AppShell: React.FC<AppShellProps> = ({
       }
     }
 
+    const isLinear = LINEAR_TOOLS.includes(activeTool) || isTwoClickDrawMode;
+
+    if (isLinear) {
+      if (!linearStartPoint) {
+        setLinearStartPoint({ lat, lng });
+        showToast(
+          `${toolToPlace} Start point set (${lat.toFixed(4)}, ${lng.toFixed(4)}) — click opposite endpoint across barrier to bridge span (Esc to cancel)`,
+          "info"
+        );
+        return;
+      }
+
+      // Complete 2-point placement
+      const start = linearStartPoint;
+      const end = { lat, lng };
+      const spanDistM = Math.max(10, Math.round(calculateDistanceMeters(start.lat, start.lng, end.lat, end.lng)));
+      let b = turf.bearing(turf.point([start.lng, start.lat]), turf.point([end.lng, end.lat]));
+      const bearingDeg = Math.round(((b % 360) + 360) % 360);
+      const mid = turf.midpoint(turf.point([start.lng, start.lat]), turf.point([end.lng, end.lat]));
+      const centerLat = mid.geometry.coordinates[1];
+      const centerLng = mid.geometry.coordinates[0];
+      const widthM =
+        activePlacement && activePlacement.type === toolToPlace
+          ? activePlacement.widthM
+          : typeConfig?.defaultWidthM || 20;
+
+      setLinearStartPoint(null);
+      setIsTwoClickDrawMode(false);
+
+      if (activePlacement) {
+        const updated = {
+          ...activePlacement,
+          type: toolToPlace,
+          lat: centerLat,
+          lng: centerLng,
+          lengthM: spanDistM,
+          widthM,
+          bearingDeg,
+        };
+        setActivePlacement(updated);
+        setValidationResult(null);
+        if (activePlacement.id) {
+          fetch(`/api/placements/${activePlacement.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              type: toolToPlace,
+              lat: centerLat,
+              lng: centerLng,
+              lengthM: spanDistM,
+              widthM,
+              bearingDeg,
+            }),
+          }).catch(() => {});
+        }
+        showToast(`${toolToPlace} span created: ${spanDistM}m at ${bearingDeg}°`, "success");
+      } else {
+        try {
+          const label = await reverseGeocode(centerLat, centerLng);
+          const res = await fetch("/api/placements", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              scenarioId: currentScenarioId,
+              type: toolToPlace,
+              lat: centerLat,
+              lng: centerLng,
+              lengthM: spanDistM,
+              widthM,
+              bearingDeg,
+              params: initialParams,
+              label,
+            }),
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            setActivePlacement(data.placement);
+            setActiveTool(toolToPlace);
+            setValidationResult(null);
+            showToast(`Placed ${toolToPlace} on map: ${spanDistM}m span`, "success");
+          }
+        } catch (err) {
+          showToast("Failed to save placement", "error");
+        }
+      }
+      return;
+    }
+
     if (!activePlacement) {
       // Create new placement in DB
       try {
@@ -260,8 +471,8 @@ export const AppShell: React.FC<AppShellProps> = ({
           const data = await res.json();
           setActivePlacement(data.placement);
           setActiveTool(toolToPlace);
-          setValidationResult(null);
           showToast(`Placed ${toolToPlace} pin on map`, "success");
+          handleValidateFootprint(data.placement.id, true);
         }
       } catch (err) {
         showToast("Failed to save placement", "error");
@@ -274,7 +485,6 @@ export const AppShell: React.FC<AppShellProps> = ({
         lng,
       };
       setActivePlacement(updated);
-      setValidationResult(null);
       const label = await reverseGeocode(lat, lng);
 
       if (activePlacement.id) {
@@ -284,6 +494,7 @@ export const AppShell: React.FC<AppShellProps> = ({
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ lat, lng, label }),
           });
+          handleValidateFootprint(activePlacement.id, true);
         } catch {
           // silent fail/optimistic update
         }
@@ -291,12 +502,58 @@ export const AppShell: React.FC<AppShellProps> = ({
     }
   };
 
+  // Handle map placement updates from interactive handles
+  const handlePlacementChangeFromMap = (updated: {
+    lat: number;
+    lng: number;
+    lengthM: number;
+    widthM: number;
+    bearingDeg: number;
+  }) => {
+    if (!activePlacement) return;
+    const nextPlacement = {
+      ...activePlacement,
+      ...updated,
+    };
+    setActivePlacement(nextPlacement);
+    setValidationResult(null);
+
+    if (activePlacement.id) {
+      if (patchTimerRef.current) {
+        clearTimeout(patchTimerRef.current);
+      }
+      patchTimerRef.current = setTimeout(() => {
+        fetch(`/api/placements/${activePlacement.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            lat: updated.lat,
+            lng: updated.lng,
+            lengthM: updated.lengthM,
+            widthM: updated.widthM,
+            bearingDeg: updated.bearingDeg,
+          }),
+        }).catch(() => {});
+      }, 300);
+    }
+  };
+
   // Handle Tool Selection
   const handleSelectTool = async (toolId: string) => {
     setActiveTool(toolId);
+    setLinearStartPoint(null);
+    setIsTwoClickDrawMode(false);
     if (toolId === "Select Area") {
       setAreaStartCorner(null);
       showToast("Select Area mode: click two corners on the map to draw a study zone", "info");
+      return;
+    }
+    if (toolId === "Bridge") {
+      showToast("Bridge tool active: Click start point on map, then click endpoint across barrier to bridge span", "info");
+      return;
+    }
+    if (LINEAR_TOOLS.includes(toolId)) {
+      showToast(`${toolId} tool active: Click start point, then click endpoint to bridge span`, "info");
       return;
     }
 
@@ -666,20 +923,45 @@ export const AppShell: React.FC<AppShellProps> = ({
             activeType={activePlacement?.type || activeTool}
             placement={activePlacement}
             studyArea={studyArea}
+            linearStartPoint={linearStartPoint}
             conflicts={validationResult?.conflicts || currentReport?.validation?.conflicts || []}
             analyzedFeatures={currentReport?.analyzedFeatures || []}
             searchRings={currentReport?.searchRings || null}
             solarShadingData={solarShadingOverlay}
+            bridgeApproachData={bridgeApproachData || currentReport?.bridgeAppraisal}
             onMapClick={handleMapClick}
+            onPlacementChange={handlePlacementChangeFromMap}
             onMapLoaded={(exportFn) => {
               mapCanvasExportRef.current = exportFn;
             }}
           />
 
+          {/* Linear / Bridge 2-Click Status Banner */}
+          {(linearStartPoint || isTwoClickDrawMode) && (
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 bg-white/95 backdrop-blur-xs border border-emerald-400 rounded-panel px-4 py-2 shadow-lg flex items-center gap-2.5 text-xs text-stone-800 font-mono">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 animate-pulse" />
+              <span>
+                {linearStartPoint
+                  ? `${activeTool} start set. Click opposite endpoint to bridge span`
+                  : `Click start point on map for ${activeTool}...`}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setLinearStartPoint(null);
+                  setIsTwoClickDrawMode(false);
+                }}
+                className="ml-2 px-2 py-0.5 rounded text-[11px] bg-stone-100 hover:bg-stone-200 text-stone-600 font-sans font-medium"
+              >
+                Cancel (Esc)
+              </button>
+            </div>
+          )}
+
           {/* Study Area Status Pill */}
           {(areaStartCorner || studyArea) && (
             <div className="absolute top-3 right-3 z-20 bg-white/95 backdrop-blur-xs border border-sky-200 rounded-panel px-3 py-1.5 shadow-md flex items-center gap-2 text-xs text-stone-700 font-mono">
-              <span className="w-2 h-2 rounded-full bg-sky-600 animate-pulse" />
+              <span className="w-2.5 h-2.5 rounded-full bg-sky-600 animate-pulse" />
               {areaStartCorner ? (
                 <span>Click second corner to finish study box...</span>
               ) : (
@@ -730,6 +1012,18 @@ export const AppShell: React.FC<AppShellProps> = ({
           isValidating={isValidating}
           onOpenShadowSimulator={() => setIsShadowSimulatorOpen(true)}
           onOpenSolarReality={() => setIsSolarRealityOpen(true)}
+          onStartTwoClickDraw={() => {
+            setLinearStartPoint(null);
+            setIsTwoClickDrawMode(true);
+            showToast("Click start point on map, then click endpoint", "info");
+          }}
+          isDrawingTwoClick={isTwoClickDrawMode || Boolean(linearStartPoint)}
+          onSmartFit={handleSmartFit}
+          isSmartFitting={isSmartFitting}
+          onBridgeRelocateToCrossing={handleBridgeRelocateToCrossing}
+          isBridgeRelocating={isBridgeRelocating}
+          onBridgePlanApproaches={handleBridgePlanApproaches}
+          isBridgePlanningApproaches={isBridgePlanningApproaches}
         />
       </div>
 
@@ -740,6 +1034,8 @@ export const AppShell: React.FC<AppShellProps> = ({
         report={currentReport}
         onDownloadPdf={handleDownloadPdf}
         isDownloadingPdf={isDownloadingPdf}
+        onBridgeRelocateToCrossing={handleBridgeRelocateToCrossing}
+        isBridgeRelocating={isBridgeRelocating}
       />
 
       {/* History Drawer */}

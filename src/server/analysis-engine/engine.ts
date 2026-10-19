@@ -29,6 +29,10 @@ import {
 } from "./scoring";
 import { OsmElement, StandardizedGeoFeature, StandardizedFeatureCategory } from "../providers/types";
 import { calculateSensitivityAnalysis } from "./sensitivity";
+import {
+  analyzeBridgeConnectivity,
+  BridgeSuitabilityAppraisal,
+} from "./bridge-planner";
 
 export type AnalysisErrorCode =
   | "INVALID_INPUT"
@@ -154,6 +158,7 @@ export interface AnalysisReportResult {
   limitations: string[];
   narrativeText: string;
   sensitivity?: import("./sensitivity").SensitivityAnalysisResult;
+  bridgeAppraisal?: BridgeSuitabilityAppraisal;
 }
 
 const overpassProvider = new OverpassProvider();
@@ -677,6 +682,8 @@ export async function runAnalysisEngine(params: {
   let buildingsWithHeightTagsCount = 0;
   let incompatibleLanduseCount = 0;
   let hospitalsCount = 0;
+  let nearestHospitalDistM = Infinity;
+  let nearestHospitalName = "Existing Healthcare Facility";
   let schoolsCount = 0;
   let transitStopsCount = 0;
   let parksAreaM2 = 0;
@@ -684,6 +691,18 @@ export async function runAnalysisEngine(params: {
   let waterwayCorridorCrossings = 0;
   let railwayCorridorCrossings = 0;
   let roadCorridorCrossings = 0;
+
+  let bridgeAppraisal: BridgeSuitabilityAppraisal | undefined;
+  if (type === "Bridge" && osmFeaturesAll.length > 0) {
+    bridgeAppraisal = analyzeBridgeConnectivity({
+      lat,
+      lng,
+      lengthM,
+      widthM,
+      bearingDeg: safeBearing,
+      osmElements: osmFeaturesAll,
+    });
+  }
 
   const analyzedFeatures: StandardizedGeoFeature[] = [];
   const uniqueElements = new Map<number, OsmElement>();
@@ -891,6 +910,10 @@ export async function runAnalysisEngine(params: {
       tags.amenity === "doctors"
     ) {
       if (distM <= 3000) hospitalsCount++;
+      if (distM < nearestHospitalDistM) {
+        nearestHospitalDistM = distM;
+        nearestHospitalName = tags.name || `Healthcare Facility #${el.id}`;
+      }
     }
     if (
       tags.amenity === "school" ||
@@ -1046,19 +1069,57 @@ export async function runAnalysisEngine(params: {
           }
           break;
 
-        // Healthcare Gap
+        // Healthcare Gap & Inter-Hospital Separation Norms
         case "healthcare_gap":
           metricVal = hospitalsCount;
           evidenceIds = ["evd_osm_r2"];
-          scoreObj = scoreGapNeed(hospitalsCount);
-          if (hospitalsCount === 0) {
+          if (nearestHospitalDistM < 300) {
+            scoreObj = {
+              score: 10,
+              status: "constrained",
+              formattedValue: `${Math.round(nearestHospitalDistM)}m to ${nearestHospitalName} (Severe Clustered Overlap)`,
+            };
+            risks.push(
+              `Severe healthcare clustering: sited only ${Math.round(nearestHospitalDistM)}m from ${nearestHospitalName}, violating URDPFI minimum inter-facility separation norm (1,500m) and risking emergency access gridlock [evd_osm_r2].`
+            );
+          } else if (nearestHospitalDistM < separationRules.minSameTypeSpacingM) {
+            scoreObj = {
+              score: 35,
+              status: "suboptimal",
+              formattedValue: `${Math.round(nearestHospitalDistM)}m to ${nearestHospitalName} (${hospitalsCount} in 3km)`,
+            };
+            risks.push(
+              `Suboptimal inter-facility spacing: sited ${Math.round(nearestHospitalDistM)}m from ${nearestHospitalName}, below the recommended 1,500m URDPFI spacing guideline (${hospitalsCount} facilities within 3km) [evd_osm_r2].`
+            );
+          } else if (hospitalsCount >= 5) {
+            scoreObj = {
+              score: 25,
+              status: "constrained",
+              formattedValue: `${hospitalsCount} nearby (heavily saturated)`,
+            };
+            risks.push(
+              `Healthcare market saturated: ${hospitalsCount} medical facilities already operational within 3km catchment [evd_osm_r2].`
+            );
+          } else if (hospitalsCount === 0) {
+            scoreObj = {
+              score: 98,
+              status: "optimal",
+              formattedValue: "0 nearby (critical gap)",
+            };
             supporting.push(
               "Underserved medical catchment: no major hospital or clinic mapped within 3km [evd_osm_r2]."
             );
           } else {
-            risks.push(
-              `Existing medical presence: ${hospitalsCount} healthcare facility/facilities mapped within 3km [evd_osm_r2].`
-            );
+            scoreObj = scoreGapNeed(hospitalsCount);
+            if (hospitalsCount <= 2) {
+              supporting.push(
+                `Balanced medical service density: ${hospitalsCount} facilities within 3km, with ${Math.round(nearestHospitalDistM)}m buffer to nearest hospital [evd_osm_r2].`
+              );
+            } else {
+              risks.push(
+                `Existing medical presence: ${hospitalsCount} healthcare facilities mapped within 3km [evd_osm_r2].`
+              );
+            }
           }
           break;
 
@@ -1221,10 +1282,58 @@ export async function runAnalysisEngine(params: {
           }
           break;
 
-        case "approach_road_classes":
-          metricVal = nearestRoadDistM;
-          scoreObj = scoreDistanceToRoad(nearestRoadDistM);
+        case "approach_road_classes": {
+          if (bridgeAppraisal) {
+            const { abutmentA, abutmentB, dualBankDisconnected, networkConnectivityStatus } = bridgeAppraisal;
+            const distA = Math.round(abutmentA.distanceToRoadM);
+            const distB = Math.round(abutmentB.distanceToRoadM);
+            metricVal = Math.max(distA, distB);
+
+            if (dualBankDisconnected) {
+              scoreObj = {
+                score: 12,
+                status: "constrained",
+                formattedValue: `Bank A: ${distA}m gap | Bank B: ${distB}m gap`,
+              };
+              risks.push(
+                `Bridge to Nowhere: Neither bridge abutment connects to a classified road network. Constructing ${bridgeAppraisal.recommendedActions.suggestion2_approachRoads.totalApproachLengthM}m of approach roads with ${bridgeAppraisal.recommendedActions.suggestion2_approachRoads.requiredRightOfWayM}m Right-of-Way required [evd_osm_r1].`
+              );
+            } else if (networkConnectivityStatus === "incompatible_hierarchy") {
+              const incompBank = !abutmentA.targetRoad?.isCompatible ? abutmentA : abutmentB;
+              scoreObj = {
+                score: 22,
+                status: "constrained",
+                formattedValue: `Width Mismatch (${incompBank.targetRoad?.highwayClass || "alley"})`,
+              };
+              risks.push(
+                `Width Incompatibility: A ${widthM}m bridge cannot discharge onto '${incompBank.targetRoad?.name}' (${incompBank.targetRoad?.highwayClass}). Sizing requires extending approach corridor to a secondary/collector road to prevent bottlenecking per IRC:SP:73 [evd_osm_r1].`
+              );
+            } else if (!abutmentA.isConnected || !abutmentB.isConnected) {
+              const disBank = !abutmentA.isConnected ? abutmentA : abutmentB;
+              scoreObj = {
+                score: 42,
+                status: "suboptimal",
+                formattedValue: `${disBank.bankLabel}: ${Math.round(disBank.distanceToRoadM)}m gap`,
+              };
+              risks.push(
+                `Single-bank dead-end: ${disBank.bankLabel} terminates without street frontage (${Math.round(disBank.distanceToRoadM)}m to nearest road) [evd_osm_r1].`
+              );
+            } else {
+              scoreObj = {
+                score: 95,
+                status: "optimal",
+                formattedValue: `Connected: ${abutmentA.targetRoad?.name} ⟷ ${abutmentB.targetRoad?.name}`,
+              };
+              supporting.push(
+                `Direct road continuity: Both bridge abutments connect directly to classified public road networks [evd_osm_r1].`
+              );
+            }
+          } else {
+            metricVal = nearestRoadDistM;
+            scoreObj = scoreDistanceToRoad(nearestRoadDistM);
+          }
           break;
+        }
 
         case "crossing_redundancy": {
           const bridgeDist = Math.min(nearestBridgeDistM, 5000);
@@ -1738,7 +1847,7 @@ export async function runAnalysisEngine(params: {
   let finalScore = Math.round(weightedSum / computedWeight);
 
   // Penalize score if critical validation conflicts exist (MANDATORY CONSTRAINT OVERRIDE)
-  if (validation.status === "fail") {
+  if (validation.status === "fail" || bridgeAppraisal?.dualBankDisconnected) {
     finalScore = Math.min(finalScore, 24);
   } else if (validation.status === "warn") {
     finalScore = Math.min(finalScore, 65);
@@ -1770,6 +1879,23 @@ export async function runAnalysisEngine(params: {
   // =========================================================================
   // STEP 8: GENERATE ACTIONABLE RECOMMENDATIONS & EXPLANATION
   // =========================================================================
+  if (type === "Bridge" && bridgeAppraisal) {
+    if (bridgeAppraisal.recommendedActions.suggestion1_relocate.candidate) {
+      recommendations.push(
+        `${bridgeAppraisal.recommendedActions.suggestion1_relocate.title}: ${bridgeAppraisal.recommendedActions.suggestion1_relocate.description}`
+      );
+    }
+    if (
+      bridgeAppraisal.dualBankDisconnected ||
+      !bridgeAppraisal.abutmentA.isConnected ||
+      !bridgeAppraisal.abutmentB.isConnected
+    ) {
+      recommendations.push(
+        `${bridgeAppraisal.recommendedActions.suggestion2_approachRoads.title}: ${bridgeAppraisal.recommendedActions.suggestion2_approachRoads.description}`
+      );
+    }
+  }
+
   if (validation.conflicts.some((c) => c.category === "building")) {
     recommendations.push(
       `Shift or rotate the ${lengthM}m × ${widthM}m footprint to eliminate overlap with existing mapped building structures.`
@@ -1874,5 +2000,6 @@ export async function runAnalysisEngine(params: {
       r2M: config.searchRadiusR2M,
     },
     sensitivity,
+    ...(bridgeAppraisal ? { bridgeAppraisal } : {}),
   };
 }

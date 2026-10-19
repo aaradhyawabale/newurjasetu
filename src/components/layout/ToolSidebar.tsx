@@ -127,7 +127,15 @@ export const ToolSidebar: React.FC<ToolSidebarProps> = ({
         {/* Footprint Guide */}
         <div className="flex items-start gap-1.5 p-2 rounded bg-stone-100/80 border border-stone-200 text-[11px] text-stone-500 leading-tight">
           <Info className="w-3.5 h-3.5 text-stone-400 shrink-0 mt-0.5" />
-          <span>Click map to place pin. Minimum project footprint validated dynamically.</span>
+          <span>
+            {selectedTool === "Bridge"
+              ? "Bridge: Click start bank, then click opposite endpoint on map to span bridge."
+              : selectedTool === "Select Area"
+              ? "Select Area: Click 2 opposite corners to draw a study zone."
+              : ["Road", "Water Canal", "Drainage"].includes(selectedTool)
+              ? `${selectedTool}: Click start point, then click endpoint to bridge span.`
+              : "Click map to place. Drag handles on map or use panel to adjust size in meters."}
+          </span>
         </div>
 
         {/* Footer Links */}

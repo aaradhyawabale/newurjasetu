@@ -28,6 +28,7 @@ interface MapViewProps {
     bearingDeg: number;
   } | null;
   studyArea?: StudyAreaBounds | null;
+  linearStartPoint?: { lat: number; lng: number } | null;
   conflicts?: ConflictingFeature[];
   analyzedFeatures?: StandardizedGeoFeature[];
   searchRings?: {
@@ -44,9 +45,17 @@ interface MapViewProps {
     sunElevationDeg?: number;
   } | null;
   onMapClick: (lat: number, lng: number) => void;
+  onPlacementChange?: (updated: {
+    lat: number;
+    lng: number;
+    lengthM: number;
+    widthM: number;
+    bearingDeg: number;
+  }) => void;
   onMapLoaded?: (exportFn: () => string | null) => void;
   className?: string;
   activeCity?: "pune" | "pcmc" | "nashik";
+  bridgeApproachData?: any | null;
 }
 
 export const MapView: React.FC<MapViewProps> = ({
@@ -56,11 +65,14 @@ export const MapView: React.FC<MapViewProps> = ({
   activeType,
   placement,
   studyArea,
+  linearStartPoint = null,
   conflicts = [],
   analyzedFeatures = [],
   searchRings = null,
   solarShadingData = null,
+  bridgeApproachData = null,
   onMapClick,
+  onPlacementChange,
   onMapLoaded,
   className = "",
   activeCity,
@@ -69,10 +81,37 @@ export const MapView: React.FC<MapViewProps> = ({
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markerRef = useRef<maplibregl.Marker | null>(null);
   const onMapClickRef = useRef(onMapClick);
+  const onPlacementChangeRef = useRef(onPlacementChange);
   const placementRef = useRef(placement);
   const activeTypeRef = useRef(activeType);
+  const linearStartPointRef = useRef(linearStartPoint);
+  const linearStartMarkerRef = useRef<maplibregl.Marker | null>(null);
+  const dragTooltipRef = useRef<HTMLDivElement>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [showAnalyzedOverlay, setShowAnalyzedOverlay] = useState(true);
+
+  // Interactive perimeter resize/rotate control handles
+  const handlesRef = useRef<{
+    front: maplibregl.Marker | null;
+    back: maplibregl.Marker | null;
+    left: maplibregl.Marker | null;
+    right: maplibregl.Marker | null;
+    c1: maplibregl.Marker | null;
+    c2: maplibregl.Marker | null;
+    c3: maplibregl.Marker | null;
+    c4: maplibregl.Marker | null;
+    rotate: maplibregl.Marker | null;
+  }>({
+    front: null,
+    back: null,
+    left: null,
+    right: null,
+    c1: null,
+    c2: null,
+    c3: null,
+    c4: null,
+    rotate: null,
+  });
 
   // Keep refs updated to avoid stale closures inside MapLibre event listeners
   useEffect(() => {
@@ -80,9 +119,17 @@ export const MapView: React.FC<MapViewProps> = ({
   }, [onMapClick]);
 
   useEffect(() => {
+    onPlacementChangeRef.current = onPlacementChange;
+  }, [onPlacementChange]);
+
+  useEffect(() => {
     placementRef.current = placement;
     activeTypeRef.current = activeType;
   }, [placement, activeType]);
+
+  useEffect(() => {
+    linearStartPointRef.current = linearStartPoint;
+  }, [linearStartPoint]);
 
   // Initialize Map
   useEffect(() => {
@@ -167,6 +214,37 @@ export const MapView: React.FC<MapViewProps> = ({
           "line-color": "#0284c7",
           "line-width": 2,
           "line-dasharray": [4, 2],
+        },
+      });
+
+      // Add linear span preview source and layers (for 2-click bridge / corridor placement)
+      map.addSource("linear-preview-source", {
+        type: "geojson",
+        data: {
+          type: "FeatureCollection",
+          features: [],
+        },
+      });
+
+      map.addLayer({
+        id: "linear-preview-fill",
+        type: "fill",
+        source: "linear-preview-source",
+        filter: ["==", ["geometry-type"], "Polygon"],
+        paint: {
+          "fill-color": "#1F6F54",
+          "fill-opacity": 0.25,
+        },
+      });
+
+      map.addLayer({
+        id: "linear-preview-line",
+        type: "line",
+        source: "linear-preview-source",
+        paint: {
+          "line-color": "#1F6F54",
+          "line-width": 2,
+          "line-dasharray": [3, 2],
         },
       });
 
@@ -475,6 +553,23 @@ export const MapView: React.FC<MapViewProps> = ({
         },
       });
 
+      // Add Bridge Approach Corridors GeoJSON source and layers
+      map.addSource("bridge-approaches-source", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+
+      map.addLayer({
+        id: "bridge-approaches-line",
+        type: "line",
+        source: "bridge-approaches-source",
+        paint: {
+          "line-color": "#ea580c",
+          "line-width": 4,
+          "line-dasharray": [3, 2],
+        },
+      });
+
       if (onMapLoaded) {
         onMapLoaded(() => {
           if (!mapRef.current) return null;
@@ -556,12 +651,126 @@ export const MapView: React.FC<MapViewProps> = ({
       }
     });
 
+    // Cursor tooltip element for live measurement badge
+    const previewTooltipEl = document.createElement("div");
+    previewTooltipEl.className =
+      "urjasetu-preview-tooltip pointer-events-none fixed z-50 hidden px-2 py-1 bg-stone-900/90 text-white font-mono text-[11px] rounded shadow-md";
+    document.body.appendChild(previewTooltipEl);
+
+    // Hover tooltip element for Analyzed OSM Evidence & Conflict Features
+    const featureTooltipEl = document.createElement("div");
+    featureTooltipEl.className =
+      "urjasetu-feature-tooltip pointer-events-none fixed z-50 hidden px-2.5 py-1.5 bg-stone-900/95 text-white font-mono text-xs rounded shadow-xl border border-stone-700 backdrop-blur-xs tracking-tight max-w-xs";
+    document.body.appendChild(featureTooltipEl);
+
+    const interactiveLayers = [
+      "analyzed-features-fill",
+      "analyzed-features-line",
+      "analyzed-features-point",
+      "conflict-features-fill",
+      "conflict-features-line",
+      "conflict-features-point",
+    ];
+
+    const onFeatureMouseMove = (e: maplibregl.MapLayerMouseEvent) => {
+      if (linearStartPointRef.current) {
+        featureTooltipEl.style.display = "none";
+        return;
+      }
+      const feat = e.features?.[0];
+      if (!feat || !feat.properties) {
+        featureTooltipEl.style.display = "none";
+        return;
+      }
+      map.getCanvas().style.cursor = "pointer";
+      const props = feat.properties;
+      const cat = (props.category || "feature").toString().replace(/_/g, " ");
+      const sub = props.subCategory ? ` · ${props.subCategory}` : "";
+      const label = props.label || props.name || props.id || "OSM Feature";
+      const severity = props.severity ? ` [${String(props.severity).toUpperCase()}]` : "";
+
+      featureTooltipEl.innerHTML = `
+        <div class="text-[10px] text-teal-400 font-bold uppercase tracking-wider">${cat}${sub}${severity}</div>
+        <div class="text-xs text-stone-100 font-medium truncate">${label}</div>
+      `;
+      featureTooltipEl.style.display = "block";
+      featureTooltipEl.style.left = `${e.originalEvent.clientX + 14}px`;
+      featureTooltipEl.style.top = `${e.originalEvent.clientY - 20}px`;
+    };
+
+    const onFeatureMouseLeave = () => {
+      map.getCanvas().style.cursor = "";
+      featureTooltipEl.style.display = "none";
+    };
+
+    interactiveLayers.forEach((layerId) => {
+      map.on("mousemove", layerId, onFeatureMouseMove);
+      map.on("mouseleave", layerId, onFeatureMouseLeave);
+    });
+
+    map.on("mousemove", (e) => {
+      const startPt = linearStartPointRef.current;
+      if (!startPt || !mapRef.current) {
+        previewTooltipEl.style.display = "none";
+        return;
+      }
+
+      const { lng, lat } = e.lngLat;
+      const distM = Math.max(10, Math.round(calculateDistanceMeters(startPt.lat, startPt.lng, lat, lng)));
+      let b = turf.bearing(turf.point([startPt.lng, startPt.lat]), turf.point([lng, lat]));
+      const bearingDeg = Math.round(((b % 360) + 360) % 360);
+      const mid = turf.midpoint(turf.point([startPt.lng, startPt.lat]), turf.point([lng, lat]));
+      const midLat = mid.geometry.coordinates[1];
+      const midLng = mid.geometry.coordinates[0];
+
+      const currentType = activeTypeRef.current;
+      const isBridge = currentType === "Bridge";
+      const widthM = placementRef.current?.widthM || (isBridge ? 20 : 15);
+
+      try {
+        const poly = createFootprintPolygon(midLat, midLng, distM, widthM, bearingDeg);
+        const centerLine = turf.lineString([
+          [startPt.lng, startPt.lat],
+          [lng, lat],
+        ]);
+
+        const source = mapRef.current.getSource("linear-preview-source") as maplibregl.GeoJSONSource;
+        if (source) {
+          source.setData({
+            type: "FeatureCollection",
+            features: [poly as any, centerLine as any],
+          });
+        }
+
+        previewTooltipEl.style.display = "block";
+        previewTooltipEl.style.left = `${e.originalEvent.clientX + 14}px`;
+        previewTooltipEl.style.top = `${e.originalEvent.clientY - 14}px`;
+        previewTooltipEl.textContent = `${currentType} Span: ${distM}m | ${bearingDeg}° (Click endpoint to place)`;
+      } catch {
+        // ignore
+      }
+    });
+
     map.on("click", (e) => {
       const { lng, lat } = e.lngLat;
+      previewTooltipEl.style.display = "none";
+      featureTooltipEl.style.display = "none";
       onMapClickRef.current(lat, lng);
     });
 
     return () => {
+      interactiveLayers.forEach((layerId) => {
+        if (mapRef.current) {
+          mapRef.current.off("mousemove", layerId, onFeatureMouseMove);
+          mapRef.current.off("mouseleave", layerId, onFeatureMouseLeave);
+        }
+      });
+      if (featureTooltipEl.parentNode) {
+        featureTooltipEl.parentNode.removeChild(featureTooltipEl);
+      }
+      if (previewTooltipEl.parentNode) {
+        previewTooltipEl.parentNode.removeChild(previewTooltipEl);
+      }
       map.remove();
       mapRef.current = null;
     };
@@ -620,6 +829,40 @@ export const MapView: React.FC<MapViewProps> = ({
       ],
     });
   }, [studyArea, isLoaded]);
+
+  // Update Linear / Bridge Start Marker on Map
+  useEffect(() => {
+    if (!mapRef.current || !isLoaded) return;
+    if (!linearStartPoint) {
+      if (linearStartMarkerRef.current) {
+        linearStartMarkerRef.current.remove();
+        linearStartMarkerRef.current = null;
+      }
+      const source = mapRef.current.getSource("linear-preview-source") as maplibregl.GeoJSONSource;
+      if (source) {
+        source.setData({ type: "FeatureCollection", features: [] });
+      }
+      return;
+    }
+
+    if (!linearStartMarkerRef.current) {
+      const el = document.createElement("div");
+      el.className = "urjasetu-linear-start-marker";
+      el.innerHTML = `
+        <div style="display:flex; flex-direction:column; align-items:center; transform: translate(-50%, -100%); pointer-events:none;">
+          <div style="background-color: #1F6F54; color: white; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; font-family: monospace; box-shadow: 0 2px 6px rgba(0,0,0,0.3); white-space: nowrap; margin-bottom: 2px; border: 1px solid white;">
+            ${activeType} Start
+          </div>
+          <div style="width: 16px; height: 16px; border-radius: 50%; background: #1F6F54; border: 3px solid white; box-shadow: 0 0 10px #1F6F54;"></div>
+        </div>
+      `;
+      linearStartMarkerRef.current = new maplibregl.Marker({ element: el })
+        .setLngLat([linearStartPoint.lng, linearStartPoint.lat])
+        .addTo(mapRef.current);
+    } else {
+      linearStartMarkerRef.current.setLngLat([linearStartPoint.lng, linearStartPoint.lat]);
+    }
+  }, [linearStartPoint, activeType, isLoaded]);
 
   // Update PMC candidate municipal boundary on map
   useEffect(() => {
@@ -745,15 +988,26 @@ export const MapView: React.FC<MapViewProps> = ({
     });
   }, [conflicts, isLoaded]);
 
-  // Update Pin Marker and Footprint Polygon when placement or activeType changes
+  // Update Pin Marker, Perimeter Control Handles, and Footprint Polygon
   useEffect(() => {
     if (!mapRef.current || !isLoaded) return;
+
+    const cleanupHandles = () => {
+      Object.keys(handlesRef.current).forEach((k) => {
+        const key = k as keyof typeof handlesRef.current;
+        if (handlesRef.current[key]) {
+          handlesRef.current[key]!.remove();
+          handlesRef.current[key] = null;
+        }
+      });
+    };
 
     if (!placement) {
       if (markerRef.current) {
         markerRef.current.remove();
         markerRef.current = null;
       }
+      cleanupHandles();
       const source = mapRef.current.getSource("footprint-source") as maplibregl.GeoJSONSource;
       if (source) {
         source.setData({ type: "FeatureCollection", features: [] });
@@ -761,12 +1015,116 @@ export const MapView: React.FC<MapViewProps> = ({
       return;
     }
 
-    // 1. Update Pin Marker & Label
+    const isBridge = activeType === "Bridge";
+
+    // Helper to calculate geometry points for footprint and handles
+    const getGeometryPoints = (
+      lat: number,
+      lng: number,
+      lengthM: number,
+      widthM: number,
+      bearingDeg: number
+    ) => {
+      const centerPt = turf.point([lng, lat]);
+      const b = ((bearingDeg % 360) + 360) % 360;
+      const bPerp = (b + 90) % 360;
+      const halfLenKm = lengthM / 2 / 1000;
+      const halfWidKm = widthM / 2 / 1000;
+
+      const pFront = turf.destination(centerPt, halfLenKm, b, { units: "kilometers" });
+      const pBack = turf.destination(centerPt, halfLenKm, (b + 180) % 360, { units: "kilometers" });
+      const pLeft = turf.destination(centerPt, halfWidKm, (bPerp + 180) % 360, { units: "kilometers" });
+      const pRight = turf.destination(centerPt, halfWidKm, bPerp, { units: "kilometers" });
+
+      const c1 = turf.destination(pFront, halfWidKm, (bPerp + 180) % 360, { units: "kilometers" });
+      const c2 = turf.destination(pFront, halfWidKm, bPerp, { units: "kilometers" });
+      const c3 = turf.destination(pBack, halfWidKm, bPerp, { units: "kilometers" });
+      const c4 = turf.destination(pBack, halfWidKm, (bPerp + 180) % 360, { units: "kilometers" });
+      const pRotate = turf.destination(pFront, 0.035, b, { units: "kilometers" });
+
+      return { centerPt, b, bPerp, pFront, pBack, pLeft, pRight, c1, c2, c3, c4, pRotate };
+    };
+
+    const updateFootprintSource = (
+      lat: number,
+      lng: number,
+      lengthM: number,
+      widthM: number,
+      bearingDeg: number
+    ) => {
+      if (!mapRef.current) return;
+      try {
+        const poly = createFootprintPolygon(lat, lng, lengthM, widthM, bearingDeg);
+        const source = mapRef.current.getSource("footprint-source") as maplibregl.GeoJSONSource;
+        if (source) {
+          source.setData({
+            type: "FeatureCollection",
+            features: [poly as any],
+          });
+        }
+      } catch (err) {
+        console.warn("[Footprint Update Error]", err);
+      }
+    };
+
+    // Tooltip helper during dragging
+    const showTooltip = (text: string) => {
+      if (!dragTooltipRef.current) return;
+      dragTooltipRef.current.style.display = "block";
+      dragTooltipRef.current.textContent = text;
+      dragTooltipRef.current.style.left = "50%";
+      dragTooltipRef.current.style.bottom = "40px";
+      dragTooltipRef.current.style.transform = "translateX(-50%)";
+    };
+
+    const hideTooltip = () => {
+      if (!dragTooltipRef.current) return;
+      dragTooltipRef.current.style.display = "none";
+    };
+
+    const pts = getGeometryPoints(
+      placement.lat,
+      placement.lng,
+      placement.lengthM,
+      placement.widthM,
+      placement.bearingDeg
+    );
+
+    // Initial / synchronized draw of footprint polygon
+    updateFootprintSource(
+      placement.lat,
+      placement.lng,
+      placement.lengthM,
+      placement.widthM,
+      placement.bearingDeg
+    );
+
+    // Synchronize positions of perimeter handles
+    const syncHandlePositions = (
+      lat: number,
+      lng: number,
+      lengthM: number,
+      widthM: number,
+      bearingDeg: number
+    ) => {
+      const p = getGeometryPoints(lat, lng, lengthM, widthM, bearingDeg);
+      if (handlesRef.current.front) handlesRef.current.front.setLngLat(p.pFront.geometry.coordinates as [number, number]);
+      if (handlesRef.current.back) handlesRef.current.back.setLngLat(p.pBack.geometry.coordinates as [number, number]);
+      if (handlesRef.current.left) handlesRef.current.left.setLngLat(p.pLeft.geometry.coordinates as [number, number]);
+      if (handlesRef.current.right) handlesRef.current.right.setLngLat(p.pRight.geometry.coordinates as [number, number]);
+      if (handlesRef.current.c1) handlesRef.current.c1.setLngLat(p.c1.geometry.coordinates as [number, number]);
+      if (handlesRef.current.c2) handlesRef.current.c2.setLngLat(p.c2.geometry.coordinates as [number, number]);
+      if (handlesRef.current.c3) handlesRef.current.c3.setLngLat(p.c3.geometry.coordinates as [number, number]);
+      if (handlesRef.current.c4) handlesRef.current.c4.setLngLat(p.c4.geometry.coordinates as [number, number]);
+      if (handlesRef.current.rotate) handlesRef.current.rotate.setLngLat(p.pRotate.geometry.coordinates as [number, number]);
+    };
+
+    // 1. Center Pin Marker (Draggable)
     if (!markerRef.current) {
       const el = document.createElement("div");
       el.className = "urjasetu-pin-marker";
       el.innerHTML = `
-        <div style="display:flex; flex-direction:column; align-items:center; transform: translate(-50%, -100%); cursor:pointer;">
+        <div style="display:flex; flex-direction:column; align-items:center; transform: translate(-50%, -100%); cursor:grab;">
           <div class="urjasetu-pin-label" style="background-color: #1F6F54; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; font-family: monospace; box-shadow: 0 2px 6px rgba(0,0,0,0.3); white-space: nowrap; margin-bottom: 2px; border: 1px solid #144937;">
             ${activeType}
           </div>
@@ -777,9 +1135,34 @@ export const MapView: React.FC<MapViewProps> = ({
         </div>
       `;
 
-      markerRef.current = new maplibregl.Marker({ element: el })
+      const m = new maplibregl.Marker({ element: el, draggable: true })
         .setLngLat([placement.lng, placement.lat])
         .addTo(mapRef.current);
+
+      m.on("drag", () => {
+        const pos = m.getLngLat();
+        const p = placementRef.current;
+        if (!p) return;
+        updateFootprintSource(pos.lat, pos.lng, p.lengthM, p.widthM, p.bearingDeg);
+        syncHandlePositions(pos.lat, pos.lng, p.lengthM, p.widthM, p.bearingDeg);
+        showTooltip(`${pos.lat.toFixed(4)}, ${pos.lng.toFixed(4)} (Move Footprint)`);
+      });
+
+      m.on("dragend", () => {
+        hideTooltip();
+        const pos = m.getLngLat();
+        const p = placementRef.current;
+        if (!p) return;
+        onPlacementChangeRef.current?.({
+          lat: pos.lat,
+          lng: pos.lng,
+          lengthM: p.lengthM,
+          widthM: p.widthM,
+          bearingDeg: p.bearingDeg,
+        });
+      });
+
+      markerRef.current = m;
     } else {
       markerRef.current.setLngLat([placement.lng, placement.lat]);
       const labelEl = markerRef.current.getElement().querySelector(".urjasetu-pin-label");
@@ -788,25 +1171,279 @@ export const MapView: React.FC<MapViewProps> = ({
       }
     }
 
-    // 2. Generate and update Footprint Rectangle Polygon
-    try {
-      const poly = createFootprintPolygon(
-        placement.lat,
-        placement.lng,
-        placement.lengthM,
-        placement.widthM,
-        placement.bearingDeg
-      );
+    // 2. Front Handle (End Point / Length+)
+    if (!handlesRef.current.front) {
+      const el = document.createElement("div");
+      el.className = "urjasetu-handle urjasetu-handle-front";
+      el.style.cursor = "grab";
+      el.title = isBridge ? "Bridge Endpoint: drag to stretch span and align angle" : "Drag to adjust Length";
+      el.innerHTML = isBridge
+        ? `<div style="background:#1F6F54;color:white;padding:2px 7px;border-radius:12px;font-size:10px;font-weight:bold;font-family:monospace;box-shadow:0 2px 6px rgba(0,0,0,0.35);border:1.5px solid white;display:flex;align-items:center;gap:3px;white-space:nowrap;user-select:none;">End ⇄</div>`
+        : `<div style="width:14px;height:14px;background:#ffffff;border:2.5px solid #1F6F54;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.35);user-select:none;"></div>`;
 
-      const source = mapRef.current.getSource("footprint-source") as maplibregl.GeoJSONSource;
-      if (source) {
-        source.setData({
-          type: "FeatureCollection",
-          features: [poly as any],
+      const m = new maplibregl.Marker({ element: el, draggable: true })
+        .setLngLat(pts.pFront.geometry.coordinates as [number, number])
+        .addTo(mapRef.current);
+
+      m.on("drag", () => {
+        const p = placementRef.current;
+        if (!p) return;
+        const curPts = getGeometryPoints(p.lat, p.lng, p.lengthM, p.widthM, p.bearingDeg);
+        const anchorBack = curPts.pBack.geometry.coordinates;
+        const pos = m.getLngLat();
+        const newLen = Math.max(10, Math.round(calculateDistanceMeters(anchorBack[1], anchorBack[0], pos.lat, pos.lng)));
+        let nb = turf.bearing(turf.point(anchorBack), turf.point([pos.lng, pos.lat]));
+        const newBearing = Math.round(((nb % 360) + 360) % 360);
+        const newMid = turf.midpoint(turf.point(anchorBack), turf.point([pos.lng, pos.lat]));
+        const midLat = newMid.geometry.coordinates[1];
+        const midLng = newMid.geometry.coordinates[0];
+
+        updateFootprintSource(midLat, midLng, newLen, p.widthM, newBearing);
+        markerRef.current?.setLngLat([midLng, midLat]);
+        syncHandlePositions(midLat, midLng, newLen, p.widthM, newBearing);
+        showTooltip(`Length: ${newLen}m | Bearing: ${newBearing}° (${isBridge ? "Bridge Span" : "Footprint"})`);
+      });
+
+      m.on("dragend", () => {
+        hideTooltip();
+        const p = placementRef.current;
+        if (!p) return;
+        const curPts = getGeometryPoints(p.lat, p.lng, p.lengthM, p.widthM, p.bearingDeg);
+        const anchorBack = curPts.pBack.geometry.coordinates;
+        const pos = m.getLngLat();
+        const newLen = Math.max(10, Math.round(calculateDistanceMeters(anchorBack[1], anchorBack[0], pos.lat, pos.lng)));
+        let nb = turf.bearing(turf.point(anchorBack), turf.point([pos.lng, pos.lat]));
+        const newBearing = Math.round(((nb % 360) + 360) % 360);
+        const newMid = turf.midpoint(turf.point(anchorBack), turf.point([pos.lng, pos.lat]));
+        const midLat = newMid.geometry.coordinates[1];
+        const midLng = newMid.geometry.coordinates[0];
+
+        onPlacementChangeRef.current?.({
+          lat: midLat,
+          lng: midLng,
+          lengthM: newLen,
+          widthM: p.widthM,
+          bearingDeg: newBearing,
         });
+      });
+
+      handlesRef.current.front = m;
+    } else {
+      handlesRef.current.front.setLngLat(pts.pFront.geometry.coordinates as [number, number]);
+    }
+
+    // 3. Back Handle (Start Point / Length-)
+    if (!handlesRef.current.back) {
+      const el = document.createElement("div");
+      el.className = "urjasetu-handle urjasetu-handle-back";
+      el.style.cursor = "grab";
+      el.title = isBridge ? "Bridge Start Point: drag to adjust start abutment" : "Drag to adjust Length";
+      el.innerHTML = isBridge
+        ? `<div style="background:#1F6F54;color:white;padding:2px 7px;border-radius:12px;font-size:10px;font-weight:bold;font-family:monospace;box-shadow:0 2px 6px rgba(0,0,0,0.35);border:1.5px solid white;display:flex;align-items:center;gap:3px;white-space:nowrap;user-select:none;">Start ⇄</div>`
+        : `<div style="width:14px;height:14px;background:#ffffff;border:2.5px solid #1F6F54;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.35);user-select:none;"></div>`;
+
+      const m = new maplibregl.Marker({ element: el, draggable: true })
+        .setLngLat(pts.pBack.geometry.coordinates as [number, number])
+        .addTo(mapRef.current);
+
+      m.on("drag", () => {
+        const p = placementRef.current;
+        if (!p) return;
+        const curPts = getGeometryPoints(p.lat, p.lng, p.lengthM, p.widthM, p.bearingDeg);
+        const anchorFront = curPts.pFront.geometry.coordinates;
+        const pos = m.getLngLat();
+        const newLen = Math.max(10, Math.round(calculateDistanceMeters(pos.lat, pos.lng, anchorFront[1], anchorFront[0])));
+        let nb = turf.bearing(turf.point([pos.lng, pos.lat]), turf.point(anchorFront));
+        const newBearing = Math.round(((nb % 360) + 360) % 360);
+        const newMid = turf.midpoint(turf.point([pos.lng, pos.lat]), turf.point(anchorFront));
+        const midLat = newMid.geometry.coordinates[1];
+        const midLng = newMid.geometry.coordinates[0];
+
+        updateFootprintSource(midLat, midLng, newLen, p.widthM, newBearing);
+        markerRef.current?.setLngLat([midLng, midLat]);
+        syncHandlePositions(midLat, midLng, newLen, p.widthM, newBearing);
+        showTooltip(`Length: ${newLen}m | Bearing: ${newBearing}° (${isBridge ? "Bridge Span" : "Footprint"})`);
+      });
+
+      m.on("dragend", () => {
+        hideTooltip();
+        const p = placementRef.current;
+        if (!p) return;
+        const curPts = getGeometryPoints(p.lat, p.lng, p.lengthM, p.widthM, p.bearingDeg);
+        const anchorFront = curPts.pFront.geometry.coordinates;
+        const pos = m.getLngLat();
+        const newLen = Math.max(10, Math.round(calculateDistanceMeters(pos.lat, pos.lng, anchorFront[1], anchorFront[0])));
+        let nb = turf.bearing(turf.point([pos.lng, pos.lat]), turf.point(anchorFront));
+        const newBearing = Math.round(((nb % 360) + 360) % 360);
+        const newMid = turf.midpoint(turf.point([pos.lng, pos.lat]), turf.point(anchorFront));
+        const midLat = newMid.geometry.coordinates[1];
+        const midLng = newMid.geometry.coordinates[0];
+
+        onPlacementChangeRef.current?.({
+          lat: midLat,
+          lng: midLng,
+          lengthM: newLen,
+          widthM: p.widthM,
+          bearingDeg: newBearing,
+        });
+      });
+
+      handlesRef.current.back = m;
+    } else {
+      handlesRef.current.back.setLngLat(pts.pBack.geometry.coordinates as [number, number]);
+    }
+
+    // 4. Side Handles (Left & Right - Width in meters)
+    const setupSideHandle = (side: "left" | "right", coord: [number, number]) => {
+      if (!handlesRef.current[side]) {
+        const el = document.createElement("div");
+        el.className = `urjasetu-handle urjasetu-handle-${side}`;
+        el.style.cursor = "ew-resize";
+        el.title = "Drag to adjust Width in meters";
+        el.innerHTML = `<div style="width:13px;height:13px;background:#ffffff;border:2.5px solid #0284c7;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.35);user-select:none;"></div>`;
+
+        const m = new maplibregl.Marker({ element: el, draggable: true })
+          .setLngLat(coord)
+          .addTo(mapRef.current!);
+
+        m.on("drag", () => {
+          const p = placementRef.current;
+          if (!p) return;
+          const pos = m.getLngLat();
+          const distM = calculateDistanceMeters(p.lat, p.lng, pos.lat, pos.lng);
+          const newWid = Math.max(5, Math.min(1000, Math.round(distM * 2)));
+
+          updateFootprintSource(p.lat, p.lng, p.lengthM, newWid, p.bearingDeg);
+          syncHandlePositions(p.lat, p.lng, p.lengthM, newWid, p.bearingDeg);
+          showTooltip(`Width: ${newWid}m (${(p.lengthM * newWid).toLocaleString()} m²)`);
+        });
+
+        m.on("dragend", () => {
+          hideTooltip();
+          const p = placementRef.current;
+          if (!p) return;
+          const pos = m.getLngLat();
+          const distM = calculateDistanceMeters(p.lat, p.lng, pos.lat, pos.lng);
+          const newWid = Math.max(5, Math.min(1000, Math.round(distM * 2)));
+
+          onPlacementChangeRef.current?.({
+            lat: p.lat,
+            lng: p.lng,
+            lengthM: p.lengthM,
+            widthM: newWid,
+            bearingDeg: p.bearingDeg,
+          });
+        });
+
+        handlesRef.current[side] = m;
+      } else {
+        handlesRef.current[side]!.setLngLat(coord);
       }
-    } catch (err) {
-      console.warn("[Footprint Update Error]", err);
+    };
+
+    setupSideHandle("left", pts.pLeft.geometry.coordinates as [number, number]);
+    setupSideHandle("right", pts.pRight.geometry.coordinates as [number, number]);
+
+    // 5. Four Corner Handles (Scale footprint dimensions proportionally)
+    const corners: ("c1" | "c2" | "c3" | "c4")[] = ["c1", "c2", "c3", "c4"];
+    corners.forEach((cid) => {
+      const coord = pts[cid].geometry.coordinates as [number, number];
+      if (!handlesRef.current[cid]) {
+        const el = document.createElement("div");
+        el.className = `urjasetu-handle urjasetu-handle-${cid}`;
+        el.style.cursor = "nwse-resize";
+        el.title = "Drag corner to scale footprint dimensions";
+        el.innerHTML = `<div style="width:10px;height:10px;background:#ffffff;border:2px solid #1F6F54;border-radius:2px;box-shadow:0 1px 3px rgba(0,0,0,0.3);user-select:none;"></div>`;
+
+        const m = new maplibregl.Marker({ element: el, draggable: true })
+          .setLngLat(coord)
+          .addTo(mapRef.current!);
+
+        m.on("drag", () => {
+          const p = placementRef.current;
+          if (!p) return;
+          const pos = m.getLngLat();
+          const distM = calculateDistanceMeters(p.lat, p.lng, pos.lat, pos.lng);
+          const diagM = Math.sqrt((p.lengthM / 2) ** 2 + (p.widthM / 2) ** 2);
+          const scale = distM / Math.max(1, diagM);
+          const newLen = Math.max(10, Math.min(2000, Math.round(p.lengthM * scale)));
+          const newWid = Math.max(5, Math.min(1000, Math.round(p.widthM * scale)));
+
+          updateFootprintSource(p.lat, p.lng, newLen, newWid, p.bearingDeg);
+          syncHandlePositions(p.lat, p.lng, newLen, newWid, p.bearingDeg);
+          showTooltip(`${newLen}m × ${newWid}m (${(newLen * newWid).toLocaleString()} m²)`);
+        });
+
+        m.on("dragend", () => {
+          hideTooltip();
+          const p = placementRef.current;
+          if (!p) return;
+          const pos = m.getLngLat();
+          const distM = calculateDistanceMeters(p.lat, p.lng, pos.lat, pos.lng);
+          const diagM = Math.sqrt((p.lengthM / 2) ** 2 + (p.widthM / 2) ** 2);
+          const scale = distM / Math.max(1, diagM);
+          const newLen = Math.max(10, Math.min(2000, Math.round(p.lengthM * scale)));
+          const newWid = Math.max(5, Math.min(1000, Math.round(p.widthM * scale)));
+
+          onPlacementChangeRef.current?.({
+            lat: p.lat,
+            lng: p.lng,
+            lengthM: newLen,
+            widthM: newWid,
+            bearingDeg: p.bearingDeg,
+          });
+        });
+
+        handlesRef.current[cid] = m;
+      } else {
+        handlesRef.current[cid]!.setLngLat(coord);
+      }
+    });
+
+    // 6. Rotation Handle (Orient footprint angle)
+    if (!handlesRef.current.rotate) {
+      const el = document.createElement("div");
+      el.className = "urjasetu-handle urjasetu-handle-rotate";
+      el.style.cursor = "crosshair";
+      el.title = "Drag to rotate bearing angle";
+      el.innerHTML = `<div style="width:18px;height:18px;background:#1F6F54;color:white;border:1.5px solid white;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:bold;user-select:none;">↻</div>`;
+
+      const m = new maplibregl.Marker({ element: el, draggable: true })
+        .setLngLat(pts.pRotate.geometry.coordinates as [number, number])
+        .addTo(mapRef.current);
+
+      m.on("drag", () => {
+        const p = placementRef.current;
+        if (!p) return;
+        const pos = m.getLngLat();
+        let nb = turf.bearing(turf.point([p.lng, p.lat]), turf.point([pos.lng, pos.lat]));
+        const newBearing = Math.round(((nb % 360) + 360) % 360);
+
+        updateFootprintSource(p.lat, p.lng, p.lengthM, p.widthM, newBearing);
+        syncHandlePositions(p.lat, p.lng, p.lengthM, p.widthM, newBearing);
+        showTooltip(`Bearing: ${newBearing}°`);
+      });
+
+      m.on("dragend", () => {
+        hideTooltip();
+        const p = placementRef.current;
+        if (!p) return;
+        const pos = m.getLngLat();
+        let nb = turf.bearing(turf.point([p.lng, p.lat]), turf.point([pos.lng, pos.lat]));
+        const newBearing = Math.round(((nb % 360) + 360) % 360);
+
+        onPlacementChangeRef.current?.({
+          lat: p.lat,
+          lng: p.lng,
+          lengthM: p.lengthM,
+          widthM: p.widthM,
+          bearingDeg: newBearing,
+        });
+      });
+
+      handlesRef.current.rotate = m;
+    } else {
+      handlesRef.current.rotate.setLngLat(pts.pRotate.geometry.coordinates as [number, number]);
     }
   }, [placement, activeType, isLoaded]);
 
@@ -839,12 +1476,35 @@ export const MapView: React.FC<MapViewProps> = ({
     }
   }, [solarShadingData, isLoaded]);
 
+  // Update Bridge Approach Corridors on Map
+  useEffect(() => {
+    if (!mapRef.current || !isLoaded) return;
+    const src = mapRef.current.getSource("bridge-approaches-source") as maplibregl.GeoJSONSource;
+    if (!src) return;
+
+    const corridors =
+      bridgeApproachData?.recommendedActions?.suggestion2_approachRoads?.corridorsGeoJson ||
+      bridgeApproachData?.corridorsGeoJson;
+
+    if (corridors && Array.isArray(corridors.features) && corridors.features.length > 0) {
+      src.setData(corridors);
+    } else {
+      src.setData({ type: "FeatureCollection", features: [] });
+    }
+  }, [bridgeApproachData, isLoaded]);
+
   const mappedConflictCount = (conflicts || []).filter((c) => Boolean(c.geometry)).length;
   const analyzedCount = (analyzedFeatures || []).length;
 
   return (
     <div className={`relative w-full h-full ${className}`}>
       <div ref={mapContainerRef} className="w-full h-full" />
+
+      {/* Floating Drag Dimension Tooltip */}
+      <div
+        ref={dragTooltipRef}
+        className="pointer-events-none fixed z-50 hidden px-3 py-1.5 bg-stone-900/95 text-white font-mono text-xs rounded-panel shadow-xl border border-stone-700 font-semibold backdrop-blur-xs tracking-tight"
+      />
 
       {/* Solar Shading Floating Indicator Badge */}
       {solarShadingData?.sunAzimuthDeg !== undefined && (

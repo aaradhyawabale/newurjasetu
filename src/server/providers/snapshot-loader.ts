@@ -236,6 +236,22 @@ export function getPuneStudyAreaMetadata() {
   return loadPuneSnapshot().metadata;
 }
 
+let nashikPoisCache: any[] | null = null;
+function loadNashikPois(): any[] {
+  if (nashikPoisCache) return nashikPoisCache;
+  const p = path.join(process.cwd(), "ndata", "osm", "nashik_pois.geojson");
+  if (fs.existsSync(p)) {
+    try {
+      const raw = JSON.parse(fs.readFileSync(p, "utf-8"));
+      nashikPoisCache = raw.features || [];
+      return nashikPoisCache!;
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
 /**
  * Builds authentic Overpass OsmElement records representing genuine mapped features
  * for Pune, PCMC, or Nashik when offline or upstream Overpass is unreachable.
@@ -272,6 +288,28 @@ export function getSnapshotOverpass(
           "socket:ccs2": st.capacity && st.capacity >= 4 ? "yes" : "no",
         },
       });
+    }
+  }
+
+  // 1b. Add genuine mapped POIs from verified GeoJSON datasets if available (e.g. hospitals, clinics, schools)
+  if (city === "nashik") {
+    const pois = loadNashikPois();
+    for (const f of pois) {
+      if (f.geometry && f.geometry.type === "Point") {
+        const [pLng, pLat] = f.geometry.coordinates;
+        const dist = calculateDistanceMeters(lat, lng, pLat, pLng);
+        if (dist <= radiusM) {
+          const rawId = f.properties?.["@id"] || f.id || "";
+          const idNum = parseInt(String(rawId).replace(/\D/g, ""), 10) || Math.floor(Math.random() * 10000000);
+          elements.push({
+            type: "node",
+            id: idNum,
+            lat: pLat,
+            lon: pLng,
+            tags: f.properties || {},
+          });
+        }
+      }
     }
   }
 

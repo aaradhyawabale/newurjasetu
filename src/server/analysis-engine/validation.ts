@@ -13,6 +13,7 @@ import {
 } from "../gis/geometry";
 import { OverpassProvider, osmElementToGeoJson } from "../providers/overpass";
 import { OsmElement } from "../providers/types";
+import { analyzeBridgeConnectivity } from "./bridge-planner";
 
 export interface ConflictingFeature {
   id: string;
@@ -164,9 +165,10 @@ export async function validateFootprint(
     separationRules.minHazardBufferM,
     separationRules.minRailwayBufferM,
     separationRules.minMotorwayBufferM,
+    separationRules.minSameTypeSpacingM || 0,
     150
   );
-  const searchRadius = Math.max(Math.round(Math.max(lengthM, widthM) / 2 + maxBufferM), 250);
+  const searchRadius = Math.max(Math.round(Math.max(lengthM, widthM) / 2 + maxBufferM), 300);
   const seenConflictKeys = new Set<string>();
 
   const addConflict = (conf: ConflictingFeature, dedupeKey: string) => {
@@ -394,6 +396,87 @@ export async function validateFootprint(
             },
             `buf_mw:${mwName}`
           );
+        }
+      }
+
+      // C. Minimum same-type facility separation (URDPFI inter-facility spacing norm)
+      const isSameTypeAmenity =
+        (type === "Hospital" && (tags.amenity === "hospital" || tags.amenity === "clinic")) ||
+        (type === "School" && (tags.amenity === "school" || tags.amenity === "college")) ||
+        (type === "EV Charging Station" && tags.amenity === "charging_station");
+
+      if (isSameTypeAmenity && separationRules.minSameTypeSpacingM > 0) {
+        const edgeDistM = Math.round(
+          computeFootprintDistanceToGeometryMeters(footprint, feature.geometry)
+        );
+        if (edgeDistM < separationRules.minSameTypeSpacingM) {
+          const sameName = tags.name || `Existing ${config.label}`;
+          const isSevereProximity = edgeDistM < separationRules.minSameTypeSpacingM * 0.35;
+          addConflict(
+            {
+              id: `spacing_${el.id}`,
+              category: "separation_buffer",
+              label: `Inter-Facility Spacing (${sameName})`,
+              severity: isSevereProximity ? "critical" : "warning",
+              distanceM: edgeDistM,
+              requiredBufferM: separationRules.minSameTypeSpacingM,
+              description: `Proposed ${config.label} is only ${edgeDistM}m from existing ${sameName}, violating the URDPFI minimum inter-facility separation norm (${separationRules.minSameTypeSpacingM}m). Causes service cannibalization and emergency access congestion.`,
+              geometry: feature.geometry,
+            },
+            `spacing:${sameName}`
+          );
+        }
+      }
+    }
+
+    // D. Bridge Approach Road & Network Continuity Validation
+    if (type === "Bridge") {
+      const hasRoads = elements.some((el) => el.tags && el.tags.highway);
+      if (hasRoads) {
+        const bridgeAppraisal = analyzeBridgeConnectivity({
+          lat,
+          lng,
+          lengthM,
+          widthM,
+          bearingDeg,
+          osmElements: elements,
+        });
+
+        if (bridgeAppraisal.dualBankDisconnected) {
+          conflicts.push({
+            id: "bridge_dual_bank_disconnect",
+            category: "separation_buffer",
+            label: "Bridge Approach Missing (Both Banks Disconnected)",
+            severity: "critical",
+            distanceM: Math.round(
+              Math.max(
+                bridgeAppraisal.abutmentA.distanceToRoadM,
+                bridgeAppraisal.abutmentB.distanceToRoadM
+              )
+            ),
+            description: `Neither bridge abutment connects to a classified road network (Bank A: ${Math.round(
+              bridgeAppraisal.abutmentA.distanceToRoadM
+            )}m to ${bridgeAppraisal.abutmentA.targetRoad?.name || "road"}; Bank B: ${Math.round(
+              bridgeAppraisal.abutmentB.distanceToRoadM
+            )}m to ${bridgeAppraisal.abutmentB.targetRoad?.name || "road"}). Bridge cannot function without constructing dedicated approach corridors.`,
+          });
+        } else if (
+          !bridgeAppraisal.abutmentA.isConnected ||
+          !bridgeAppraisal.abutmentB.isConnected
+        ) {
+          const disBank = !bridgeAppraisal.abutmentA.isConnected
+            ? bridgeAppraisal.abutmentA
+            : bridgeAppraisal.abutmentB;
+          conflicts.push({
+            id: `bridge_single_bank_disconnect_${disBank.abutmentIndex}`,
+            category: "separation_buffer",
+            label: `Bridge Dead-End (${disBank.bankLabel})`,
+            severity: "warning",
+            distanceM: Math.round(disBank.distanceToRoadM),
+            description: `${disBank.bankLabel} terminates in open ground without street frontage (${Math.round(
+              disBank.distanceToRoadM
+            )}m gap to ${disBank.targetRoad?.name || "unnamed road"}). Requires approach road extension.`,
+          });
         }
       }
     }
