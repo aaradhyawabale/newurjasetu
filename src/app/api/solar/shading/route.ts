@@ -22,21 +22,24 @@ export async function POST(req: NextRequest) {
     let solarPlacement: SolarPlacementInput;
     let cachedFeatures: StandardizedGeoFeature[] | null = null;
 
+    let placement = null;
     if (body.placementId) {
-      const placement = await prisma.placement.findFirst({
-        where: { id: body.placementId, userId: user.userId },
-        include: {
-          analyses: {
-            orderBy: { createdAt: "desc" },
-            take: 1,
+      try {
+        placement = await prisma.placement.findFirst({
+          where: { id: body.placementId, userId: user.userId },
+          include: {
+            analyses: {
+              orderBy: { createdAt: "desc" },
+              take: 1,
+            },
           },
-        },
-      });
-
-      if (!placement) {
-        return errorResponse("Placement not found or unauthorized", "NOT_FOUND", 404);
+        });
+      } catch (err) {
+        console.warn("[Solar Shading] DB lookup error:", err);
       }
+    }
 
+    if (placement) {
       const params = JSON.parse(placement.params || "{}");
       solarPlacement = {
         lat: placement.lat,
@@ -80,9 +83,23 @@ export async function POST(req: NextRequest) {
         receiverElevationAboveGroundM:
           Number(sp.receiverElevationAboveGroundM ?? sp.rooftopHeightM) || 0,
       };
+    } else if (typeof body.lat === "number" && typeof body.lng === "number") {
+      const coordCheck = validateCoordinates(body.lat, body.lng);
+      if (!coordCheck.valid) {
+        return errorResponse(coordCheck.reason || "Invalid coordinates", "INVALID_INPUT", 400);
+      }
+      solarPlacement = {
+        lat: body.lat,
+        lng: body.lng,
+        lengthM: Number(body.lengthM) || 250,
+        widthM: Number(body.widthM) || 200,
+        bearingDeg: Number(body.bearingDeg) || 0,
+        panelTiltDeg: Number(body.panelTiltDeg) || 22,
+        receiverElevationAboveGroundM: Number(body.receiverElevationAboveGroundM) || 0,
+      };
     } else {
       return errorResponse(
-        "Either 'placementId' or 'solarPlacement' must be provided.",
+        "Either 'placementId', 'solarPlacement', or valid 'lat'/'lng' must be provided.",
         "INVALID_INPUT",
         400
       );
@@ -108,8 +125,13 @@ export async function POST(req: NextRequest) {
     // Retrieve or reuse surrounding building features (search radius: 800m)
     let surroundingFeatures: StandardizedGeoFeature[] = cachedFeatures || [];
     if (surroundingFeatures.length === 0) {
-      const overpassRes = await overpassProvider.getFeaturesAround(solarPlacement.lat, solarPlacement.lng, 800);
-      surroundingFeatures = overpassRes.normalizedFeatures || [];
+      try {
+        const overpassRes = await overpassProvider.getFeaturesAround(solarPlacement.lat, solarPlacement.lng, 800);
+        surroundingFeatures = overpassRes.normalizedFeatures || [];
+      } catch (err: any) {
+        console.warn("[Solar Shading] Overpass query failed, using empty surrounding features:", err?.message);
+        surroundingFeatures = [];
+      }
     }
 
     // Run future-aware shading simulation

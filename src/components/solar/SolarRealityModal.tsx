@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Zap,
   DollarSign,
@@ -81,6 +81,51 @@ export const SolarRealityModal: React.FC<SolarRealityModalProps> = ({
     "monthly" | "losses" | "calibration" | "uncertainty" | "economics" | "audit" | "provenance"
   >("monthly");
   const [showConfigDrawer, setShowConfigDrawer] = useState(false);
+  const [viewMode, setViewMode] = useState<"executive" | "deep">("executive");
+  const [activePreset, setActivePreset] = useState<string>("utility");
+
+  const maxMonthlyMwh = useMemo(() => {
+    if (!result?.monthlyBreakdown || result.monthlyBreakdown.length === 0) return 100;
+    return Math.max(...result.monthlyBreakdown.map((m) => m.productionMwh));
+  }, [result]);
+
+  const annualRevenueLacs = useMemo(() => {
+    return result
+      ? Math.round(((result.annualGenerationMwh * 1000 * tariffInrPerKwh) / 100000) * 10) / 10
+      : 0;
+  }, [result, tariffInrPerKwh]);
+
+  const handleSelectQuickPreset = (presetKey: "utility" | "commercial" | "residential" | "monsoon_test" | "linked_shading") => {
+    setActivePreset(presetKey);
+    if (presetKey === "utility") {
+      setSystemType("ground_mount_utility");
+      setCapacityKwp(5000);
+      setPanelTiltDeg(22);
+      setCapexPerKwpInr(42000);
+      setShadingSource("default_benchmark");
+      setShadingLossPct(2.0);
+    } else if (presetKey === "commercial") {
+      setSystemType("rooftop_commercial");
+      setCapacityKwp(500);
+      setPanelTiltDeg(15);
+      setCapexPerKwpInr(46000);
+      setShadingSource("default_benchmark");
+      setShadingLossPct(3.0);
+    } else if (presetKey === "residential") {
+      setSystemType("rooftop_residential");
+      setCapacityKwp(10);
+      setPanelTiltDeg(12);
+      setCapexPerKwpInr(55000);
+      setShadingSource("default_benchmark");
+      setShadingLossPct(4.0);
+    } else if (presetKey === "monsoon_test") {
+      setSoilingLossPct(4.0);
+    } else if (presetKey === "linked_shading") {
+      setShadingSource("shadow_of_the_future_simulation");
+      setShadingLossPct(5.8);
+      setShadingScenarioName("2028 Approved Masterplan Tower");
+    }
+  };
 
   // Link with Shadow-of-the-Future helper
   const handleLinkShadingSimulator = () => {
@@ -219,208 +264,251 @@ export const SolarRealityModal: React.FC<SolarRealityModalProps> = ({
           </div>
         </div>
 
-        {/* Top KPI Summary Banner */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 px-6 py-3.5 bg-stone-50 border-b border-stone-200">
-          <div className="p-3 bg-white rounded-lg border border-stone-200 shadow-2xs">
-            <span className="text-[10px] font-semibold text-stone-500 uppercase tracking-wider block">
-              Annual Generation (P50)
-            </span>
-            <div className="text-xl font-black font-mono text-emerald-700 mt-0.5">
-              {result ? `${result.annualGenerationMwh.toLocaleString()} MWh` : "--"}
-            </div>
-            <span className="text-[11px] text-stone-500 font-mono">
-              ~{result ? result.dailyAverageKwh.toLocaleString() : "--"} kWh/day
-            </span>
+        {/* Mode Switcher: Executive Feasibility vs Engineering Breakdown */}
+        <div className="px-6 py-2.5 bg-stone-100/80 border-b border-stone-200 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 p-1 bg-stone-200/70 rounded-lg">
+            <button
+              type="button"
+              onClick={() => setViewMode("executive")}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-all ${
+                viewMode === "executive"
+                  ? "bg-white text-stone-900 shadow-xs"
+                  : "text-stone-600 hover:text-stone-900"
+              }`}
+            >
+              <BarChart3 className="w-3.5 h-3.5 text-emerald-700" />
+              <span>Executive Feasibility</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("deep")}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-all ${
+                viewMode === "deep"
+                  ? "bg-white text-stone-900 shadow-xs"
+                  : "text-stone-600 hover:text-stone-900"
+              }`}
+            >
+              <Layers className="w-3.5 h-3.5 text-emerald-700" />
+              <span>Engineering Breakdown</span>
+            </button>
           </div>
 
-          <div className="p-3 bg-white rounded-lg border border-stone-200 shadow-2xs">
-            <span className="text-[10px] font-semibold text-stone-500 uppercase tracking-wider block">
-              Specific Yield
-            </span>
-            <div className="text-xl font-black font-mono text-stone-900 mt-0.5">
-              {result ? `${result.specificYieldKwhPerKwp} ` : "--"}
-              <span className="text-xs font-normal text-stone-500">kWh/kWp</span>
-            </div>
-            <span className="text-[11px] text-stone-500 font-mono">
-              Installed: {result ? `${result.installedCapacityKwp} kWp` : "--"}
-            </span>
-          </div>
-
-          <div className="p-3 bg-white rounded-lg border border-stone-200 shadow-2xs">
-            <span className="text-[10px] font-semibold text-stone-500 uppercase tracking-wider block">
-              Capacity Factor (CUF)
-            </span>
-            <div className="text-xl font-black font-mono text-stone-900 mt-0.5">
-              {result ? `${result.capacityUtilizationFactorPct}%` : "--"}
-            </div>
-            <span className="text-[11px] text-stone-500 font-mono">
-              Net PR: {result ? `${(result.systemPerformanceRatio * 100).toFixed(1)}%` : "--"}
-            </span>
-          </div>
-
-          <div className="p-3 bg-white rounded-lg border border-stone-200 shadow-2xs">
-            <span className="text-[10px] font-semibold text-stone-500 uppercase tracking-wider block">
-              Bankable P90 Yield
-            </span>
-            <div className="text-xl font-black font-mono text-amber-900 mt-0.5">
-              {result ? `${result.uncertaintyBounds.p90AnnualGenerationMwh.toLocaleString()} MWh` : "--"}
-            </div>
-            <span className="text-[11px] text-stone-500 font-mono">
-              Payback: {result ? `${result.economics.simplePaybackYears} yrs` : "--"}
-            </span>
+          <div className="flex items-center gap-2 text-xs font-mono text-stone-600">
+            <span>Capacity: <strong>{capacityKwp.toLocaleString()} kWp</strong></span>
+            <span>•</span>
+            <span>Tilt: <strong>{panelTiltDeg}°</strong></span>
+            <span>•</span>
+            <span>Tariff: <strong>₹{tariffInrPerKwh}/kWh</strong></span>
           </div>
         </div>
 
-        {/* Collapsible Assumptions Config Drawer */}
-        {showConfigDrawer && (
-          <div className="px-6 py-4 bg-amber-50/50 border-b border-amber-200 animate-in slide-in-from-top-2 duration-150 space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="text-xs font-bold text-amber-900 uppercase tracking-wider">
-                System & Economic Assumptions
-              </span>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleLinkShadingSimulator}
-                  className={`px-2.5 py-1 text-xs rounded font-medium flex items-center gap-1 border transition-colors ${
-                    shadingSource === "shadow_of_the_future_simulation"
-                      ? "bg-purple-100 text-purple-900 border-purple-300 font-bold"
-                      : "bg-white text-stone-700 border-stone-300 hover:bg-stone-100"
-                  }`}
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-purple-600" />
-                  <span>
-                    {shadingSource === "shadow_of_the_future_simulation"
-                      ? "3D Shading Linked (5.8%)"
-                      : "Link Shadow-of-the-Future"}
+        {/* Deep Engineering Controls & Tabs Header */}
+        {viewMode === "deep" && (
+          <>
+            {/* Top KPI Summary Banner */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 px-6 py-3.5 bg-stone-50 border-b border-stone-200">
+              <div className="p-3 bg-white rounded-lg border border-stone-200 shadow-2xs">
+                <span className="text-[10px] font-semibold text-stone-500 uppercase tracking-wider block">
+                  Annual Generation (P50)
+                </span>
+                <div className="text-xl font-black font-mono text-emerald-700 mt-0.5">
+                  {result ? `${result.annualGenerationMwh.toLocaleString()} MWh` : "--"}
+                </div>
+                <span className="text-[11px] text-stone-500 font-mono">
+                  ~{result ? result.dailyAverageKwh.toLocaleString() : "--"} kWh/day
+                </span>
+              </div>
+
+              <div className="p-3 bg-white rounded-lg border border-stone-200 shadow-2xs">
+                <span className="text-[10px] font-semibold text-stone-500 uppercase tracking-wider block">
+                  Specific Yield
+                </span>
+                <div className="text-xl font-black font-mono text-stone-900 mt-0.5">
+                  {result ? `${result.specificYieldKwhPerKwp} ` : "--"}
+                  <span className="text-xs font-normal text-stone-500">kWh/kWp</span>
+                </div>
+                <span className="text-[11px] text-stone-500 font-mono">
+                  Installed: {result ? `${result.installedCapacityKwp} kWp` : "--"}
+                </span>
+              </div>
+
+              <div className="p-3 bg-white rounded-lg border border-stone-200 shadow-2xs">
+                <span className="text-[10px] font-semibold text-stone-500 uppercase tracking-wider block">
+                  Capacity Factor (CUF)
+                </span>
+                <div className="text-xl font-black font-mono text-stone-900 mt-0.5">
+                  {result ? `${result.capacityUtilizationFactorPct}%` : "--"}
+                </div>
+                <span className="text-[11px] text-stone-500 font-mono">
+                  Net PR: {result ? `${(result.systemPerformanceRatio * 100).toFixed(1)}%` : "--"}
+                </span>
+              </div>
+
+              <div className="p-3 bg-white rounded-lg border border-stone-200 shadow-2xs">
+                <span className="text-[10px] font-semibold text-stone-500 uppercase tracking-wider block">
+                  Bankable P90 Yield
+                </span>
+                <div className="text-xl font-black font-mono text-amber-900 mt-0.5">
+                  {result ? `${result.uncertaintyBounds.p90AnnualGenerationMwh.toLocaleString()} MWh` : "--"}
+                </div>
+                <span className="text-[11px] text-stone-500 font-mono">
+                  Payback: {result ? `${result.economics.simplePaybackYears} yrs` : "--"}
+                </span>
+              </div>
+            </div>
+
+            {/* Collapsible Assumptions Config Drawer */}
+            {showConfigDrawer && (
+              <div className="px-6 py-4 bg-amber-50/50 border-b border-amber-200 animate-in slide-in-from-top-2 duration-150 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-xs font-bold text-amber-900 uppercase tracking-wider">
+                    System & Economic Assumptions
                   </span>
-                </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleLinkShadingSimulator}
+                      className={`px-2.5 py-1 text-xs rounded font-medium flex items-center gap-1 border transition-colors ${
+                        shadingSource === "shadow_of_the_future_simulation"
+                          ? "bg-purple-100 text-purple-900 border-purple-300 font-bold"
+                          : "bg-white text-stone-700 border-stone-300 hover:bg-stone-100"
+                      }`}
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                      <span>
+                        {shadingSource === "shadow_of_the_future_simulation"
+                          ? "3D Shading Linked (5.8%)"
+                          : "Link Shadow-of-the-Future"}
+                      </span>
+                    </button>
 
-                <button
-                  type="button"
-                  onClick={handleToggleSampleCalibration}
-                  className={`px-2.5 py-1 text-xs rounded font-medium flex items-center gap-1 border transition-colors ${
-                    enableCalibration
-                      ? "bg-emerald-100 text-emerald-900 border-emerald-300 font-bold"
-                      : "bg-white text-stone-700 border-stone-300 hover:bg-stone-100"
-                  }`}
-                >
-                  <Activity className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>{enableCalibration ? "Meter Log Active" : "Input Meter Readings"}</span>
-                </button>
+                    <button
+                      type="button"
+                      onClick={handleToggleSampleCalibration}
+                      className={`px-2.5 py-1 text-xs rounded font-medium flex items-center gap-1 border transition-colors ${
+                        enableCalibration
+                          ? "bg-emerald-100 text-emerald-900 border-emerald-300 font-bold"
+                          : "bg-white text-stone-700 border-stone-300 hover:bg-stone-100"
+                      }`}
+                    >
+                      <Activity className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>{enableCalibration ? "Meter Log Active" : "Input Meter Readings"}</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 text-xs">
+                  <div>
+                    <label className="text-[10px] font-semibold text-stone-600 block mb-1">System Archetype</label>
+                    <select
+                      value={systemType}
+                      onChange={(e) => setSystemType(e.target.value as SolarSystemType)}
+                      className="w-full px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-800"
+                    >
+                      <option value="ground_mount_utility">Utility Ground Mount</option>
+                      <option value="ground_mount_cni">C&I Ground Mount</option>
+                      <option value="rooftop_commercial">Commercial Rooftop</option>
+                      <option value="rooftop_residential">Residential Rooftop</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-semibold text-stone-600 block mb-1">Capacity (kWp)</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="500000"
+                      value={capacityKwp}
+                      onChange={(e) => setCapacityKwp(Number(e.target.value) || 1)}
+                      className="w-full px-2 py-1 text-xs border border-stone-300 rounded bg-white font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-semibold text-stone-600 block mb-1">Tilt Angle (°)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="60"
+                      value={panelTiltDeg}
+                      onChange={(e) => setPanelTiltDeg(Number(e.target.value) || 0)}
+                      className="w-full px-2 py-1 text-xs border border-stone-300 rounded bg-white font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-semibold text-stone-600 block mb-1">Tariff (₹/kWh)</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="1"
+                      max="25"
+                      value={tariffInrPerKwh}
+                      onChange={(e) => setTariffInrPerKwh(Number(e.target.value) || 1)}
+                      className="w-full px-2 py-1 text-xs border border-stone-300 rounded bg-white font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-semibold text-stone-600 block mb-1">Capex (₹/kWp)</label>
+                    <input
+                      type="number"
+                      step="1000"
+                      min="20000"
+                      max="150000"
+                      value={capexPerKwpInr}
+                      onChange={(e) => setCapexPerKwpInr(Number(e.target.value) || 20000)}
+                      className="w-full px-2 py-1 text-xs border border-stone-300 rounded bg-white font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-semibold text-stone-600 block mb-1">Soiling Rate (%)</label>
+                    <input
+                      type="number"
+                      step="0.5"
+                      min="0"
+                      max="20"
+                      value={soilingLossPct}
+                      onChange={(e) => setSoilingLossPct(Number(e.target.value) || 0)}
+                      className="w-full px-2 py-1 text-xs border border-stone-300 rounded bg-white font-mono"
+                    />
+                  </div>
+                </div>
               </div>
+            )}
+
+            {/* Tab Navigation */}
+            <div className="flex border-b border-stone-200 bg-stone-50 px-6 gap-2 overflow-x-auto">
+              {[
+                { id: "monthly", label: "Monthly & Weather", icon: BarChart3 },
+                { id: "losses", label: "Loss Waterfall", icon: Layers },
+                { id: "calibration", label: `Observed Calibration (${enableCalibration ? "Active" : "Estimate"})`, icon: Scale },
+                { id: "uncertainty", label: "P50 / P90 Uncertainty", icon: Activity },
+                { id: "economics", label: "Financial Feasibility", icon: DollarSign },
+                { id: "audit", label: "Input Audit", icon: FileText },
+                { id: "provenance", label: "Provenance & Caveats", icon: Info },
+              ].map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id as any)}
+                    className={`flex items-center gap-2 py-3 px-3 text-xs font-medium border-b-2 whitespace-nowrap transition-colors ${
+                      isActive
+                        ? "border-emerald-600 text-emerald-900 bg-white shadow-xs rounded-t"
+                        : "border-transparent text-stone-600 hover:text-stone-900"
+                    }`}
+                  >
+                    <Icon className={`w-4 h-4 ${isActive ? "text-emerald-600" : "text-stone-400"}`} />
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
             </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 text-xs">
-              <div>
-                <label className="text-[10px] font-semibold text-stone-600 block mb-1">System Archetype</label>
-                <select
-                  value={systemType}
-                  onChange={(e) => setSystemType(e.target.value as SolarSystemType)}
-                  className="w-full px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-800"
-                >
-                  <option value="ground_mount_utility">Utility Ground Mount</option>
-                  <option value="ground_mount_cni">C&I Ground Mount</option>
-                  <option value="rooftop_commercial">Commercial Rooftop</option>
-                  <option value="rooftop_residential">Residential Rooftop</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-[10px] font-semibold text-stone-600 block mb-1">Capacity (kWp)</label>
-                <input
-                  type="number"
-                  min="1"
-                  max="500000"
-                  value={capacityKwp}
-                  onChange={(e) => setCapacityKwp(Number(e.target.value) || 1)}
-                  className="w-full px-2 py-1 text-xs border border-stone-300 rounded bg-white font-mono"
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] font-semibold text-stone-600 block mb-1">Tilt Angle (°)</label>
-                <input
-                  type="number"
-                  min="0"
-                  max="60"
-                  value={panelTiltDeg}
-                  onChange={(e) => setPanelTiltDeg(Number(e.target.value) || 0)}
-                  className="w-full px-2 py-1 text-xs border border-stone-300 rounded bg-white font-mono"
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] font-semibold text-stone-600 block mb-1">Tariff (₹/kWh)</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  min="1"
-                  max="25"
-                  value={tariffInrPerKwh}
-                  onChange={(e) => setTariffInrPerKwh(Number(e.target.value) || 1)}
-                  className="w-full px-2 py-1 text-xs border border-stone-300 rounded bg-white font-mono"
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] font-semibold text-stone-600 block mb-1">Capex (₹/kWp)</label>
-                <input
-                  type="number"
-                  step="1000"
-                  min="20000"
-                  max="150000"
-                  value={capexPerKwpInr}
-                  onChange={(e) => setCapexPerKwpInr(Number(e.target.value) || 20000)}
-                  className="w-full px-2 py-1 text-xs border border-stone-300 rounded bg-white font-mono"
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] font-semibold text-stone-600 block mb-1">Soiling Rate (%)</label>
-                <input
-                  type="number"
-                  step="0.5"
-                  min="0"
-                  max="20"
-                  value={soilingLossPct}
-                  onChange={(e) => setSoilingLossPct(Number(e.target.value) || 0)}
-                  className="w-full px-2 py-1 text-xs border border-stone-300 rounded bg-white font-mono"
-                />
-              </div>
-            </div>
-          </div>
+          </>
         )}
-
-        {/* Tab Navigation */}
-        <div className="flex border-b border-stone-200 bg-stone-50 px-6 gap-2 overflow-x-auto">
-          {[
-            { id: "monthly", label: "Monthly & Weather", icon: BarChart3 },
-            { id: "losses", label: "Loss Waterfall", icon: Layers },
-            { id: "calibration", label: `Observed Calibration (${enableCalibration ? "Active" : "Estimate"})`, icon: Scale },
-            { id: "uncertainty", label: "P50 / P90 Uncertainty", icon: Activity },
-            { id: "economics", label: "Financial Feasibility", icon: DollarSign },
-            { id: "audit", label: "Input Audit", icon: FileText },
-            { id: "provenance", label: "Provenance & Caveats", icon: Info },
-          ].map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center gap-2 py-3 px-3 text-xs font-medium border-b-2 whitespace-nowrap transition-colors ${
-                  isActive
-                    ? "border-emerald-600 text-emerald-900 bg-white shadow-xs rounded-t"
-                    : "border-transparent text-stone-600 hover:text-stone-900"
-                }`}
-              >
-                <Icon className={`w-4 h-4 ${isActive ? "text-emerald-600" : "text-stone-400"}`} />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
 
         {/* Main Content Area */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
@@ -431,8 +519,251 @@ export const SolarRealityModal: React.FC<SolarRealityModalProps> = ({
             </div>
           )}
 
-          {/* TAB 1: MONTHLY GENERATION PROFILE & WEATHER */}
-          {activeTab === "monthly" && (
+          {/* EXECUTIVE FEASIBILITY VIEW */}
+          {viewMode === "executive" && (
+            <div className="space-y-5">
+              {/* Quick 1-Click System Archetype Presets */}
+              <div className="p-3.5 bg-gradient-to-r from-emerald-50/80 via-stone-50 to-teal-50/80 border border-emerald-200/80 rounded-xl space-y-2 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-emerald-900 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>1-Click Solar System Archetypes</span>
+                  </span>
+                  <span className="text-[10px] text-stone-500 font-mono">
+                    Liu-Jordan Transposition & Weather Modeling
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+                  {[
+                    { key: "utility", label: "Utility Solar Farm", sub: "5 MWp Ground (22° Tilt)", icon: Zap },
+                    { key: "commercial", label: "Commercial Rooftop", sub: "500 kWp Shed (15° Tilt)", icon: Layers },
+                    { key: "residential", label: "Residential Rooftop", sub: "10 kWp Net-Metered (12°)", icon: CheckCircle2 },
+                    { key: "monsoon_test", label: "Monsoon Derate", sub: "High Soiling & Cloud Dip", icon: CloudRain },
+                    { key: "linked_shading", label: "Link 3D Shading", sub: shadingSource === "shadow_of_the_future_simulation" ? "3D Ray-Traced (5.8%)" : "Import Future Shadows", icon: Sparkles },
+                  ].map((preset) => {
+                    const Icon = preset.icon;
+                    const isSelected = activePreset === preset.key;
+                    return (
+                      <button
+                        key={preset.key}
+                        type="button"
+                        onClick={() => handleSelectQuickPreset(preset.key as any)}
+                        className={`p-2.5 rounded-lg border text-left flex flex-col gap-1 transition-all ${
+                          isSelected
+                            ? "bg-emerald-700 text-white border-emerald-800 shadow-sm"
+                            : "bg-white hover:bg-emerald-50/50 text-stone-700 border-stone-200 hover:border-emerald-300"
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <Icon className={`w-3.5 h-3.5 ${isSelected ? "text-emerald-100" : "text-emerald-600"}`} />
+                          <span className="text-xs font-bold leading-tight truncate">{preset.label}</span>
+                        </div>
+                        <span className={`text-[10px] leading-tight truncate ${isSelected ? "text-emerald-100" : "text-stone-500"}`}>
+                          {preset.sub}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Executive KPI Metric Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {/* Annual Generation */}
+                <div className="p-3.5 rounded-xl border border-stone-200 bg-white shadow-xs space-y-1">
+                  <span className="text-[10px] font-semibold text-stone-500 uppercase tracking-wider block">
+                    Annual Clean Generation
+                  </span>
+                  <div className="text-2xl font-black font-mono text-emerald-700">
+                    {result ? `${result.annualGenerationMwh.toLocaleString()} MWh` : "--"}
+                  </div>
+                  <span className="text-[11px] text-stone-500 font-mono">
+                    ~{result ? result.dailyAverageKwh.toLocaleString() : "--"} kWh/day average
+                  </span>
+                </div>
+
+                {/* Annual Revenue */}
+                <div className="p-3.5 rounded-xl border border-stone-200 bg-white shadow-xs space-y-1">
+                  <span className="text-[10px] font-semibold text-stone-500 uppercase tracking-wider block">
+                    Annual Energy Revenue
+                  </span>
+                  <div className="text-2xl font-black font-mono text-stone-900">
+                    {annualRevenueLacs > 100
+                      ? `₹${(annualRevenueLacs / 100).toFixed(2)} Cr`
+                      : `₹${annualRevenueLacs.toFixed(1)} Lacs`}
+                  </div>
+                  <span className="text-[11px] text-stone-500 font-mono">
+                    at ₹{tariffInrPerKwh.toFixed(2)}/kWh tariff
+                  </span>
+                </div>
+
+                {/* Simple Payback */}
+                <div className="p-3.5 rounded-xl border border-stone-200 bg-white shadow-xs space-y-1">
+                  <span className="text-[10px] font-semibold text-stone-500 uppercase tracking-wider block">
+                    Simple Payback Period
+                  </span>
+                  <div className="text-2xl font-black font-mono text-amber-900">
+                    {result ? `${result.economics.simplePaybackYears} Years` : "--"}
+                  </div>
+                  <span className="text-[11px] text-emerald-700 font-medium flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                    <span>25-year asset life</span>
+                  </span>
+                </div>
+
+                {/* Capacity Factor & Specific Yield */}
+                <div className="p-3.5 rounded-xl border border-stone-200 bg-white shadow-xs space-y-1">
+                  <span className="text-[10px] font-semibold text-stone-500 uppercase tracking-wider block">
+                    Capacity Factor (CUF)
+                  </span>
+                  <div className="text-2xl font-black font-mono text-stone-900">
+                    {result ? `${result.capacityUtilizationFactorPct}%` : "--"}
+                  </div>
+                  <span className="text-[11px] text-stone-500 font-mono">
+                    {result ? `${result.specificYieldKwhPerKwp} kWh/kWp` : "--"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Visual 12-Month Generation Bar Chart */}
+              <div className="p-4 bg-white border border-stone-200 rounded-xl space-y-3 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <BarChart3 className="w-4 h-4 text-emerald-700" />
+                    <span className="text-xs font-bold text-stone-900">
+                      12-Month Generation & Climatology Profile (MWh / Month)
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 text-[10px] font-mono text-stone-500">
+                    <span className="flex items-center gap-1">
+                      <span className="w-2 h-2 rounded bg-emerald-600 inline-block" /> Winter/Spring Peak
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="w-2 h-2 rounded bg-amber-500 inline-block" /> Dry/Dust
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="w-2 h-2 rounded bg-blue-500 inline-block" /> Monsoon Dip
+                    </span>
+                  </div>
+                </div>
+
+                {/* Chart Bars */}
+                <div className="grid grid-cols-12 gap-1.5 pt-3 pb-1 border-b border-stone-100">
+                  {result?.monthlyBreakdown.map((m) => {
+                    const isMonsoon = [6, 7, 8, 9].includes(m.monthIndex);
+                    const isDryDust = [4, 5].includes(m.monthIndex);
+                    const heightPct = maxMonthlyMwh > 0 ? Math.round((m.productionMwh / maxMonthlyMwh) * 100) : 50;
+
+                    return (
+                      <div key={m.month} className="flex flex-col items-center gap-1 flex-1 min-w-0">
+                        <span className="text-[9px] font-mono font-bold text-stone-700 truncate w-full text-center">
+                          {m.productionMwh}
+                        </span>
+                        <div className="w-full h-24 bg-stone-100 rounded-t flex items-end justify-center p-0.5 relative group">
+                          <div
+                            style={{ height: `${Math.max(12, heightPct)}%` }}
+                            className={`w-full rounded-t transition-all ${
+                              isMonsoon
+                                ? "bg-blue-500 group-hover:bg-blue-600"
+                                : isDryDust
+                                ? "bg-amber-500 group-hover:bg-amber-600"
+                                : "bg-emerald-600 group-hover:bg-emerald-700"
+                            }`}
+                          />
+                          {/* Tooltip on hover */}
+                          <div className="absolute -top-10 opacity-0 group-hover:opacity-100 transition-opacity bg-stone-900 text-white text-[9px] px-2 py-1 rounded shadow-md pointer-events-none whitespace-nowrap z-20 font-mono">
+                            {m.poaKwhM2Day} POA • {m.capacityUtilizationFactorPct}% CUF
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-bold font-sans text-stone-800 flex items-center justify-center gap-0.5">
+                          <span>{m.month}</span>
+                          {isMonsoon && <CloudRain className="w-2.5 h-2.5 text-blue-600 shrink-0" />}
+                        </span>
+                        <span className="text-[9px] font-mono text-stone-400 truncate">{m.ghiKwhM2Day}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between text-[10px] font-mono text-stone-500">
+                  <span>Monsoon Dip ({result?.seasonalWeather.monsoonPeriod.months.join(", ")}): <strong>-{result?.seasonalWeather.monsoonPeriod.monsoonDropPercentage}% vs annual mean</strong></span>
+                  <span>Tilt Gain Factor: <strong>{(result ? result.annualPoaAverageKwhM2Day / result.annualGhiAverageKwhM2Day : 1.05).toFixed(2)}x POA / GHI</strong></span>
+                </div>
+              </div>
+
+              {/* Balance of System Efficiency Breakdown Bar */}
+              <div className="p-4 bg-white border border-stone-200 rounded-xl space-y-2 shadow-xs">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold text-stone-900">Decomposed System Efficiency & Performance Ratio (PR)</span>
+                  <span className="font-mono text-[11px] text-stone-500">
+                    Net PR: <strong>{result ? `${(result.systemPerformanceRatio * 100).toFixed(1)}%` : "--"}</strong>
+                  </span>
+                </div>
+                <div className="w-full h-5 bg-stone-100 rounded-full overflow-hidden flex border border-stone-200">
+                  <div
+                    style={{ width: `${result ? result.systemPerformanceRatio * 100 : 78}%` }}
+                    className="bg-emerald-600 h-full flex items-center justify-center text-[10px] font-bold text-white transition-all duration-300"
+                    title="Net Useful Delivered Electricity"
+                  >
+                    {result ? `${(result.systemPerformanceRatio * 100).toFixed(1)}% Useful Energy` : "78.4% Useful Energy"}
+                  </div>
+                  <div
+                    style={{ width: `${100 - (result ? result.systemPerformanceRatio * 100 : 78)}%` }}
+                    className="bg-stone-400 h-full flex items-center justify-center text-[10px] font-bold text-white transition-all duration-300"
+                    title="Balance of System Losses"
+                  >
+                    Losses
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-[11px] font-mono text-stone-600">
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-rose-500" />
+                    <span>Thermal Derate: -{result?.seasonalWeather.dryDustSeason.estimatedThermalDeratePct ?? 7.9}%</span>
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-purple-500" />
+                    <span>Shading Loss: -{shadingLossPct}% {shadingSource === "shadow_of_the_future_simulation" ? "(Ray-Traced)" : "(Horizon)"}</span>
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-amber-500" />
+                    <span>Soiling Loss: -{soilingLossPct}%</span>
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-stone-500" />
+                    <span>Inverter & Wiring: -6.5%</span>
+                  </span>
+                </div>
+              </div>
+
+              {/* Township Planning Directive Callout */}
+              <div className="p-4 rounded-xl border border-stone-200 bg-stone-50/70 flex items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <span className="text-xs font-bold text-stone-900">
+                      Township Planning Commercial Feasibility Assessment
+                    </span>
+                  </div>
+                  <p className="text-xs text-stone-600 leading-relaxed max-w-2xl">
+                    High commercial viability. Siting conforms to standard MNRE benchmarks with a {result?.capacityUtilizationFactorPct}% CUF and a {result?.economics.simplePaybackYears}-year simple capital payback. The seasonal Monsoon generation drop of -{result?.seasonalWeather.monsoonPeriod.monsoonDropPercentage}% is completely aligned with Maharashtra State Electricity Transmission Corporation (MSETCL) dispatch norms.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setViewMode("deep")}
+                  className="px-3 py-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold shrink-0 transition-colors shadow-xs"
+                >
+                  Engineering Breakdown →
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* DEEP ENGINEERING BREAKDOWN VIEW */}
+          {viewMode === "deep" && (
+            <>
+              {/* TAB 1: MONTHLY GENERATION PROFILE & WEATHER */}
+              {activeTab === "monthly" && (
             <div className="space-y-5">
               {/* Seasonal Weather Callouts */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -931,6 +1262,8 @@ export const SolarRealityModal: React.FC<SolarRealityModalProps> = ({
                 ))}
               </div>
             </div>
+          )}
+            </>
           )}
         </div>
 

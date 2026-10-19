@@ -103,6 +103,32 @@ export const ShadowSimulatorModal: React.FC<ShadowSimulatorModalProps> = ({
   const [shadingResult, setShadingResult] = useState<SolarShadingResult | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"overview" | "diurnal" | "scenarios" | "obstructions" | "disclaimers">("overview");
+  const [viewMode, setViewMode] = useState<"executive" | "deep">("executive");
+  const [activePreset, setActivePreset] = useState<string>("noon");
+
+  const handleSelectQuickPreset = (presetKey: "noon" | "winter" | "morning" | "tower" | "rooftop") => {
+    setActivePreset(presetKey);
+    if (presetKey === "noon") {
+      setSelectedDate("2026-06-21");
+      setTimeHour(12);
+      setTimeMinute(0);
+      setReceiverElevationM(0);
+      applyPresetScenario("baseline");
+    } else if (presetKey === "winter") {
+      setSelectedDate("2026-12-21");
+      setTimeHour(15);
+      setTimeMinute(0);
+      setReceiverElevationM(0);
+    } else if (presetKey === "morning") {
+      setSelectedDate("2026-03-20");
+      setTimeHour(9);
+      setTimeMinute(0);
+    } else if (presetKey === "tower") {
+      applyPresetScenario("masterplan2028");
+    } else if (presetKey === "rooftop") {
+      setReceiverElevationM(15);
+    }
+  };
 
   // Calculate live preview of solar position
   const previewDateTime = useMemo(() => {
@@ -348,33 +374,71 @@ export const ShadowSimulatorModal: React.FC<ShadowSimulatorModalProps> = ({
           </button>
         </div>
 
-        {/* Navigation Tabs */}
-        <div className="flex border-b border-stone-200 bg-stone-50 px-6 gap-2 overflow-x-auto">
-          {[
-            { id: "overview", label: "Instantaneous Exposure", icon: Sun },
-            { id: "diurnal", label: "Diurnal Profile & SAR", icon: BarChart3 },
-            { id: "scenarios", label: `Future Scenarios (${hypotheticalBuildings.length})`, icon: Building2 },
-            { id: "obstructions", label: `Obstructing Buildings (${shadingResult?.obstructingBuildings.length ?? 0})`, icon: Layers },
-            { id: "disclaimers", label: "Assumptions & Governance", icon: Info },
-          ].map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center gap-2 py-3 px-3 text-xs font-medium border-b-2 whitespace-nowrap transition-colors ${
-                  isActive
-                    ? "border-amber-600 text-amber-900 bg-white shadow-xs rounded-t"
-                    : "border-transparent text-stone-600 hover:text-stone-900"
-                }`}
-              >
-                <Icon className={`w-4 h-4 ${isActive ? "text-amber-600" : "text-stone-400"}`} />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
+        {/* Mode Toggle: Executive Visuals vs Deep Physics Audit */}
+        <div className="px-6 py-2.5 bg-stone-100/80 border-b border-stone-200 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 p-1 bg-stone-200/70 rounded-lg">
+            <button
+              type="button"
+              onClick={() => setViewMode("executive")}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-all ${
+                viewMode === "executive"
+                  ? "bg-white text-stone-900 shadow-xs"
+                  : "text-stone-600 hover:text-stone-900"
+              }`}
+            >
+              <BarChart3 className="w-3.5 h-3.5 text-amber-600" />
+              <span>Executive Visuals</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("deep")}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-all ${
+                viewMode === "deep"
+                  ? "bg-white text-stone-900 shadow-xs"
+                  : "text-stone-600 hover:text-stone-900"
+              }`}
+            >
+              <Layers className="w-3.5 h-3.5 text-amber-600" />
+              <span>Deep Physics Audit</span>
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2 text-xs font-mono text-stone-600">
+            <span>Array: <strong>{placement.lengthM}m × {placement.widthM}m</strong></span>
+            <span>•</span>
+            <span>Receiver: <strong>{receiverElevationM === 0 ? "Ground Level" : `${receiverElevationM}m Rooftop`}</strong></span>
+          </div>
         </div>
+
+        {/* Navigation Tabs (Visible in Deep Mode) */}
+        {viewMode === "deep" && (
+          <div className="flex border-b border-stone-200 bg-stone-50 px-6 gap-2 overflow-x-auto">
+            {[
+              { id: "overview", label: "Instantaneous Exposure", icon: Sun },
+              { id: "diurnal", label: "Diurnal Profile & SAR", icon: BarChart3 },
+              { id: "scenarios", label: `Future Scenarios (${hypotheticalBuildings.length})`, icon: Building2 },
+              { id: "obstructions", label: `Obstructing Buildings (${shadingResult?.obstructingBuildings.length ?? 0})`, icon: Layers },
+              { id: "disclaimers", label: "Assumptions & Governance", icon: Info },
+            ].map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`flex items-center gap-2 py-3 px-3 text-xs font-medium border-b-2 whitespace-nowrap transition-colors ${
+                    isActive
+                      ? "border-amber-600 text-amber-900 bg-white shadow-xs rounded-t"
+                      : "border-transparent text-stone-600 hover:text-stone-900"
+                  }`}
+                >
+                  <Icon className={`w-4 h-4 ${isActive ? "text-amber-600" : "text-stone-400"}`} />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {/* Content Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-5">
@@ -385,8 +449,265 @@ export const ShadowSimulatorModal: React.FC<ShadowSimulatorModalProps> = ({
             </div>
           )}
 
-          {/* Time & Receiver Elevation Controls Bar */}
-          <div className="p-4 bg-stone-50 border border-stone-200 rounded-lg space-y-3">
+          {/* EXECUTIVE VISUALS VIEW */}
+          {viewMode === "executive" && (
+            <div className="space-y-5">
+              {/* Quick 1-Click Solar Presets Strip */}
+              <div className="p-3.5 bg-gradient-to-r from-amber-50/80 via-stone-50 to-orange-50/80 border border-amber-200/80 rounded-xl space-y-2 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-amber-900 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                    <span>1-Click Solar & Masterplan Presets</span>
+                  </span>
+                  <span className="text-[10px] text-stone-500 font-mono">
+                    Instant 3D Ray-Tracing Simulation
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+                  {[
+                    { key: "noon", label: "Peak Solar Noon", sub: "Jun 21 12:00 (Short Shadows)", icon: Sun },
+                    { key: "winter", label: "Winter Solstice", sub: "Dec 21 15:00 (Worst Case)", icon: Clock },
+                    { key: "morning", label: "Morning Ramp", sub: "Mar 20 09:00 (East Sun)", icon: Compass },
+                    { key: "tower", label: "Future 42m Tower", sub: "2028 South Commercial", icon: Building2 },
+                    { key: "rooftop", label: "Rooftop Array (+15m)", sub: "Clears Ground Clutter", icon: Layers },
+                  ].map((preset) => {
+                    const Icon = preset.icon;
+                    const isSelected = activePreset === preset.key;
+                    return (
+                      <button
+                        key={preset.key}
+                        type="button"
+                        onClick={() => handleSelectQuickPreset(preset.key as any)}
+                        className={`p-2.5 rounded-lg border text-left flex flex-col gap-1 transition-all ${
+                          isSelected
+                            ? "bg-amber-600 text-white border-amber-700 shadow-sm"
+                            : "bg-white hover:bg-amber-50/50 text-stone-700 border-stone-200 hover:border-amber-300"
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <Icon className={`w-3.5 h-3.5 ${isSelected ? "text-amber-100" : "text-amber-600"}`} />
+                          <span className="text-xs font-bold leading-tight truncate">{preset.label}</span>
+                        </div>
+                        <span className={`text-[10px] leading-tight truncate ${isSelected ? "text-amber-100" : "text-stone-500"}`}>
+                          {preset.sub}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Executive Solar Metric Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {/* Solar Access Score */}
+                <div className="p-3.5 rounded-xl border border-stone-200 bg-white shadow-xs space-y-1">
+                  <span className="text-[10px] font-semibold text-stone-500 uppercase tracking-wider block">
+                    Solar Access Score
+                  </span>
+                  <div className="text-2xl font-black font-mono text-emerald-700">
+                    {shadingResult?.scenario.unshadedPercentage ?? "--"}%
+                  </div>
+                  <span className="text-[11px] font-medium text-emerald-800 flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span>
+                      {(shadingResult?.scenario.unshadedPercentage ?? 100) >= 90
+                        ? "Optimal Solar Access"
+                        : (shadingResult?.scenario.unshadedPercentage ?? 100) >= 75
+                        ? "Moderate Shading"
+                        : "Severe Shading Loss"}
+                    </span>
+                  </span>
+                </div>
+
+                {/* Shaded Area */}
+                <div className="p-3.5 rounded-xl border border-stone-200 bg-white shadow-xs space-y-1">
+                  <span className="text-[10px] font-semibold text-stone-500 uppercase tracking-wider block">
+                    Active Shaded Footprint
+                  </span>
+                  <div className="text-2xl font-black font-mono text-stone-900">
+                    {shadingResult?.scenario.shadedAreaM2 ?? 0} m²
+                  </div>
+                  <span className="text-[11px] text-stone-500 font-mono">
+                    {shadingResult?.scenario.shadedPercentage ?? 0}% of array surface
+                  </span>
+                </div>
+
+                {/* Sun Position */}
+                <div className="p-3.5 rounded-xl border border-stone-200 bg-white shadow-xs space-y-1">
+                  <span className="text-[10px] font-semibold text-stone-500 uppercase tracking-wider block">
+                    Sun Elevation & Azimuth
+                  </span>
+                  <div className="text-xl font-black font-mono text-amber-900">
+                    {liveSolarPos.elevationDeg}° el / {liveSolarPos.azimuthDeg}° az
+                  </div>
+                  <span className={`text-[11px] font-bold ${liveSolarPos.isDaylight ? "text-emerald-700" : "text-stone-500"}`}>
+                    {liveSolarPos.isDaylight ? "Direct Solar Beam" : "Below Horizon (Night)"}
+                  </span>
+                </div>
+
+                {/* Annual Generation Delta */}
+                <div className="p-3.5 rounded-xl border border-stone-200 bg-white shadow-xs space-y-1">
+                  <span className="text-[10px] font-semibold text-stone-500 uppercase tracking-wider block">
+                    Annual Energy Screening
+                  </span>
+                  <div className="text-xl font-black font-mono text-stone-900">
+                    {shadingResult?.diurnalProfile?.annualGenerationImpact?.deltaAnnualMwh ? (
+                      <span className="text-rose-700">
+                        -{shadingResult.diurnalProfile.annualGenerationImpact.deltaAnnualMwh} MWh/yr
+                      </span>
+                    ) : (
+                      <span className="text-emerald-700">0 MWh/yr</span>
+                    )}
+                  </div>
+                  <span className="text-[11px] text-stone-500 font-mono">
+                    {(shadingResult?.diurnalProfile?.annualGenerationImpact?.deltaAnnualMwh ?? 0) > 0 ? (
+                      `Impact: -₹${(((shadingResult?.diurnalProfile?.annualGenerationImpact?.deltaAnnualMwh ?? 0) * 1000 * 6.5) / 100000).toFixed(1)} Lakhs/yr`
+                    ) : (
+                      "Full baseline generation"
+                    )}
+                  </span>
+                </div>
+              </div>
+
+              {/* Visual Footprint Shading Bar */}
+              <div className="p-4 bg-white border border-stone-200 rounded-xl space-y-2 shadow-xs">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold text-stone-900">Array Footprint Exposure Ratio</span>
+                  <span className="font-mono text-[11px] text-stone-500">
+                    Total Footprint: {(placement.lengthM * placement.widthM).toLocaleString()} m²
+                  </span>
+                </div>
+                <div className="w-full h-5 bg-stone-100 rounded-full overflow-hidden flex border border-stone-200">
+                  <div
+                    style={{ width: `${shadingResult?.scenario.unshadedPercentage ?? 100}%` }}
+                    className="bg-emerald-500 h-full flex items-center justify-center text-[10px] font-bold text-white transition-all duration-300"
+                    title={`Unshaded Active Area: ${shadingResult?.scenario.unshadedPercentage ?? 100}%`}
+                  >
+                    {(shadingResult?.scenario.unshadedPercentage ?? 100) >= 20 &&
+                      `${shadingResult?.scenario.unshadedPercentage ?? 100}% Unshaded`}
+                  </div>
+                  {(shadingResult?.scenario.shadedPercentage ?? 0) > 0 && (
+                    <div
+                      style={{ width: `${shadingResult?.scenario.shadedPercentage ?? 0}%` }}
+                      className="bg-rose-500 h-full flex items-center justify-center text-[10px] font-bold text-white transition-all duration-300"
+                      title={`Shaded Area: ${shadingResult?.scenario.shadedAreaM2 ?? 0} m² (${shadingResult?.scenario.shadedPercentage ?? 0}%)`}
+                    >
+                      {(shadingResult?.scenario.shadedPercentage ?? 0) >= 10 &&
+                        `${shadingResult?.scenario.shadedPercentage}% Shaded`}
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center justify-between text-[11px] font-mono text-stone-500 pt-1">
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" />
+                    <span>Unshaded Solar Capture: <strong>{((placement.lengthM * placement.widthM) - (shadingResult?.scenario.shadedAreaM2 ?? 0)).toLocaleString()} m²</strong></span>
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block" />
+                    <span>Shaded Obstruction: <strong>{shadingResult?.scenario.shadedAreaM2 ?? 0} m²</strong></span>
+                  </span>
+                </div>
+              </div>
+
+              {/* Diurnal Hourly Sun Elevation & Shading Bar Chart */}
+              <div className="p-4 bg-white border border-stone-200 rounded-xl space-y-3 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <BarChart3 className="w-4 h-4 text-amber-600" />
+                    <span className="text-xs font-bold text-stone-900">
+                      Diurnal Hourly Sun Elevation & Shading Curve (07:00 – 17:00 IST)
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-mono text-stone-500">
+                    Clear-Sky Beam Flux Weighted
+                  </span>
+                </div>
+
+                {/* Visual Chart Bars */}
+                <div className="grid grid-cols-6 gap-2 pt-2 pb-1 border-b border-stone-100">
+                  {shadingResult?.diurnalProfile?.diurnalSamples.map((sample) => {
+                    const el = Math.max(0, sample.solarPosition.elevationDeg);
+                    const heightPct = Math.round((el / 90) * 100);
+                    const isUnshaded = sample.scenarioUnshadedPercentage >= 80;
+                    const isPartial = sample.scenarioUnshadedPercentage >= 50 && sample.scenarioUnshadedPercentage < 80;
+
+                    return (
+                      <div key={sample.hour} className="flex flex-col items-center gap-1.5">
+                        <span className="text-[10px] font-mono text-stone-600">
+                          {sample.scenarioUnshadedPercentage}%
+                        </span>
+                        <div className="w-full h-24 bg-stone-100 rounded-t flex items-end justify-center p-1 relative group">
+                          <div
+                            style={{ height: `${Math.max(12, heightPct)}%` }}
+                            className={`w-full rounded-t transition-all ${
+                              isUnshaded
+                                ? "bg-emerald-500 group-hover:bg-emerald-600"
+                                : isPartial
+                                ? "bg-amber-500 group-hover:bg-amber-600"
+                                : "bg-rose-500 group-hover:bg-rose-600"
+                            }`}
+                          />
+                          {/* Tooltip on hover */}
+                          <div className="absolute -top-10 opacity-0 group-hover:opacity-100 transition-opacity bg-stone-900 text-white text-[9px] px-2 py-1 rounded shadow-md pointer-events-none whitespace-nowrap z-10 font-mono">
+                            {el}° el • {sample.clearskyGhiWm2} W/m²
+                          </div>
+                        </div>
+                        <span className="text-[11px] font-bold font-mono text-stone-800">{sample.timeDisplay}</span>
+                        <span className="text-[9px] font-mono text-stone-400">{el}° el</span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-mono text-stone-500">
+                  <div className="flex items-center gap-3">
+                    <span className="flex items-center gap-1">
+                      <span className="w-2 h-2 rounded bg-emerald-500 inline-block" /> Clear (&gt;80%)
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="w-2 h-2 rounded bg-amber-500 inline-block" /> Partial (50-80%)
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="w-2 h-2 rounded bg-rose-500 inline-block" /> Shaded (&lt;50%)
+                    </span>
+                  </div>
+                  <span>Bar Height = Solar Elevation (0° to 90°)</span>
+                </div>
+              </div>
+
+              {/* Township Planning Directive Callout */}
+              <div className="p-4 rounded-xl border border-stone-200 bg-stone-50/70 flex items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <span className="text-xs font-bold text-stone-900">
+                      Township Planning Siting Assessment
+                    </span>
+                  </div>
+                  <p className="text-xs text-stone-600 leading-relaxed max-w-2xl">
+                    {(shadingResult?.scenario.unshadedPercentage ?? 100) >= 90
+                      ? "This footprint exhibits unhindered solar access with no significant geometric shading from existing or planned zoning envelopes. Ideal for utility-scale solar generation."
+                      : (shadingResult?.scenario.unshadedPercentage ?? 100) >= 70
+                      ? "Partial shading observed during early morning or late afternoon hours. Siting remains viable; elevating arrays or orienting modules towards 180° South will optimize yield."
+                      : "Significant structural obstruction detected from southern perimeter buildings. Strongly recommended to raise receiver elevation to 15m+ (rooftop mount) or adjust plot setback."}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setViewMode("deep")}
+                  className="px-3 py-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold shrink-0 transition-colors shadow-xs"
+                >
+                  Deep Technical Audit →
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* DEEP PHYSICS AUDIT VIEW */}
+          {viewMode === "deep" && (
+            <>
+              {/* Time & Receiver Elevation Controls Bar */}
+              <div className="p-4 bg-stone-50 border border-stone-200 rounded-lg space-y-3">
             {/* Top Row: Date, Presets, and Receiver Elevation */}
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2">
@@ -1168,6 +1489,8 @@ export const ShadowSimulatorModal: React.FC<ShadowSimulatorModalProps> = ({
                 ))}
               </div>
             </div>
+          )}
+            </>
           )}
         </div>
 
