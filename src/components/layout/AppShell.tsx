@@ -247,6 +247,15 @@ export const AppShell: React.FC<AppShellProps> = ({
     try {
       const res = await fetch(`/api/placements/${activePlacement.id}/smart-fit`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lat: activePlacement.lat,
+          lng: activePlacement.lng,
+          lengthM: activePlacement.lengthM,
+          widthM: activePlacement.widthM,
+          bearingDeg: activePlacement.bearingDeg,
+          type: activePlacement.type,
+        }),
       });
 
       if (res.ok) {
@@ -259,7 +268,7 @@ export const AppShell: React.FC<AppShellProps> = ({
         );
       } else {
         const errData = await res.json().catch(() => ({}));
-        showToast(errData.error || "Could not auto-fit footprint to road frontage", "error");
+        showToast(errData.error || errData.message || "Could not auto-fit footprint to road frontage", "error");
       }
     } catch {
       showToast("Smart fit calculation failed", "error");
