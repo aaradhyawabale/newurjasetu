@@ -331,7 +331,7 @@ export const PlacementPanel: React.FC<PlacementPanelProps> = ({
           <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-50/60 rounded border border-emerald-200 text-[10px] text-emerald-800 leading-tight">
             <Move className="w-3 h-3 text-emerald-600 shrink-0" />
             <span>
-              Tip: Drag the green circle handles on the map with your cursor to dynamically stretch, widen, or rotate the footprint.
+              Tip: Drag handles on map with cursor: green top/bottom handles stretch length, blue side handles adjust width, and corner squares scale freely with opposite edges anchored.
             </span>
           </div>
         </div>

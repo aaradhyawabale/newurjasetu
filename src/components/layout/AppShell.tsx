@@ -538,6 +538,15 @@ export const AppShell: React.FC<AppShellProps> = ({
     }
   };
 
+  // Handle interactive Study Area bounding box resize from map cursor handles
+  const handleStudyAreaChange = (bounds: StudyAreaBounds) => {
+    setStudyArea(bounds);
+    const widthM = calculateDistanceMeters(bounds.swLat, bounds.swLng, bounds.swLat, bounds.neLng);
+    const heightM = calculateDistanceMeters(bounds.swLat, bounds.swLng, bounds.neLat, bounds.swLng);
+    const areaHa = ((widthM * heightM) / 10000).toFixed(2);
+    showToast(`Study area resized: ${Math.round(widthM)}m × ${Math.round(heightM)}m (${areaHa} ha)`, "info");
+  };
+
   // Handle Tool Selection
   const handleSelectTool = async (toolId: string) => {
     setActiveTool(toolId);
@@ -931,6 +940,7 @@ export const AppShell: React.FC<AppShellProps> = ({
             bridgeApproachData={bridgeApproachData || currentReport?.bridgeAppraisal}
             onMapClick={handleMapClick}
             onPlacementChange={handlePlacementChangeFromMap}
+            onStudyAreaChange={handleStudyAreaChange}
             onMapLoaded={(exportFn) => {
               mapCanvasExportRef.current = exportFn;
             }}

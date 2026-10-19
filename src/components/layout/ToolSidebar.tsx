@@ -131,10 +131,10 @@ export const ToolSidebar: React.FC<ToolSidebarProps> = ({
             {selectedTool === "Bridge"
               ? "Bridge: Click start bank, then click opposite endpoint on map to span bridge."
               : selectedTool === "Select Area"
-              ? "Select Area: Click 2 opposite corners to draw a study zone."
+              ? "Select Area: Click 2 corners to draw, then drag any corner or edge with cursor to adjust size."
               : ["Road", "Water Canal", "Drainage"].includes(selectedTool)
               ? `${selectedTool}: Click start point, then click endpoint to bridge span.`
-              : "Click map to place. Drag handles on map or use panel to adjust size in meters."}
+              : "Click map to place. Drag handles on map with cursor or use panel to adjust size in meters."}
           </span>
         </div>
 

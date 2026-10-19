@@ -52,6 +52,7 @@ interface MapViewProps {
     widthM: number;
     bearingDeg: number;
   }) => void;
+  onStudyAreaChange?: (bounds: StudyAreaBounds) => void;
   onMapLoaded?: (exportFn: () => string | null) => void;
   className?: string;
   activeCity?: "pune" | "pcmc" | "nashik";
@@ -73,6 +74,7 @@ export const MapView: React.FC<MapViewProps> = ({
   bridgeApproachData = null,
   onMapClick,
   onPlacementChange,
+  onStudyAreaChange,
   onMapLoaded,
   className = "",
   activeCity,
@@ -113,6 +115,29 @@ export const MapView: React.FC<MapViewProps> = ({
     rotate: null,
   });
 
+  // Interactive Study Area perimeter resize control handles
+  const studyAreaHandlesRef = useRef<{
+    ne: maplibregl.Marker | null;
+    nw: maplibregl.Marker | null;
+    se: maplibregl.Marker | null;
+    sw: maplibregl.Marker | null;
+    n: maplibregl.Marker | null;
+    s: maplibregl.Marker | null;
+    e: maplibregl.Marker | null;
+    w: maplibregl.Marker | null;
+  }>({
+    ne: null,
+    nw: null,
+    se: null,
+    sw: null,
+    n: null,
+    s: null,
+    e: null,
+    w: null,
+  });
+  const studyAreaBoundsRef = useRef<StudyAreaBounds | null>(studyArea || null);
+  const onStudyAreaChangeRef = useRef(onStudyAreaChange);
+
   // Keep refs updated to avoid stale closures inside MapLibre event listeners
   useEffect(() => {
     onMapClickRef.current = onMapClick;
@@ -123,6 +148,10 @@ export const MapView: React.FC<MapViewProps> = ({
   }, [onPlacementChange]);
 
   useEffect(() => {
+    onStudyAreaChangeRef.current = onStudyAreaChange;
+  }, [onStudyAreaChange]);
+
+  useEffect(() => {
     placementRef.current = placement;
     activeTypeRef.current = activeType;
   }, [placement, activeType]);
@@ -130,6 +159,42 @@ export const MapView: React.FC<MapViewProps> = ({
   useEffect(() => {
     linearStartPointRef.current = linearStartPoint;
   }, [linearStartPoint]);
+
+  useEffect(() => {
+    studyAreaBoundsRef.current = studyArea || null;
+  }, [studyArea]);
+
+  // Tooltip helper during dragging
+  const showTooltip = (text: string) => {
+    if (!dragTooltipRef.current) return;
+    dragTooltipRef.current.style.display = "block";
+    dragTooltipRef.current.textContent = text;
+    dragTooltipRef.current.style.left = "50%";
+    dragTooltipRef.current.style.bottom = "40px";
+    dragTooltipRef.current.style.transform = "translateX(-50%)";
+  };
+
+  const hideTooltip = () => {
+    if (!dragTooltipRef.current) return;
+    dragTooltipRef.current.style.display = "none";
+  };
+
+  // Helper to calculate local offsets (dx along width, dy along length) relative to center and bearing
+  const getLocalOffset = (
+    cLat: number,
+    cLng: number,
+    posLat: number,
+    posLng: number,
+    bearing: number
+  ) => {
+    const d = calculateDistanceMeters(cLat, cLng, posLat, posLng);
+    let b = turf.bearing(turf.point([cLng, cLat]), turf.point([posLng, posLat]));
+    const relRad = (((b - bearing) % 360) * Math.PI) / 180;
+    return {
+      dx: d * Math.sin(relRad), // width axis: + right, - left
+      dy: d * Math.cos(relRad), // length axis: + front, - back
+    };
+  };
 
   // Initialize Map
   useEffect(() => {
@@ -795,39 +860,170 @@ export const MapView: React.FC<MapViewProps> = ({
     }
   }, [centerLat, centerLng, isLoaded]);
 
-  // Update Study Area bounding box polygon
+  // Update Study Area bounding box polygon and interactive cursor handles
   useEffect(() => {
     if (!mapRef.current || !isLoaded) return;
     const source = mapRef.current.getSource("study-area-source") as maplibregl.GeoJSONSource;
     if (!source) return;
 
+    const cleanupStudyAreaHandles = () => {
+      Object.keys(studyAreaHandlesRef.current).forEach((k) => {
+        const key = k as keyof typeof studyAreaHandlesRef.current;
+        if (studyAreaHandlesRef.current[key]) {
+          studyAreaHandlesRef.current[key]!.remove();
+          studyAreaHandlesRef.current[key] = null;
+        }
+      });
+    };
+
     if (!studyArea) {
+      cleanupStudyAreaHandles();
       source.setData({ type: "FeatureCollection", features: [] });
       return;
     }
 
     const { swLat, swLng, neLat, neLng } = studyArea;
-    source.setData({
-      type: "FeatureCollection",
-      features: [
-        {
-          type: "Feature",
-          properties: {},
-          geometry: {
-            type: "Polygon",
-            coordinates: [
-              [
-                [swLng, swLat],
-                [neLng, swLat],
-                [neLng, neLat],
-                [swLng, neLat],
-                [swLng, swLat],
+    studyAreaBoundsRef.current = { swLat, swLng, neLat, neLng };
+
+    const updateStudyAreaSource = (sLat: number, sLng: number, nLat: number, nLng: number) => {
+      if (!mapRef.current) return;
+      const src = mapRef.current.getSource("study-area-source") as maplibregl.GeoJSONSource;
+      if (!src) return;
+      src.setData({
+        type: "FeatureCollection",
+        features: [
+          {
+            type: "Feature",
+            properties: {},
+            geometry: {
+              type: "Polygon",
+              coordinates: [
+                [
+                  [sLng, sLat],
+                  [nLng, sLat],
+                  [nLng, nLat],
+                  [sLng, nLat],
+                  [sLng, sLat],
+                ],
               ],
-            ],
+            },
           },
-        },
-      ],
-    });
+        ],
+      });
+    };
+
+    updateStudyAreaSource(swLat, swLng, neLat, neLng);
+
+    const syncStudyAreaHandles = (sLat: number, sLng: number, nLat: number, nLng: number) => {
+      const midL = (sLat + nLat) / 2;
+      const midG = (sLng + nLng) / 2;
+      studyAreaHandlesRef.current.ne?.setLngLat([nLng, nLat]);
+      studyAreaHandlesRef.current.nw?.setLngLat([sLng, nLat]);
+      studyAreaHandlesRef.current.se?.setLngLat([nLng, sLat]);
+      studyAreaHandlesRef.current.sw?.setLngLat([sLng, sLat]);
+      studyAreaHandlesRef.current.n?.setLngLat([midG, nLat]);
+      studyAreaHandlesRef.current.s?.setLngLat([midG, sLat]);
+      studyAreaHandlesRef.current.e?.setLngLat([nLng, midL]);
+      studyAreaHandlesRef.current.w?.setLngLat([sLng, midL]);
+    };
+
+    const midLat = (swLat + neLat) / 2;
+    const midLng = (swLng + neLng) / 2;
+
+    const setupStudyHandle = (
+      id: "ne" | "nw" | "se" | "sw" | "n" | "s" | "e" | "w",
+      initCoord: [number, number],
+      cursorStyle: string,
+      isCorner: boolean,
+      title: string
+    ) => {
+      if (!studyAreaHandlesRef.current[id]) {
+        const el = document.createElement("div");
+        el.className = `urjasetu-study-handle urjasetu-study-${id}`;
+        el.style.cursor = cursorStyle;
+        el.title = title;
+        if (isCorner) {
+          el.innerHTML = `
+            <div style="width:16px;height:16px;background:#ffffff;border:2.5px solid #0284c7;border-radius:4px;box-shadow:0 2px 6px rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;transition:transform 0.15s ease;">
+              <div style="width:5px;height:5px;background:#0284c7;border-radius:1px;"></div>
+            </div>
+          `;
+        } else {
+          el.innerHTML = `
+            <div style="width:14px;height:14px;background:#ffffff;border:2.5px solid #0ea5e9;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;transition:transform 0.15s ease;">
+              <div style="width:4px;height:4px;background:#0ea5e9;border-radius:50%;"></div>
+            </div>
+          `;
+        }
+
+        el.addEventListener("mouseenter", () => {
+          (el.firstElementChild as HTMLElement)?.style.setProperty("transform", "scale(1.3)");
+        });
+        el.addEventListener("mouseleave", () => {
+          (el.firstElementChild as HTMLElement)?.style.setProperty("transform", "scale(1)");
+        });
+
+        const m = new maplibregl.Marker({ element: el, draggable: true })
+          .setLngLat(initCoord)
+          .addTo(mapRef.current!);
+
+        m.on("drag", () => {
+          const pos = m.getLngLat();
+          const b = studyAreaBoundsRef.current || { swLat, swLng, neLat, neLng };
+
+          if (id === "ne") {
+            b.neLat = Math.max(b.swLat + 0.0001, pos.lat);
+            b.neLng = Math.max(b.swLng + 0.0001, pos.lng);
+          } else if (id === "nw") {
+            b.neLat = Math.max(b.swLat + 0.0001, pos.lat);
+            b.swLng = Math.min(b.neLng - 0.0001, pos.lng);
+          } else if (id === "se") {
+            b.swLat = Math.min(b.neLat - 0.0001, pos.lat);
+            b.neLng = Math.max(b.swLng + 0.0001, pos.lng);
+          } else if (id === "sw") {
+            b.swLat = Math.min(b.neLat - 0.0001, pos.lat);
+            b.swLng = Math.min(b.neLng - 0.0001, pos.lng);
+          } else if (id === "n") {
+            b.neLat = Math.max(b.swLat + 0.0001, pos.lat);
+          } else if (id === "s") {
+            b.swLat = Math.min(b.neLat - 0.0001, pos.lat);
+          } else if (id === "e") {
+            b.neLng = Math.max(b.swLng + 0.0001, pos.lng);
+          } else if (id === "w") {
+            b.swLng = Math.min(b.neLng - 0.0001, pos.lng);
+          }
+
+          studyAreaBoundsRef.current = b;
+          updateStudyAreaSource(b.swLat, b.swLng, b.neLat, b.neLng);
+          syncStudyAreaHandles(b.swLat, b.swLng, b.neLat, b.neLng);
+
+          const wM = calculateDistanceMeters(b.swLat, b.swLng, b.swLat, b.neLng);
+          const hM = calculateDistanceMeters(b.swLat, b.swLng, b.neLat, b.swLng);
+          const ha = ((wM * hM) / 10000).toFixed(2);
+          showTooltip(`Study Area: ${Math.round(wM)}m × ${Math.round(hM)}m (${ha} ha) [Drag to Resize]`);
+        });
+
+        m.on("dragend", () => {
+          hideTooltip();
+          if (studyAreaBoundsRef.current) {
+            onStudyAreaChangeRef.current?.({ ...studyAreaBoundsRef.current });
+          }
+        });
+
+        studyAreaHandlesRef.current[id] = m;
+      } else {
+        studyAreaHandlesRef.current[id]!.setLngLat(initCoord);
+      }
+    };
+
+    setupStudyHandle("ne", [neLng, neLat], "nesw-resize", true, "Drag North-East corner");
+    setupStudyHandle("nw", [swLng, neLat], "nwse-resize", true, "Drag North-West corner");
+    setupStudyHandle("se", [neLng, swLat], "nwse-resize", true, "Drag South-East corner");
+    setupStudyHandle("sw", [swLng, swLat], "nesw-resize", true, "Drag South-West corner");
+    setupStudyHandle("n", [midLng, neLat], "ns-resize", false, "Drag North edge to adjust height");
+    setupStudyHandle("s", [midLng, swLat], "ns-resize", false, "Drag South edge to adjust height");
+    setupStudyHandle("e", [neLng, midLat], "ew-resize", false, "Drag East edge to adjust width");
+    setupStudyHandle("w", [swLng, midLat], "ew-resize", false, "Drag West edge to adjust width");
   }, [studyArea, isLoaded]);
 
   // Update Linear / Bridge Start Marker on Map
@@ -1171,15 +1367,26 @@ export const MapView: React.FC<MapViewProps> = ({
       }
     }
 
-    // 2. Front Handle (End Point / Length+)
+    // 2. Front Handle (Length+ along bearing, anchored at pBack)
     if (!handlesRef.current.front) {
       const el = document.createElement("div");
       el.className = "urjasetu-handle urjasetu-handle-front";
-      el.style.cursor = "grab";
-      el.title = isBridge ? "Bridge Endpoint: drag to stretch span and align angle" : "Drag to adjust Length";
+      el.style.cursor = isBridge ? "grab" : "ns-resize";
+      el.title = isBridge
+        ? "Bridge Endpoint: drag to stretch span and align angle"
+        : "Drag to adjust Length from Front (Back edge stays anchored)";
       el.innerHTML = isBridge
-        ? `<div style="background:#1F6F54;color:white;padding:2px 7px;border-radius:12px;font-size:10px;font-weight:bold;font-family:monospace;box-shadow:0 2px 6px rgba(0,0,0,0.35);border:1.5px solid white;display:flex;align-items:center;gap:3px;white-space:nowrap;user-select:none;">End ⇄</div>`
-        : `<div style="width:14px;height:14px;background:#ffffff;border:2.5px solid #1F6F54;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.35);user-select:none;"></div>`;
+        ? `<div style="background:#1F6F54;color:white;padding:3px 8px;border-radius:12px;font-size:11px;font-weight:bold;font-family:monospace;box-shadow:0 2px 8px rgba(0,0,0,0.4);border:2px solid white;display:flex;align-items:center;gap:3px;white-space:nowrap;user-select:none;transition:transform 0.15s ease;">End ⇄</div>`
+        : `<div style="width:16px;height:16px;background:#ffffff;border:2.5px solid #1F6F54;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;transition:transform 0.15s ease;user-select:none;">
+            <div style="width:2px;height:6px;background:#1F6F54;border-radius:1px;"></div>
+          </div>`;
+
+      el.addEventListener("mouseenter", () => {
+        (el.firstElementChild as HTMLElement)?.style.setProperty("transform", "scale(1.25)");
+      });
+      el.addEventListener("mouseleave", () => {
+        (el.firstElementChild as HTMLElement)?.style.setProperty("transform", "scale(1)");
+      });
 
       const m = new maplibregl.Marker({ element: el, draggable: true })
         .setLngLat(pts.pFront.geometry.coordinates as [number, number])
@@ -1191,17 +1398,31 @@ export const MapView: React.FC<MapViewProps> = ({
         const curPts = getGeometryPoints(p.lat, p.lng, p.lengthM, p.widthM, p.bearingDeg);
         const anchorBack = curPts.pBack.geometry.coordinates;
         const pos = m.getLngLat();
-        const newLen = Math.max(10, Math.round(calculateDistanceMeters(anchorBack[1], anchorBack[0], pos.lat, pos.lng)));
-        let nb = turf.bearing(turf.point(anchorBack), turf.point([pos.lng, pos.lat]));
-        const newBearing = Math.round(((nb % 360) + 360) % 360);
-        const newMid = turf.midpoint(turf.point(anchorBack), turf.point([pos.lng, pos.lat]));
-        const midLat = newMid.geometry.coordinates[1];
-        const midLng = newMid.geometry.coordinates[0];
 
-        updateFootprintSource(midLat, midLng, newLen, p.widthM, newBearing);
-        markerRef.current?.setLngLat([midLng, midLat]);
-        syncHandlePositions(midLat, midLng, newLen, p.widthM, newBearing);
-        showTooltip(`Length: ${newLen}m | Bearing: ${newBearing}° (${isBridge ? "Bridge Span" : "Footprint"})`);
+        if (isBridge) {
+          const newLen = Math.max(10, Math.round(calculateDistanceMeters(anchorBack[1], anchorBack[0], pos.lat, pos.lng)));
+          let nb = turf.bearing(turf.point(anchorBack), turf.point([pos.lng, pos.lat]));
+          const newBearing = Math.round(((nb % 360) + 360) % 360);
+          const newMid = turf.midpoint(turf.point(anchorBack), turf.point([pos.lng, pos.lat]));
+          const midLat = newMid.geometry.coordinates[1];
+          const midLng = newMid.geometry.coordinates[0];
+
+          updateFootprintSource(midLat, midLng, newLen, p.widthM, newBearing);
+          markerRef.current?.setLngLat([midLng, midLat]);
+          syncHandlePositions(midLat, midLng, newLen, p.widthM, newBearing);
+          showTooltip(`Length: ${newLen}m | Bearing: ${newBearing}° (Bridge Span)`);
+        } else {
+          const { dy } = getLocalOffset(anchorBack[1], anchorBack[0], pos.lat, pos.lng, p.bearingDeg);
+          const newLen = Math.max(10, Math.min(2000, Math.round(dy)));
+          const newCenter = turf.destination(turf.point(anchorBack), (newLen / 2) / 1000, p.bearingDeg, { units: "kilometers" });
+          const midLat = newCenter.geometry.coordinates[1];
+          const midLng = newCenter.geometry.coordinates[0];
+
+          updateFootprintSource(midLat, midLng, newLen, p.widthM, p.bearingDeg);
+          markerRef.current?.setLngLat([midLng, midLat]);
+          syncHandlePositions(midLat, midLng, newLen, p.widthM, p.bearingDeg);
+          showTooltip(`Length: ${newLen}m × ${p.widthM}m (${(newLen * p.widthM).toLocaleString()} m²) [Front Edge Extended]`);
+        }
       });
 
       m.on("dragend", () => {
@@ -1211,20 +1432,37 @@ export const MapView: React.FC<MapViewProps> = ({
         const curPts = getGeometryPoints(p.lat, p.lng, p.lengthM, p.widthM, p.bearingDeg);
         const anchorBack = curPts.pBack.geometry.coordinates;
         const pos = m.getLngLat();
-        const newLen = Math.max(10, Math.round(calculateDistanceMeters(anchorBack[1], anchorBack[0], pos.lat, pos.lng)));
-        let nb = turf.bearing(turf.point(anchorBack), turf.point([pos.lng, pos.lat]));
-        const newBearing = Math.round(((nb % 360) + 360) % 360);
-        const newMid = turf.midpoint(turf.point(anchorBack), turf.point([pos.lng, pos.lat]));
-        const midLat = newMid.geometry.coordinates[1];
-        const midLng = newMid.geometry.coordinates[0];
 
-        onPlacementChangeRef.current?.({
-          lat: midLat,
-          lng: midLng,
-          lengthM: newLen,
-          widthM: p.widthM,
-          bearingDeg: newBearing,
-        });
+        if (isBridge) {
+          const newLen = Math.max(10, Math.round(calculateDistanceMeters(anchorBack[1], anchorBack[0], pos.lat, pos.lng)));
+          let nb = turf.bearing(turf.point(anchorBack), turf.point([pos.lng, pos.lat]));
+          const newBearing = Math.round(((nb % 360) + 360) % 360);
+          const newMid = turf.midpoint(turf.point(anchorBack), turf.point([pos.lng, pos.lat]));
+          const midLat = newMid.geometry.coordinates[1];
+          const midLng = newMid.geometry.coordinates[0];
+
+          onPlacementChangeRef.current?.({
+            lat: midLat,
+            lng: midLng,
+            lengthM: newLen,
+            widthM: p.widthM,
+            bearingDeg: newBearing,
+          });
+        } else {
+          const { dy } = getLocalOffset(anchorBack[1], anchorBack[0], pos.lat, pos.lng, p.bearingDeg);
+          const newLen = Math.max(10, Math.min(2000, Math.round(dy)));
+          const newCenter = turf.destination(turf.point(anchorBack), (newLen / 2) / 1000, p.bearingDeg, { units: "kilometers" });
+          const midLat = newCenter.geometry.coordinates[1];
+          const midLng = newCenter.geometry.coordinates[0];
+
+          onPlacementChangeRef.current?.({
+            lat: midLat,
+            lng: midLng,
+            lengthM: newLen,
+            widthM: p.widthM,
+            bearingDeg: p.bearingDeg,
+          });
+        }
       });
 
       handlesRef.current.front = m;
@@ -1232,15 +1470,26 @@ export const MapView: React.FC<MapViewProps> = ({
       handlesRef.current.front.setLngLat(pts.pFront.geometry.coordinates as [number, number]);
     }
 
-    // 3. Back Handle (Start Point / Length-)
+    // 3. Back Handle (Length- along bearing, anchored at pFront)
     if (!handlesRef.current.back) {
       const el = document.createElement("div");
       el.className = "urjasetu-handle urjasetu-handle-back";
-      el.style.cursor = "grab";
-      el.title = isBridge ? "Bridge Start Point: drag to adjust start abutment" : "Drag to adjust Length";
+      el.style.cursor = isBridge ? "grab" : "ns-resize";
+      el.title = isBridge
+        ? "Bridge Start Point: drag to adjust start abutment"
+        : "Drag to adjust Length from Back (Front edge stays anchored)";
       el.innerHTML = isBridge
-        ? `<div style="background:#1F6F54;color:white;padding:2px 7px;border-radius:12px;font-size:10px;font-weight:bold;font-family:monospace;box-shadow:0 2px 6px rgba(0,0,0,0.35);border:1.5px solid white;display:flex;align-items:center;gap:3px;white-space:nowrap;user-select:none;">Start ⇄</div>`
-        : `<div style="width:14px;height:14px;background:#ffffff;border:2.5px solid #1F6F54;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.35);user-select:none;"></div>`;
+        ? `<div style="background:#1F6F54;color:white;padding:3px 8px;border-radius:12px;font-size:11px;font-weight:bold;font-family:monospace;box-shadow:0 2px 8px rgba(0,0,0,0.4);border:2px solid white;display:flex;align-items:center;gap:3px;white-space:nowrap;user-select:none;transition:transform 0.15s ease;">Start ⇄</div>`
+        : `<div style="width:16px;height:16px;background:#ffffff;border:2.5px solid #1F6F54;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;transition:transform 0.15s ease;user-select:none;">
+            <div style="width:2px;height:6px;background:#1F6F54;border-radius:1px;"></div>
+          </div>`;
+
+      el.addEventListener("mouseenter", () => {
+        (el.firstElementChild as HTMLElement)?.style.setProperty("transform", "scale(1.25)");
+      });
+      el.addEventListener("mouseleave", () => {
+        (el.firstElementChild as HTMLElement)?.style.setProperty("transform", "scale(1)");
+      });
 
       const m = new maplibregl.Marker({ element: el, draggable: true })
         .setLngLat(pts.pBack.geometry.coordinates as [number, number])
@@ -1252,17 +1501,32 @@ export const MapView: React.FC<MapViewProps> = ({
         const curPts = getGeometryPoints(p.lat, p.lng, p.lengthM, p.widthM, p.bearingDeg);
         const anchorFront = curPts.pFront.geometry.coordinates;
         const pos = m.getLngLat();
-        const newLen = Math.max(10, Math.round(calculateDistanceMeters(pos.lat, pos.lng, anchorFront[1], anchorFront[0])));
-        let nb = turf.bearing(turf.point([pos.lng, pos.lat]), turf.point(anchorFront));
-        const newBearing = Math.round(((nb % 360) + 360) % 360);
-        const newMid = turf.midpoint(turf.point([pos.lng, pos.lat]), turf.point(anchorFront));
-        const midLat = newMid.geometry.coordinates[1];
-        const midLng = newMid.geometry.coordinates[0];
 
-        updateFootprintSource(midLat, midLng, newLen, p.widthM, newBearing);
-        markerRef.current?.setLngLat([midLng, midLat]);
-        syncHandlePositions(midLat, midLng, newLen, p.widthM, newBearing);
-        showTooltip(`Length: ${newLen}m | Bearing: ${newBearing}° (${isBridge ? "Bridge Span" : "Footprint"})`);
+        if (isBridge) {
+          const newLen = Math.max(10, Math.round(calculateDistanceMeters(pos.lat, pos.lng, anchorFront[1], anchorFront[0])));
+          let nb = turf.bearing(turf.point([pos.lng, pos.lat]), turf.point(anchorFront));
+          const newBearing = Math.round(((nb % 360) + 360) % 360);
+          const newMid = turf.midpoint(turf.point([pos.lng, pos.lat]), turf.point(anchorFront));
+          const midLat = newMid.geometry.coordinates[1];
+          const midLng = newMid.geometry.coordinates[0];
+
+          updateFootprintSource(midLat, midLng, newLen, p.widthM, newBearing);
+          markerRef.current?.setLngLat([midLng, midLat]);
+          syncHandlePositions(midLat, midLng, newLen, p.widthM, newBearing);
+          showTooltip(`Length: ${newLen}m | Bearing: ${newBearing}° (Bridge Span)`);
+        } else {
+          const oppBearing = (p.bearingDeg + 180) % 360;
+          const { dy } = getLocalOffset(anchorFront[1], anchorFront[0], pos.lat, pos.lng, oppBearing);
+          const newLen = Math.max(10, Math.min(2000, Math.round(dy)));
+          const newCenter = turf.destination(turf.point(anchorFront), (newLen / 2) / 1000, oppBearing, { units: "kilometers" });
+          const midLat = newCenter.geometry.coordinates[1];
+          const midLng = newCenter.geometry.coordinates[0];
+
+          updateFootprintSource(midLat, midLng, newLen, p.widthM, p.bearingDeg);
+          markerRef.current?.setLngLat([midLng, midLat]);
+          syncHandlePositions(midLat, midLng, newLen, p.widthM, p.bearingDeg);
+          showTooltip(`Length: ${newLen}m × ${p.widthM}m (${(newLen * p.widthM).toLocaleString()} m²) [Back Edge Extended]`);
+        }
       });
 
       m.on("dragend", () => {
@@ -1272,20 +1536,38 @@ export const MapView: React.FC<MapViewProps> = ({
         const curPts = getGeometryPoints(p.lat, p.lng, p.lengthM, p.widthM, p.bearingDeg);
         const anchorFront = curPts.pFront.geometry.coordinates;
         const pos = m.getLngLat();
-        const newLen = Math.max(10, Math.round(calculateDistanceMeters(pos.lat, pos.lng, anchorFront[1], anchorFront[0])));
-        let nb = turf.bearing(turf.point([pos.lng, pos.lat]), turf.point(anchorFront));
-        const newBearing = Math.round(((nb % 360) + 360) % 360);
-        const newMid = turf.midpoint(turf.point([pos.lng, pos.lat]), turf.point(anchorFront));
-        const midLat = newMid.geometry.coordinates[1];
-        const midLng = newMid.geometry.coordinates[0];
 
-        onPlacementChangeRef.current?.({
-          lat: midLat,
-          lng: midLng,
-          lengthM: newLen,
-          widthM: p.widthM,
-          bearingDeg: newBearing,
-        });
+        if (isBridge) {
+          const newLen = Math.max(10, Math.round(calculateDistanceMeters(pos.lat, pos.lng, anchorFront[1], anchorFront[0])));
+          let nb = turf.bearing(turf.point([pos.lng, pos.lat]), turf.point(anchorFront));
+          const newBearing = Math.round(((nb % 360) + 360) % 360);
+          const newMid = turf.midpoint(turf.point([pos.lng, pos.lat]), turf.point(anchorFront));
+          const midLat = newMid.geometry.coordinates[1];
+          const midLng = newMid.geometry.coordinates[0];
+
+          onPlacementChangeRef.current?.({
+            lat: midLat,
+            lng: midLng,
+            lengthM: newLen,
+            widthM: p.widthM,
+            bearingDeg: newBearing,
+          });
+        } else {
+          const oppBearing = (p.bearingDeg + 180) % 360;
+          const { dy } = getLocalOffset(anchorFront[1], anchorFront[0], pos.lat, pos.lng, oppBearing);
+          const newLen = Math.max(10, Math.min(2000, Math.round(dy)));
+          const newCenter = turf.destination(turf.point(anchorFront), (newLen / 2) / 1000, oppBearing, { units: "kilometers" });
+          const midLat = newCenter.geometry.coordinates[1];
+          const midLng = newCenter.geometry.coordinates[0];
+
+          onPlacementChangeRef.current?.({
+            lat: midLat,
+            lng: midLng,
+            lengthM: newLen,
+            widthM: p.widthM,
+            bearingDeg: p.bearingDeg,
+          });
+        }
       });
 
       handlesRef.current.back = m;
@@ -1293,14 +1575,25 @@ export const MapView: React.FC<MapViewProps> = ({
       handlesRef.current.back.setLngLat(pts.pBack.geometry.coordinates as [number, number]);
     }
 
-    // 4. Side Handles (Left & Right - Width in meters)
+    // 4. Side Handles (Left & Right - Directional Width with opposite edge anchored)
     const setupSideHandle = (side: "left" | "right", coord: [number, number]) => {
       if (!handlesRef.current[side]) {
         const el = document.createElement("div");
         el.className = `urjasetu-handle urjasetu-handle-${side}`;
         el.style.cursor = "ew-resize";
-        el.title = "Drag to adjust Width in meters";
-        el.innerHTML = `<div style="width:13px;height:13px;background:#ffffff;border:2.5px solid #0284c7;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.35);user-select:none;"></div>`;
+        el.title = `Drag to adjust Width from ${side === "left" ? "Left (Right edge anchored)" : "Right (Left edge anchored)"}`;
+        el.innerHTML = `
+          <div style="width:16px;height:16px;background:#ffffff;border:2.5px solid #0284c7;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;transition:transform 0.15s ease;user-select:none;">
+            <div style="width:6px;height:2px;background:#0284c7;border-radius:1px;"></div>
+          </div>
+        `;
+
+        el.addEventListener("mouseenter", () => {
+          (el.firstElementChild as HTMLElement)?.style.setProperty("transform", "scale(1.25)");
+        });
+        el.addEventListener("mouseleave", () => {
+          (el.firstElementChild as HTMLElement)?.style.setProperty("transform", "scale(1)");
+        });
 
         const m = new maplibregl.Marker({ element: el, draggable: true })
           .setLngLat(coord)
@@ -1309,26 +1602,69 @@ export const MapView: React.FC<MapViewProps> = ({
         m.on("drag", () => {
           const p = placementRef.current;
           if (!p) return;
+          const curPts = getGeometryPoints(p.lat, p.lng, p.lengthM, p.widthM, p.bearingDeg);
           const pos = m.getLngLat();
-          const distM = calculateDistanceMeters(p.lat, p.lng, pos.lat, pos.lng);
-          const newWid = Math.max(5, Math.min(1000, Math.round(distM * 2)));
 
-          updateFootprintSource(p.lat, p.lng, p.lengthM, newWid, p.bearingDeg);
-          syncHandlePositions(p.lat, p.lng, p.lengthM, newWid, p.bearingDeg);
-          showTooltip(`Width: ${newWid}m (${(p.lengthM * newWid).toLocaleString()} m²)`);
+          let newWid: number;
+          let midLat: number;
+          let midLng: number;
+
+          if (side === "right") {
+            const anchorLeft = curPts.pLeft.geometry.coordinates;
+            const bPerp = (p.bearingDeg + 90) % 360;
+            const { dy } = getLocalOffset(anchorLeft[1], anchorLeft[0], pos.lat, pos.lng, bPerp);
+            newWid = Math.max(5, Math.min(2000, Math.round(dy)));
+            const newCenter = turf.destination(turf.point(anchorLeft), (newWid / 2) / 1000, bPerp, { units: "kilometers" });
+            midLat = newCenter.geometry.coordinates[1];
+            midLng = newCenter.geometry.coordinates[0];
+          } else {
+            const anchorRight = curPts.pRight.geometry.coordinates;
+            const bPerpOpp = (p.bearingDeg + 270) % 360;
+            const { dy } = getLocalOffset(anchorRight[1], anchorRight[0], pos.lat, pos.lng, bPerpOpp);
+            newWid = Math.max(5, Math.min(2000, Math.round(dy)));
+            const newCenter = turf.destination(turf.point(anchorRight), (newWid / 2) / 1000, bPerpOpp, { units: "kilometers" });
+            midLat = newCenter.geometry.coordinates[1];
+            midLng = newCenter.geometry.coordinates[0];
+          }
+
+          updateFootprintSource(midLat, midLng, p.lengthM, newWid, p.bearingDeg);
+          markerRef.current?.setLngLat([midLng, midLat]);
+          syncHandlePositions(midLat, midLng, p.lengthM, newWid, p.bearingDeg);
+          showTooltip(`Width: ${newWid}m × ${p.lengthM}m (${(p.lengthM * newWid).toLocaleString()} m²) [${side === "left" ? "Left" : "Right"} Side]`);
         });
 
         m.on("dragend", () => {
           hideTooltip();
           const p = placementRef.current;
           if (!p) return;
+          const curPts = getGeometryPoints(p.lat, p.lng, p.lengthM, p.widthM, p.bearingDeg);
           const pos = m.getLngLat();
-          const distM = calculateDistanceMeters(p.lat, p.lng, pos.lat, pos.lng);
-          const newWid = Math.max(5, Math.min(1000, Math.round(distM * 2)));
+
+          let newWid: number;
+          let midLat: number;
+          let midLng: number;
+
+          if (side === "right") {
+            const anchorLeft = curPts.pLeft.geometry.coordinates;
+            const bPerp = (p.bearingDeg + 90) % 360;
+            const { dy } = getLocalOffset(anchorLeft[1], anchorLeft[0], pos.lat, pos.lng, bPerp);
+            newWid = Math.max(5, Math.min(2000, Math.round(dy)));
+            const newCenter = turf.destination(turf.point(anchorLeft), (newWid / 2) / 1000, bPerp, { units: "kilometers" });
+            midLat = newCenter.geometry.coordinates[1];
+            midLng = newCenter.geometry.coordinates[0];
+          } else {
+            const anchorRight = curPts.pRight.geometry.coordinates;
+            const bPerpOpp = (p.bearingDeg + 270) % 360;
+            const { dy } = getLocalOffset(anchorRight[1], anchorRight[0], pos.lat, pos.lng, bPerpOpp);
+            newWid = Math.max(5, Math.min(2000, Math.round(dy)));
+            const newCenter = turf.destination(turf.point(anchorRight), (newWid / 2) / 1000, bPerpOpp, { units: "kilometers" });
+            midLat = newCenter.geometry.coordinates[1];
+            midLng = newCenter.geometry.coordinates[0];
+          }
 
           onPlacementChangeRef.current?.({
-            lat: p.lat,
-            lng: p.lng,
+            lat: midLat,
+            lng: midLng,
             lengthM: p.lengthM,
             widthM: newWid,
             bearingDeg: p.bearingDeg,
@@ -1344,53 +1680,105 @@ export const MapView: React.FC<MapViewProps> = ({
     setupSideHandle("left", pts.pLeft.geometry.coordinates as [number, number]);
     setupSideHandle("right", pts.pRight.geometry.coordinates as [number, number]);
 
-    // 5. Four Corner Handles (Scale footprint dimensions proportionally)
+    // 5. Four Corner Handles (Directional Stretch/Scale with opposite corner anchored)
     const corners: ("c1" | "c2" | "c3" | "c4")[] = ["c1", "c2", "c3", "c4"];
     corners.forEach((cid) => {
       const coord = pts[cid].geometry.coordinates as [number, number];
       if (!handlesRef.current[cid]) {
         const el = document.createElement("div");
         el.className = `urjasetu-handle urjasetu-handle-${cid}`;
-        el.style.cursor = "nwse-resize";
-        el.title = "Drag corner to scale footprint dimensions";
-        el.innerHTML = `<div style="width:10px;height:10px;background:#ffffff;border:2px solid #1F6F54;border-radius:2px;box-shadow:0 1px 3px rgba(0,0,0,0.3);user-select:none;"></div>`;
+        el.style.cursor = cid === "c1" || cid === "c3" ? "nesw-resize" : "nwse-resize";
+        const cornerLabel =
+          cid === "c1"
+            ? "Front-Left (Back-Right anchored)"
+            : cid === "c2"
+            ? "Front-Right (Back-Left anchored)"
+            : cid === "c3"
+            ? "Back-Right (Front-Left anchored)"
+            : "Back-Left (Front-Right anchored)";
+        el.title = `Drag corner to adjust dimensions: ${cornerLabel}`;
+        el.innerHTML = `
+          <div style="width:16px;height:16px;background:#ffffff;border:2.5px solid #1F6F54;border-radius:4px;box-shadow:0 2px 6px rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;transition:transform 0.15s ease;user-select:none;">
+            <div style="width:5px;height:5px;background:#1F6F54;border-radius:1px;"></div>
+          </div>
+        `;
+
+        el.addEventListener("mouseenter", () => {
+          (el.firstElementChild as HTMLElement)?.style.setProperty("transform", "scale(1.3)");
+        });
+        el.addEventListener("mouseleave", () => {
+          (el.firstElementChild as HTMLElement)?.style.setProperty("transform", "scale(1)");
+        });
 
         const m = new maplibregl.Marker({ element: el, draggable: true })
           .setLngLat(coord)
           .addTo(mapRef.current!);
 
-        m.on("drag", () => {
+        const calculateCornerDrag = (pos: maplibregl.LngLat) => {
           const p = placementRef.current;
-          if (!p) return;
-          const pos = m.getLngLat();
-          const distM = calculateDistanceMeters(p.lat, p.lng, pos.lat, pos.lng);
-          const diagM = Math.sqrt((p.lengthM / 2) ** 2 + (p.widthM / 2) ** 2);
-          const scale = distM / Math.max(1, diagM);
-          const newLen = Math.max(10, Math.min(2000, Math.round(p.lengthM * scale)));
-          const newWid = Math.max(5, Math.min(1000, Math.round(p.widthM * scale)));
+          if (!p) return null;
+          const curPts = getGeometryPoints(p.lat, p.lng, p.lengthM, p.widthM, p.bearingDeg);
 
-          updateFootprintSource(p.lat, p.lng, newLen, newWid, p.bearingDeg);
-          syncHandlePositions(p.lat, p.lng, newLen, newWid, p.bearingDeg);
-          showTooltip(`${newLen}m × ${newWid}m (${(newLen * newWid).toLocaleString()} m²)`);
+          if (cid === "c2") {
+            // Front-Right: Anchored at c4 (Back-Left)
+            const anchor = curPts.c4.geometry.coordinates;
+            const offset = getLocalOffset(anchor[1], anchor[0], pos.lat, pos.lng, p.bearingDeg);
+            const newLen = Math.max(10, Math.min(2000, Math.round(offset.dy)));
+            const newWid = Math.max(5, Math.min(2000, Math.round(offset.dx)));
+            const step = turf.destination(turf.point(anchor), (newLen / 2) / 1000, p.bearingDeg, { units: "kilometers" });
+            const newCenter = turf.destination(step, (newWid / 2) / 1000, (p.bearingDeg + 90) % 360, { units: "kilometers" });
+            return { newLen, newWid, midLat: newCenter.geometry.coordinates[1], midLng: newCenter.geometry.coordinates[0], bearingDeg: p.bearingDeg };
+          } else if (cid === "c1") {
+            // Front-Left: Anchored at c3 (Back-Right)
+            const anchor = curPts.c3.geometry.coordinates;
+            const offset = getLocalOffset(anchor[1], anchor[0], pos.lat, pos.lng, p.bearingDeg);
+            const newLen = Math.max(10, Math.min(2000, Math.round(offset.dy)));
+            const newWid = Math.max(5, Math.min(2000, Math.round(-offset.dx)));
+            const step = turf.destination(turf.point(anchor), (newLen / 2) / 1000, p.bearingDeg, { units: "kilometers" });
+            const newCenter = turf.destination(step, (newWid / 2) / 1000, (p.bearingDeg + 270) % 360, { units: "kilometers" });
+            return { newLen, newWid, midLat: newCenter.geometry.coordinates[1], midLng: newCenter.geometry.coordinates[0], bearingDeg: p.bearingDeg };
+          } else if (cid === "c3") {
+            // Back-Right: Anchored at c1 (Front-Left)
+            const anchor = curPts.c1.geometry.coordinates;
+            const offset = getLocalOffset(anchor[1], anchor[0], pos.lat, pos.lng, p.bearingDeg);
+            const newLen = Math.max(10, Math.min(2000, Math.round(-offset.dy)));
+            const newWid = Math.max(5, Math.min(2000, Math.round(offset.dx)));
+            const step = turf.destination(turf.point(anchor), (newLen / 2) / 1000, (p.bearingDeg + 180) % 360, { units: "kilometers" });
+            const newCenter = turf.destination(step, (newWid / 2) / 1000, (p.bearingDeg + 90) % 360, { units: "kilometers" });
+            return { newLen, newWid, midLat: newCenter.geometry.coordinates[1], midLng: newCenter.geometry.coordinates[0], bearingDeg: p.bearingDeg };
+          } else {
+            // Back-Left: Anchored at c2 (Front-Right)
+            const anchor = curPts.c2.geometry.coordinates;
+            const offset = getLocalOffset(anchor[1], anchor[0], pos.lat, pos.lng, p.bearingDeg);
+            const newLen = Math.max(10, Math.min(2000, Math.round(-offset.dy)));
+            const newWid = Math.max(5, Math.min(2000, Math.round(-offset.dx)));
+            const step = turf.destination(turf.point(anchor), (newLen / 2) / 1000, (p.bearingDeg + 180) % 360, { units: "kilometers" });
+            const newCenter = turf.destination(step, (newWid / 2) / 1000, (p.bearingDeg + 270) % 360, { units: "kilometers" });
+            return { newLen, newWid, midLat: newCenter.geometry.coordinates[1], midLng: newCenter.geometry.coordinates[0], bearingDeg: p.bearingDeg };
+          }
+        };
+
+        m.on("drag", () => {
+          const res = calculateCornerDrag(m.getLngLat());
+          if (!res) return;
+          const { newLen, newWid, midLat, midLng, bearingDeg } = res;
+          updateFootprintSource(midLat, midLng, newLen, newWid, bearingDeg);
+          markerRef.current?.setLngLat([midLng, midLat]);
+          syncHandlePositions(midLat, midLng, newLen, newWid, bearingDeg);
+          showTooltip(`${newLen}m × ${newWid}m (${(newLen * newWid).toLocaleString()} m²) [Corner Adjustment]`);
         });
 
         m.on("dragend", () => {
           hideTooltip();
-          const p = placementRef.current;
-          if (!p) return;
-          const pos = m.getLngLat();
-          const distM = calculateDistanceMeters(p.lat, p.lng, pos.lat, pos.lng);
-          const diagM = Math.sqrt((p.lengthM / 2) ** 2 + (p.widthM / 2) ** 2);
-          const scale = distM / Math.max(1, diagM);
-          const newLen = Math.max(10, Math.min(2000, Math.round(p.lengthM * scale)));
-          const newWid = Math.max(5, Math.min(1000, Math.round(p.widthM * scale)));
-
+          const res = calculateCornerDrag(m.getLngLat());
+          if (!res) return;
+          const { newLen, newWid, midLat, midLng, bearingDeg } = res;
           onPlacementChangeRef.current?.({
-            lat: p.lat,
-            lng: p.lng,
+            lat: midLat,
+            lng: midLng,
             lengthM: newLen,
             widthM: newWid,
-            bearingDeg: p.bearingDeg,
+            bearingDeg,
           });
         });
 
@@ -1406,7 +1794,14 @@ export const MapView: React.FC<MapViewProps> = ({
       el.className = "urjasetu-handle urjasetu-handle-rotate";
       el.style.cursor = "crosshair";
       el.title = "Drag to rotate bearing angle";
-      el.innerHTML = `<div style="width:18px;height:18px;background:#1F6F54;color:white;border:1.5px solid white;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:bold;user-select:none;">↻</div>`;
+      el.innerHTML = `<div style="width:20px;height:20px;background:#1F6F54;color:white;border:2px solid white;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold;user-select:none;transition:transform 0.15s ease;">↻</div>`;
+
+      el.addEventListener("mouseenter", () => {
+        (el.firstElementChild as HTMLElement)?.style.setProperty("transform", "scale(1.25)");
+      });
+      el.addEventListener("mouseleave", () => {
+        (el.firstElementChild as HTMLElement)?.style.setProperty("transform", "scale(1)");
+      });
 
       const m = new maplibregl.Marker({ element: el, draggable: true })
         .setLngLat(pts.pRotate.geometry.coordinates as [number, number])
