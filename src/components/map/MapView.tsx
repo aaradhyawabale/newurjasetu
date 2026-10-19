@@ -46,6 +46,7 @@ interface MapViewProps {
   onMapClick: (lat: number, lng: number) => void;
   onMapLoaded?: (exportFn: () => string | null) => void;
   className?: string;
+  activeCity?: "pune" | "pcmc" | "nashik";
 }
 
 export const MapView: React.FC<MapViewProps> = ({
@@ -62,6 +63,7 @@ export const MapView: React.FC<MapViewProps> = ({
   onMapClick,
   onMapLoaded,
   className = "",
+  activeCity,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -164,6 +166,36 @@ export const MapView: React.FC<MapViewProps> = ({
         paint: {
           "line-color": "#0284c7",
           "line-width": 2,
+          "line-dasharray": [4, 2],
+        },
+      });
+
+      // Add PMC candidate municipal boundary source and unobtrusive styling layers
+      map.addSource("pmc-boundary-source", {
+        type: "geojson",
+        data: {
+          type: "FeatureCollection",
+          features: [],
+        },
+      });
+
+      map.addLayer({
+        id: "pmc-boundary-fill",
+        type: "fill",
+        source: "pmc-boundary-source",
+        paint: {
+          "fill-color": "#0284c7",
+          "fill-opacity": 0.04,
+        },
+      });
+
+      map.addLayer({
+        id: "pmc-boundary-line",
+        type: "line",
+        source: "pmc-boundary-source",
+        paint: {
+          "line-color": "#0284c7",
+          "line-width": 1.75,
           "line-dasharray": [4, 2],
         },
       });
@@ -588,6 +620,46 @@ export const MapView: React.FC<MapViewProps> = ({
       ],
     });
   }, [studyArea, isLoaded]);
+
+  // Update PMC candidate municipal boundary on map
+  useEffect(() => {
+    if (!mapRef.current || !isLoaded) return;
+    const boundarySource = mapRef.current.getSource("pmc-boundary-source") as maplibregl.GeoJSONSource;
+    if (!boundarySource) return;
+
+    // Show PMC candidate boundary when actively viewing Pune or when coordinates fall within Pune bounding region
+    const isPune =
+      activeCity === "pune" ||
+      (!activeCity &&
+        centerLat >= 18.35 &&
+        centerLat <= 18.63 &&
+        centerLng >= 73.65 &&
+        centerLng <= 74.05);
+
+    if (isPune) {
+      fetch("/api/boundaries?city=pune")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data?.success && data?.data?.boundary && mapRef.current) {
+            const currentSource = mapRef.current.getSource(
+              "pmc-boundary-source"
+            ) as maplibregl.GeoJSONSource;
+            if (currentSource) {
+              currentSource.setData({
+                type: "FeatureCollection",
+                features: [data.data.boundary],
+              });
+            }
+          }
+        })
+        .catch((err) => {
+          console.warn("Could not load PMC candidate boundary:", err);
+        });
+    } else {
+      // Clear PMC boundary when viewing other cities (PCMC or Nashik)
+      boundarySource.setData({ type: "FeatureCollection", features: [] });
+    }
+  }, [centerLat, centerLng, activeCity, isLoaded]);
 
   // Update Analyzed OSM Evidence Features & Geodesic Search Rings on Map
   useEffect(() => {

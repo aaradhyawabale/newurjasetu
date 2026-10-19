@@ -656,6 +656,13 @@ export const AppShell: React.FC<AppShellProps> = ({
           <MapView
             centerLat={mapCenter.lat}
             centerLng={mapCenter.lng}
+            activeCity={
+              locationLabel.includes("Nashik")
+                ? "nashik"
+                : locationLabel.includes("PCMC") || locationLabel.includes("Pimpri")
+                ? "pcmc"
+                : "pune"
+            }
             activeType={activePlacement?.type || activeTool}
             placement={activePlacement}
             studyArea={studyArea}

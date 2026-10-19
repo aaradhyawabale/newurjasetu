@@ -17,13 +17,26 @@ describe("Scenario Comparison & Simulator Integration Tests", () => {
   let user1Placement2Id: string;
 
   beforeEach(async () => {
+    // Clear only test-generated entities for scenario comparison test suite
+    const testUsers = await prisma.user.findMany({
+      where: { email: { contains: "scenarios.urjasetu.test" } },
+      select: { id: true },
+    });
+    const testUserIds = testUsers.map((u) => u.id);
+    if (testUserIds.length > 0) {
+      await prisma.analysis.deleteMany({ where: { userId: { in: testUserIds } } });
+      await prisma.placement.deleteMany({ where: { userId: { in: testUserIds } } });
+      await prisma.scenario.deleteMany({ where: { userId: { in: testUserIds } } });
+      await prisma.user.deleteMany({ where: { id: { in: testUserIds } } });
+    }
+
     const pwd = await hashPassword("password123");
-    const uniqueSuffix = `${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const uniqueSuffix = `scen-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
 
     // User 1
     const u1 = await prisma.user.create({
       data: {
-        email: `planner1-${uniqueSuffix}@urjasetu.local`,
+        email: `planner1-${uniqueSuffix}@scenarios.urjasetu.test`,
         passwordHash: pwd,
         name: "Planner One",
         scenarios: {
@@ -39,7 +52,7 @@ describe("Scenario Comparison & Simulator Integration Tests", () => {
     // User 2
     const u2 = await prisma.user.create({
       data: {
-        email: `planner2-${uniqueSuffix}@urjasetu.local`,
+        email: `planner2-${uniqueSuffix}@scenarios.urjasetu.test`,
         passwordHash: pwd,
         name: "Planner Two",
         scenarios: {
@@ -255,7 +268,7 @@ describe("Scenario Comparison & Simulator Integration Tests", () => {
 
   afterAll(async () => {
     const testUsers = await prisma.user.findMany({
-      where: { email: { contains: "urjasetu.local" } },
+      where: { email: { contains: "scenarios.urjasetu.test" } },
       select: { id: true },
     });
     const testUserIds = testUsers.map((u) => u.id);

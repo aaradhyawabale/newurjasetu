@@ -8,7 +8,35 @@ import {
   OsmElement,
 } from "./types";
 import { normalizeOsmElements } from "./overpass";
-import { calculateDistanceMeters } from "../gis/geometry";
+import { calculateDistanceMeters, isPointInPolygon } from "../gis/geometry";
+
+let pmcCandidateBoundaryCache: any | null = null;
+
+/**
+ * Loads the PMC candidate boundary GeoJSON asset.
+ * Note: Provenance and Cantonment jurisdiction remain unconfirmed. This candidate
+ * provides post-2021 municipal coverage (~521 km²) for spatial planning.
+ */
+export function loadPmcCandidateBoundary(): any | null {
+  if (pmcCandidateBoundaryCache) return pmcCandidateBoundaryCache;
+  const candidatePath = path.join(process.cwd(), "src", "data", "boundaries", "pmc_candidate_boundary.geojson");
+  if (!fs.existsSync(candidatePath)) {
+    return null;
+  }
+  try {
+    const raw = fs.readFileSync(candidatePath, "utf-8");
+    const parsed = JSON.parse(raw);
+    const feature = parsed.features ? parsed.features[0] : parsed;
+    if (feature && feature.geometry) {
+      pmcCandidateBoundaryCache = feature;
+      return pmcCandidateBoundaryCache;
+    }
+    return null;
+  } catch (err) {
+    console.warn("Error reading PMC candidate boundary:", err);
+    return null;
+  }
+}
 
 export type CityId = "pune" | "pcmc" | "nashik";
 
@@ -129,34 +157,43 @@ export function loadNashikSnapshot(): SnapshotSchema {
 }
 
 export function isInsidePuneStudyArea(lat: number, lng: number): boolean {
-  try {
-    const { bbox } = loadPuneSnapshot().metadata;
-    return (
-      lat >= bbox.swLat - 0.05 &&
-      lat <= 18.58 &&
-      lng >= bbox.swLng - 0.05 &&
-      lng <= bbox.neLng + 0.05
-    );
-  } catch {
-    return lat >= 18.43 && lat <= 18.58 && lng >= 73.75 && lng <= 73.95;
+  if (typeof lat !== "number" || typeof lng !== "number" || !Number.isFinite(lat) || !Number.isFinite(lng)) {
+    return false;
   }
+  const candidate = loadPmcCandidateBoundary();
+  if (candidate) {
+    return isPointInPolygon(lat, lng, candidate);
+  }
+  // Safe fallback if candidate boundary asset is missing
+  return false;
 }
 
 export function isInsidePcmcStudyArea(lat: number, lng: number): boolean {
+  if (typeof lat !== "number" || typeof lng !== "number" || !Number.isFinite(lat) || !Number.isFinite(lng)) {
+    return false;
+  }
+  // Precedence rule: If coordinate falls within the verified PMC candidate polygon,
+  // it cannot be classified as PCMC simply because it falls inside PCMC's bounding corridor.
+  if (isInsidePuneStudyArea(lat, lng)) {
+    return false;
+  }
   try {
     const { bbox } = loadPcmcSnapshot().metadata;
     return (
-      lat > 18.58 &&
+      lat >= bbox.swLat - 0.02 &&
       lat <= bbox.neLat + 0.02 &&
       lng >= bbox.swLng - 0.02 &&
       lng <= bbox.neLng + 0.02
     );
   } catch {
-    return lat > 18.58 && lat <= 18.73 && lng >= 73.71 && lng <= 73.88;
+    return lat >= 18.58 && lat <= 18.73 && lng >= 73.71 && lng <= 73.88;
   }
 }
 
 export function isInsideNashikStudyArea(lat: number, lng: number): boolean {
+  if (typeof lat !== "number" || typeof lng !== "number" || !Number.isFinite(lat) || !Number.isFinite(lng)) {
+    return false;
+  }
   try {
     const { bbox } = loadNashikSnapshot().metadata;
     return (
@@ -171,9 +208,19 @@ export function isInsideNashikStudyArea(lat: number, lng: number): boolean {
 }
 
 export function getStudyArea(lat: number, lng: number): CityId | null {
+  if (typeof lat !== "number" || typeof lng !== "number" || !Number.isFinite(lat) || !Number.isFinite(lng)) {
+    return null;
+  }
+  // 1. Nashik distinct northern coordinates (~20°N)
   if (isInsideNashikStudyArea(lat, lng)) return "nashik";
-  if (isInsidePcmcStudyArea(lat, lng)) return "pcmc";
+
+  // 2. Pune Municipal Corporation check against verified polygon boundary
   if (isInsidePuneStudyArea(lat, lng)) return "pune";
+
+  // 3. PCMC corridor fallback for locations outside PMC polygon within PCMC corridor
+  if (isInsidePcmcStudyArea(lat, lng)) return "pcmc";
+
+  // 4. Do not silently assign locations that cannot be confidently classified
   return null;
 }
 

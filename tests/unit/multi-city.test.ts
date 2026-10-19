@@ -40,10 +40,57 @@ describe("Multi-City GIS Integration & Snapshot Provider (Pune, PCMC, Nashik)", 
     it("returns null for out-of-study-area coordinates to prevent synthetic fabrication", () => {
       expect(getStudyArea(28.6139, 77.2090)).toBeNull(); // New Delhi
       expect(getStudyArea(12.9716, 77.5946)).toBeNull(); // Bengaluru
+      expect(getStudyArea(18.9438, 72.8232)).toBeNull(); // Mumbai
+      expect(getStudyArea(18.7557, 73.4091)).toBeNull(); // Lonavala
       expect(getSnapshotOverpass(28.6139, 77.2090, 1000)).toBeNull();
       expect(getSnapshotElevation(28.6139, 77.2090)).toBeNull();
       expect(getSnapshotSolar(28.6139, 77.2090)).toBeNull();
       expect(getSnapshotReverseGeocode(28.6139, 77.2090)).toBeNull();
+    });
+
+    it("enforces PMC polygon precedence over PCMC bounding box in northern Pune", () => {
+      // Kalas in northern Pune (lat 18.585) lies inside PMC candidate polygon despite lat > 18.58
+      expect(isInsidePuneStudyArea(18.5850, 73.8700)).toBe(true);
+      expect(isInsidePcmcStudyArea(18.5850, 73.8700)).toBe(false);
+      expect(getStudyArea(18.5850, 73.8700)).toBe("pune");
+
+      // Dhanori in northern Pune (lat 18.590)
+      expect(isInsidePuneStudyArea(18.5900, 73.8800)).toBe(true);
+      expect(isInsidePcmcStudyArea(18.5900, 73.8800)).toBe(false);
+      expect(getStudyArea(18.5900, 73.8800)).toBe("pune");
+    });
+
+    it("correctly routes 2021 merged peripheral villages to Pune", () => {
+      // Mahalunge (western peripheral village merged June 2021)
+      expect(isInsidePuneStudyArea(18.5510, 73.7550)).toBe(true);
+      expect(getStudyArea(18.5510, 73.7550)).toBe("pune");
+
+      // Wagholi (eastern peripheral village merged June 2021)
+      expect(isInsidePuneStudyArea(18.5800, 73.9850)).toBe(true);
+      expect(getStudyArea(18.5800, 73.9850)).toBe("pune");
+
+      // Kirkatwadi (southwestern peripheral village merged June 2021)
+      expect(isInsidePuneStudyArea(18.4200, 73.7850)).toBe(true);
+      expect(getStudyArea(18.4200, 73.7850)).toBe("pune");
+    });
+
+    it("punches out the Mundhwa macro exclusion hole from PMC classification", () => {
+      // Macro exclusion centroid (0.815 km² non-PMC defense/railway enclave)
+      expect(isInsidePuneStudyArea(18.5241, 73.9120)).toBe(false);
+      expect(getStudyArea(18.5241, 73.9120)).toBeNull();
+
+      // Adjacent Mundhwa urban ward area is classified as Pune
+      expect(isInsidePuneStudyArea(18.5350, 73.9250)).toBe(true);
+      expect(getStudyArea(18.5350, 73.9250)).toBe("pune");
+    });
+
+    it("handles missing, invalid, or non-finite coordinates safely without crashing", () => {
+      expect(getStudyArea(NaN as any, 73.8567)).toBeNull();
+      expect(getStudyArea(18.5204, NaN as any)).toBeNull();
+      expect(getStudyArea(Infinity as any, 73.8567)).toBeNull();
+      expect(isInsidePuneStudyArea(NaN as any, 73.8567)).toBe(false);
+      expect(isInsidePcmcStudyArea(NaN as any, 73.8567)).toBe(false);
+      expect(isInsideNashikStudyArea(NaN as any, 73.8567)).toBe(false);
     });
   });
 

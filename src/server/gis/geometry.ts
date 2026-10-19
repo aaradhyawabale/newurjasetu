@@ -325,3 +325,22 @@ export function doesFootprintIntersect(
   }
 }
 
+/**
+ * Checks whether a given [lat, lng] point lies inside a GeoJSON Polygon or MultiPolygon.
+ * Strictly respects GeoJSON coordinate ordering [longitude, latitude] for Turf operations.
+ */
+export function isPointInPolygon(
+  lat: number,
+  lng: number,
+  polygon: Feature<Polygon | GeoJSON.MultiPolygon> | Polygon | GeoJSON.MultiPolygon
+): boolean {
+  const coordCheck = validateCoordinates(lat, lng);
+  if (!coordCheck.valid) return false;
+  try {
+    const pt = turf.point([lng, lat]);
+    return turf.booleanPointInPolygon(pt, polygon as any);
+  } catch {
+    return false;
+  }
+}
+

@@ -4,6 +4,12 @@ import { prisma } from "@/server/db/prisma";
 import { requireAuthUser } from "@/server/auth/session";
 import { successResponse, errorResponse, handleRouteError } from "@/server/utils/response";
 import { InfrastructureTypeId, INFRASTRUCTURE_TYPES } from "@/config/infra-types";
+import {
+  isInsidePuneStudyArea,
+  isInsidePcmcStudyArea,
+  isInsideNashikStudyArea,
+  CityId,
+} from "@/server/providers/snapshot-loader";
 
 const createPlacementSchema = z.object({
   scenarioId: z.string().uuid(),
@@ -17,6 +23,8 @@ const createPlacementSchema = z.object({
   bearingDeg: z.number().default(0),
   params: z.record(z.any()).default({}),
   label: z.string().optional(),
+  city: z.enum(["pune", "pcmc", "nashik"]).optional(),
+  studyAreaId: z.string().optional(),
 });
 
 export async function GET(req: NextRequest) {
@@ -72,6 +80,62 @@ export async function POST(req: NextRequest) {
 
     if (!scenario) {
       return errorResponse("Scenario not found or access denied", "NOT_FOUND", 404);
+    }
+
+    // Determine target study area if specified in request or scenario
+    let targetCity: CityId | null = (data.city || (data.params?.city as CityId)) || null;
+    if (!targetCity && data.studyAreaId) {
+      const sId = data.studyAreaId.toLowerCase();
+      if (sId.includes("pune")) targetCity = "pune";
+      else if (sId.includes("pcmc") || sId.includes("pimpri")) targetCity = "pcmc";
+      else if (sId.includes("nashik")) targetCity = "nashik";
+    }
+
+    if (!targetCity) {
+      const scName = scenario.name.toLowerCase();
+      if (scName.includes("pune") && !scName.includes("pcmc") && !scName.includes("pimpri")) {
+        targetCity = "pune";
+      } else if (scName.includes("pcmc") || scName.includes("pimpri")) {
+        targetCity = "pcmc";
+      } else if (scName.includes("nashik")) {
+        targetCity = "nashik";
+      }
+    }
+
+    if (targetCity) {
+      if (targetCity === "pune") {
+        if (!isInsidePuneStudyArea(data.lat, data.lng)) {
+          return errorResponse(
+            `Coordinates [${data.lat.toFixed(4)}, ${data.lng.toFixed(4)}] are outside the supported Pune Municipal Corporation (PMC) boundary.`,
+            "VALIDATION_ERROR",
+            400
+          );
+        }
+      } else if (targetCity === "pcmc") {
+        // Enforce precedence: if point is inside PMC candidate polygon, reject PCMC classification
+        if (isInsidePuneStudyArea(data.lat, data.lng)) {
+          return errorResponse(
+            `Coordinates [${data.lat.toFixed(4)}, ${data.lng.toFixed(4)}] fall inside the Pune Municipal Corporation (PMC) boundary, not Pimpri-Chinchwad (PCMC).`,
+            "VALIDATION_ERROR",
+            400
+          );
+        }
+        if (!isInsidePcmcStudyArea(data.lat, data.lng)) {
+          return errorResponse(
+            `Coordinates [${data.lat.toFixed(4)}, ${data.lng.toFixed(4)}] are outside the supported Pimpri-Chinchwad (PCMC) study area.`,
+            "VALIDATION_ERROR",
+            400
+          );
+        }
+      } else if (targetCity === "nashik") {
+        if (!isInsideNashikStudyArea(data.lat, data.lng)) {
+          return errorResponse(
+            `Coordinates [${data.lat.toFixed(4)}, ${data.lng.toFixed(4)}] are outside the supported Nashik (NMC) study area.`,
+            "VALIDATION_ERROR",
+            400
+          );
+        }
+      }
     }
 
     const label = data.label?.trim() || `${data.type} (${data.lat.toFixed(4)}, ${data.lng.toFixed(4)})`;

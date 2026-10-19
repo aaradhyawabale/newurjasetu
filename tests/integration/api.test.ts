@@ -10,9 +10,9 @@ describe("API Route Integration & Auth Ownership", () => {
   let user1ScenarioId: string;
 
   beforeEach(async () => {
-    // Clear only test-generated entities (preserve demo@urjasetu.gov.in and seeded plans)
+    // Clear only test-generated entities for api test suite
     const testUsers = await prisma.user.findMany({
-      where: { email: { contains: "urjasetu.local" } },
+      where: { email: { contains: "api.urjasetu.test" } },
       select: { id: true },
     });
     const testUserIds = testUsers.map((u) => u.id);
@@ -29,7 +29,7 @@ describe("API Route Integration & Auth Ownership", () => {
     // Create User 1
     const u1 = await prisma.user.create({
       data: {
-        email: `planner1-${uniqueSuffix}@urjasetu.local`,
+        email: `planner1-${uniqueSuffix}@api.urjasetu.test`,
         passwordHash: pwd,
         name: "Planner One",
         scenarios: {
@@ -45,7 +45,7 @@ describe("API Route Integration & Auth Ownership", () => {
     // Create User 2
     const u2 = await prisma.user.create({
       data: {
-        email: `planner2-${uniqueSuffix}@urjasetu.local`,
+        email: `planner2-${uniqueSuffix}@api.urjasetu.test`,
         passwordHash: pwd,
         name: "Planner Two",
         scenarios: {
@@ -268,9 +268,134 @@ describe("API Route Integration & Auth Ownership", () => {
     expect(resPdf.headers.get("Content-Type")).toBe("application/pdf");
   });
 
+  it("enforces spatial containment on POST /api/placements based on requested study area", async () => {
+    const { POST: createPlacement } = await import("@/app/api/placements/route");
+    const { NextRequest } = await import("next/server");
+
+    // Create a Pune-specific scenario
+    const puneScenario = await prisma.scenario.create({
+      data: {
+        userId: user1Id,
+        name: "Pune EV Infrastructure Master Plan 2026",
+      },
+    });
+
+    // 1. Valid coordinate inside Pune (Shivajinagar)
+    const validReq = new NextRequest("http://localhost:3000/api/placements", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        cookie: `urjasetu_session=${user1Token}`,
+      },
+      body: JSON.stringify({
+        scenarioId: puneScenario.id,
+        type: "EV Charging Station",
+        lat: 18.5314,
+        lng: 73.8446,
+        lengthM: 25,
+        widthM: 15,
+      }),
+    });
+    const res1 = await createPlacement(validReq);
+    expect(res1.status).toBe(201);
+    const body1 = await res1.json();
+    expect(body1.placement.lat).toBe(18.5314);
+
+    // 2. Reject out-of-boundary coordinate for Pune scenario (e.g. New Delhi)
+    const invalidReq = new NextRequest("http://localhost:3000/api/placements", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        cookie: `urjasetu_session=${user1Token}`,
+      },
+      body: JSON.stringify({
+        scenarioId: puneScenario.id,
+        type: "EV Charging Station",
+        lat: 28.6139,
+        lng: 77.2090,
+        lengthM: 25,
+        widthM: 15,
+      }),
+    });
+    const res2 = await createPlacement(invalidReq);
+    expect(res2.status).toBe(400);
+    const body2 = await res2.json();
+    expect(body2.code).toBe("VALIDATION_ERROR");
+    expect(body2.message).toContain("outside the supported Pune Municipal Corporation (PMC) boundary");
+
+    // 3. Reject PMC coordinate if requested for PCMC (enforcing precedence)
+    const pcmcScenario = await prisma.scenario.create({
+      data: {
+        userId: user1Id,
+        name: "PCMC Transit Corridor EV Siting 2026",
+      },
+    });
+
+    const crossCityReq = new NextRequest("http://localhost:3000/api/placements", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        cookie: `urjasetu_session=${user1Token}`,
+      },
+      body: JSON.stringify({
+        scenarioId: pcmcScenario.id,
+        type: "EV Charging Station",
+        lat: 18.5204, // Central Pune Shaniwar Wada
+        lng: 73.8567,
+        lengthM: 25,
+        widthM: 15,
+      }),
+    });
+    const res3 = await createPlacement(crossCityReq);
+    expect(res3.status).toBe(400);
+    const body3 = await res3.json();
+    expect(body3.code).toBe("VALIDATION_ERROR");
+    expect(body3.message).toContain("fall inside the Pune Municipal Corporation (PMC) boundary, not Pimpri-Chinchwad");
+
+    // 4. Accept valid PCMC coordinate (Bhosari)
+    const validPcmcReq = new NextRequest("http://localhost:3000/api/placements", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        cookie: `urjasetu_session=${user1Token}`,
+      },
+      body: JSON.stringify({
+        scenarioId: pcmcScenario.id,
+        type: "EV Charging Station",
+        lat: 18.6548,
+        lng: 73.7695,
+        lengthM: 25,
+        widthM: 15,
+      }),
+    });
+    const res4 = await createPlacement(validPcmcReq);
+    expect(res4.status).toBe(201);
+  });
+
+  it("serves municipal boundary GeoJSON via GET /api/boundaries", async () => {
+    const { GET: getBoundaries } = await import("@/app/api/boundaries/route");
+    const { NextRequest } = await import("next/server");
+
+    // Query Pune boundary
+    const reqPune = new NextRequest("http://localhost:3000/api/boundaries?city=pune");
+    const resPune = await getBoundaries(reqPune);
+    expect(resPune.status).toBe(200);
+    const dataPune = await resPune.json();
+    expect(dataPune.boundary).not.toBeNull();
+    expect(dataPune.boundary.geometry.type).toBe("Polygon");
+
+    // Query PCMC boundary (documents unavailable authoritative polygon)
+    const reqPcmc = new NextRequest("http://localhost:3000/api/boundaries?city=pcmc");
+    const resPcmc = await getBoundaries(reqPcmc);
+    expect(resPcmc.status).toBe(200);
+    const dataPcmc = await resPcmc.json();
+    expect(dataPcmc.boundary).toBeNull();
+    expect(dataPcmc.message).toContain("Authoritative PCMC municipal boundary polygon is unavailable");
+  });
+
   afterAll(async () => {
     const testUsers = await prisma.user.findMany({
-      where: { email: { contains: "urjasetu.local" } },
+      where: { email: { contains: "api.urjasetu.test" } },
       select: { id: true },
     });
     const testUserIds = testUsers.map((u) => u.id);
