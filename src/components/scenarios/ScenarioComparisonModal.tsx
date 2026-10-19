@@ -24,6 +24,15 @@ import {
   Scale,
   Users,
   Zap,
+  BarChart3,
+  Table,
+  Sparkles,
+  ChevronRight,
+  Activity,
+  PieChart,
+  Check,
+  Eye,
+  ArrowUpRight,
 } from "lucide-react";
 import { ScenarioComparisonResult, CandidateSummary } from "@/server/scenarios/types";
 import { StatusBadge } from "../ui/StatusBadge";
@@ -35,6 +44,84 @@ interface ScenarioComparisonModalProps {
   scenarioName?: string;
   selectedPlacementIds?: string[];
   onSelectCandidateLocation?: (lat: number, lng: number) => void;
+}
+
+interface PillarBreakdown {
+  id: string;
+  name: string;
+  score: number;
+  weight: number;
+}
+
+function getCandidatePillars(criteria: any[] = [], overallScore: number): PillarBreakdown[] {
+  const buckets: Record<string, { name: string; weight: number; weightedScore: number }> = {
+    connectivity: { name: "Corridor & Road Access", weight: 0, weightedScore: 0 },
+    catchment: { name: "Citizen & Service Catchment", weight: 0, weightedScore: 0 },
+    safety: { name: "Safety & Buffer Clearances", weight: 0, weightedScore: 0 },
+    terrain: { name: "Topography & Land Fit", weight: 0, weightedScore: 0 },
+  };
+
+  for (const c of criteria) {
+    const id = (c.id || c.criterionId || "").toLowerCase();
+    const name = (c.label || c.name || "").toLowerCase();
+    const combined = `${id} ${name}`;
+    const weight = c.weight || 1;
+    const score = typeof c.score === "number" ? c.score : overallScore;
+
+    if (
+      combined.includes("road") ||
+      combined.includes("arterial") ||
+      combined.includes("highway") ||
+      combined.includes("street") ||
+      combined.includes("transit") ||
+      combined.includes("connectivity") ||
+      combined.includes("access")
+    ) {
+      buckets.connectivity.weight += weight;
+      buckets.connectivity.weightedScore += score * weight;
+    } else if (
+      combined.includes("service") ||
+      combined.includes("catchment") ||
+      combined.includes("amenity") ||
+      combined.includes("population") ||
+      combined.includes("equity") ||
+      combined.includes("park") ||
+      combined.includes("hospital")
+    ) {
+      buckets.catchment.weight += weight;
+      buckets.catchment.weightedScore += score * weight;
+    } else if (
+      combined.includes("buffer") ||
+      combined.includes("hazard") ||
+      combined.includes("setback") ||
+      combined.includes("railway") ||
+      combined.includes("flood") ||
+      combined.includes("conflict") ||
+      combined.includes("exclusion")
+    ) {
+      buckets.safety.weight += weight;
+      buckets.safety.weightedScore += score * weight;
+    } else {
+      buckets.terrain.weight += weight;
+      buckets.terrain.weightedScore += score * weight;
+    }
+  }
+
+  return Object.entries(buckets).map(([id, b]) => {
+    const score = b.weight > 0 ? Math.round(b.weightedScore / b.weight) : overallScore;
+    return {
+      id,
+      name: b.name,
+      score: Math.min(100, Math.max(0, score)),
+      weight: Math.round(b.weight * 100),
+    };
+  });
+}
+
+function getScoreColor(score: number): string {
+  if (score >= 75) return "#059669"; // emerald-600
+  if (score >= 50) return "#d97706"; // amber-600
+  return "#dc2626"; // red-600
 }
 
 export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = ({
@@ -49,10 +136,10 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [viewMode, setViewMode] = useState<"executive" | "deep">("executive");
   const [activeTab, setActiveTab] = useState<
     "rankings" | "tradeoffs" | "baseline" | "equity" | "criteria" | "uncertainty"
   >("rankings");
-
 
   const loadComparison = async () => {
     setIsLoading(true);
@@ -130,9 +217,9 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
       <div className="bg-white rounded-panel border border-stone-200 shadow-2xl w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden text-stone-900">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-stone-200 flex items-center justify-between bg-stone-50/70">
+        <div className="px-6 py-3.5 border-b border-stone-200 flex flex-wrap items-center justify-between gap-3 bg-stone-50/80">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-md bg-emerald-800 text-white flex items-center justify-center shadow-xs">
+            <div className="w-9 h-9 rounded-md bg-emerald-800 text-white flex items-center justify-center shadow-xs shrink-0">
               <GitCompare className="w-5 h-5 text-emerald-100" />
             </div>
             <div>
@@ -151,7 +238,37 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            {/* View Mode Segmented Switcher */}
+            <div className="flex items-center p-0.5 bg-stone-200/80 rounded-control border border-stone-300/80 shadow-2xs">
+              <button
+                type="button"
+                onClick={() => setViewMode("executive")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                  viewMode === "executive"
+                    ? "bg-white text-emerald-800 shadow-xs font-bold"
+                    : "text-stone-600 hover:text-stone-900"
+                }`}
+                title="Executive Visuals (Charts, KPIs & Summary)"
+              >
+                <BarChart3 className="w-3.5 h-3.5 text-emerald-700" />
+                <span>Executive Visuals</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("deep")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                  viewMode === "deep"
+                    ? "bg-white text-emerald-800 shadow-xs font-bold"
+                    : "text-stone-600 hover:text-stone-900"
+                }`}
+                title="Deep Analysis (Granular tables, statutory criteria & weights)"
+              >
+                <Table className="w-3.5 h-3.5 text-emerald-700" />
+                <span>Deep Analysis</span>
+              </button>
+            </div>
+
             <button
               type="button"
               onClick={handleDownloadPdf}
@@ -166,6 +283,7 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
               )}
               <span>Export PDF</span>
             </button>
+
             <button
               type="button"
               onClick={onClose}
@@ -298,275 +416,681 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
               </button>
             </div>
 
+            {/* Mode Banner Indicator */}
+            <div className="px-6 py-2 bg-stone-100/70 border-b border-stone-200/80 flex items-center justify-between text-xs text-stone-600">
+              <div className="flex items-center gap-2">
+                {viewMode === "executive" ? (
+                  <>
+                    <BarChart3 className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                    <span>
+                      <strong>Executive Visuals Mode:</strong> Displaying high-impact graphs, comparative charts, and concise planner decisions.
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <Table className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                    <span>
+                      <strong>Deep Analysis Mode:</strong> Displaying complete engineering matrices, statutory benchmarks, and full technical lineage.
+                    </span>
+                  </>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setViewMode(viewMode === "executive" ? "deep" : "executive")}
+                className="text-[11px] font-mono text-emerald-800 hover:text-emerald-950 underline font-semibold flex items-center gap-1 shrink-0"
+              >
+                {viewMode === "executive" ? "Switch to Deep Analysis" : "← Return to Executive Visuals"}
+              </button>
+            </div>
 
             {/* Tab Panes */}
             <div className="flex-1 overflow-y-auto p-6 bg-stone-50/50">
-              {/* TAB 1: RANKINGS & EXECUTIVE OVERVIEW */}
+              {/* ========================================================================= */}
+              {/* TAB 1: RANKINGS & EXECUTIVE OVERVIEW                                      */}
+              {/* ========================================================================= */}
               {activeTab === "rankings" && (
                 <div className="flex flex-col gap-5">
                   {/* Executive Verdict Banner */}
-                  <div className="p-4 rounded-panel bg-emerald-50/70 border border-emerald-200/80 flex items-start gap-3">
+                  <div className="p-4 rounded-panel bg-emerald-50/80 border border-emerald-300 flex items-start gap-3 shadow-2xs">
                     <div className="w-8 h-8 rounded-full bg-emerald-700 text-white flex items-center justify-center shrink-0">
                       <Trophy className="w-4 h-4" />
                     </div>
-                    <div>
-                      <h4 className="text-xs font-bold font-mono uppercase tracking-wider text-emerald-950">
-                        Executive Recommendation
-                      </h4>
-                      <p className="text-xs text-stone-800 mt-1 leading-relaxed">
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-xs font-bold font-mono uppercase tracking-wider text-emerald-950">
+                          Executive Recommendation
+                        </h4>
+                        <span className="text-[10px] font-mono bg-emerald-100/80 text-emerald-900 px-2 py-0.5 rounded border border-emerald-300 font-semibold">
+                          Top Site: {comparison.ranking[0]?.label || "N/A"} ({comparison.ranking[0]?.overallScore}/100)
+                        </span>
+                      </div>
+                      <p className="text-xs text-stone-800 mt-1.5 leading-relaxed">
                         {comparison.executiveSummary}
                       </p>
                     </div>
                   </div>
 
-                  {/* Candidate Ranking Cards Grid */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {comparison.ranking.map((rank) => {
-                      const cand = comparison.candidates.find((c) => c.placementId === rank.placementId);
-                      const isWinner = rank.rank === 1 && !rank.hasMandatoryViolation;
+                  {/* EXECUTIVE MODE: VISUAL SCORE COMPARISON BARS & PILLARS */}
+                  {viewMode === "executive" ? (
+                    <div className="flex flex-col gap-5">
+                      {/* Comparative Horizontal Score Bars */}
+                      <div className="p-4 bg-white rounded-panel border border-stone-200 shadow-2xs flex flex-col gap-3">
+                        <div className="flex items-center justify-between border-b border-stone-100 pb-2">
+                          <span className="text-xs font-mono uppercase tracking-wider font-bold text-stone-800 flex items-center gap-2">
+                            <BarChart3 className="w-4 h-4 text-emerald-700" />
+                            <span>Head-to-Head Candidate Siting Scores</span>
+                          </span>
+                          <span className="text-[10px] font-mono text-stone-400">
+                            Evaluated across Indian Town Planning Norms (URDPFI & IRC)
+                          </span>
+                        </div>
 
-                      return (
-                        <div
-                          key={rank.placementId}
-                          className={`rounded-panel border p-4 bg-white shadow-2xs flex flex-col justify-between transition-all ${
-                            isWinner
-                              ? "border-emerald-700/60 ring-2 ring-emerald-600/20"
-                              : rank.hasMandatoryViolation
-                              ? "border-red-300 bg-red-50/20"
-                              : "border-stone-200"
-                          }`}
-                        >
-                          <div>
-                            {/* Card Header */}
-                            <div className="flex items-center justify-between mb-2">
-                              <span
-                                className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full uppercase ${
+                        <div className="space-y-3 pt-1">
+                          {comparison.ranking.map((rank) => {
+                            const isWinner = rank.rank === 1 && !rank.hasMandatoryViolation;
+                            const leaderScore = comparison.ranking[0]?.overallScore || 0;
+                            const delta = rank.overallScore - leaderScore;
+
+                            return (
+                              <div
+                                key={rank.placementId}
+                                className={`p-3 rounded-control border transition-all ${
                                   isWinner
-                                    ? "bg-emerald-700 text-white"
-                                    : "bg-stone-100 text-stone-600 border border-stone-200"
+                                    ? "bg-emerald-50/40 border-emerald-300 ring-1 ring-emerald-500/20"
+                                    : "bg-stone-50/60 border-stone-200"
                                 }`}
                               >
-                                Rank #{rank.rank}
-                              </span>
-                              <span className="text-[10px] font-mono text-stone-400 truncate">
-                                {rank.type}
-                              </span>
-                            </div>
+                                <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+                                  <div className="flex items-center gap-2">
+                                    <span
+                                      className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full uppercase ${
+                                        isWinner
+                                          ? "bg-emerald-700 text-white"
+                                          : "bg-stone-200 text-stone-700"
+                                      }`}
+                                    >
+                                      Rank #{rank.rank}
+                                    </span>
+                                    <span className="text-xs font-bold text-stone-900">{rank.label}</span>
+                                    <span className="text-[10px] font-mono text-stone-400">({rank.type})</span>
+                                  </div>
 
-                            <h3 className="text-sm font-bold text-stone-900 truncate mb-1">
-                              {rank.label}
-                            </h3>
+                                  <div className="flex items-center gap-2">
+                                    {delta !== 0 && (
+                                      <span className="text-[10px] font-mono font-bold text-stone-500">
+                                        {delta > 0 ? `+${delta}` : delta} pts vs leader
+                                      </span>
+                                    )}
+                                    <span
+                                      className="text-base font-mono font-extrabold"
+                                      style={{ color: getScoreColor(rank.overallScore) }}
+                                    >
+                                      {rank.overallScore}
+                                      <span className="text-[10px] text-stone-400 font-normal"> / 100</span>
+                                    </span>
+                                  </div>
+                                </div>
 
-                            {/* Score & Band */}
-                            <div className="flex items-baseline justify-between mt-2 pt-2 border-t border-stone-100">
-                              <div className="flex items-baseline gap-1">
-                                <span className="text-2xl font-mono font-extrabold text-stone-900">
-                                  {rank.overallScore}
-                                </span>
-                                <span className="text-xs text-stone-400 font-mono">/100</span>
+                                {/* Horizontal Visual Bar */}
+                                <div className="w-full bg-stone-200 h-3 rounded-full overflow-hidden flex">
+                                  <div
+                                    className="h-full rounded-full transition-all duration-700"
+                                    style={{
+                                      width: `${rank.overallScore}%`,
+                                      backgroundColor: getScoreColor(rank.overallScore),
+                                    }}
+                                  />
+                                </div>
+
+                                {/* Status Badges Below Bar */}
+                                <div className="flex items-center justify-between mt-2 text-[11px] font-mono">
+                                  <div className="flex items-center gap-2">
+                                    {rank.hasMandatoryViolation ? (
+                                      <span className="text-red-700 font-bold flex items-center gap-1">
+                                        <XCircle className="w-3.5 h-3.5" />
+                                        <span>{rank.mandatoryViolationsCount} Mandatory Violation(s)</span>
+                                      </span>
+                                    ) : (
+                                      <span className="text-emerald-700 font-bold flex items-center gap-1">
+                                        <CheckCircle2 className="w-3.5 h-3.5" />
+                                        <span>0 Mandatory Conflicts (Passed)</span>
+                                      </span>
+                                    )}
+                                    <span className="text-stone-300">•</span>
+                                    <span className="text-stone-600">Won {rank.winningCriteriaCount} criteria</span>
+                                  </div>
+
+                                  <StatusBadge
+                                    status={
+                                      rank.overallScore >= 75
+                                        ? "optimal"
+                                        : rank.overallScore >= 50
+                                        ? "acceptable"
+                                        : "constrained"
+                                    }
+                                    label={rank.scoreBand.replace(" Suitability", "")}
+                                  />
+                                </div>
                               </div>
-                              <StatusBadge
-                                status={
-                                  rank.overallScore >= 75
-                                    ? "optimal"
-                                    : rank.overallScore >= 50
-                                    ? "acceptable"
-                                    : "constrained"
-                                }
-                                label={rank.scoreBand.replace(" Suitability", "")}
-                              />
-                            </div>
+                            );
+                          })}
+                        </div>
+                      </div>
 
-                            {/* Mandatory Constraints Status */}
-                            <div className="mt-3 py-1.5 px-2.5 rounded-control text-xs flex items-center justify-between font-mono bg-stone-50 border border-stone-200">
-                              <span className="text-[11px] text-stone-600">Mandatory Rules:</span>
-                              {rank.hasMandatoryViolation ? (
-                                <span className="text-red-700 font-bold flex items-center gap-1 text-[11px]">
-                                  <XCircle className="w-3.5 h-3.5" />
-                                  <span>{rank.mandatoryViolationsCount} Violations</span>
+                      {/* Town Planning Pillars Head-to-Head Comparison */}
+                      <div className="p-4 bg-white rounded-panel border border-stone-200 shadow-2xs flex flex-col gap-3">
+                        <div className="flex items-center justify-between border-b border-stone-100 pb-2">
+                          <span className="text-xs font-mono uppercase tracking-wider font-bold text-stone-800 flex items-center gap-2">
+                            <Activity className="w-4 h-4 text-emerald-700" />
+                            <span>Town Planning Pillars Breakdown</span>
+                          </span>
+                          <span className="text-[10px] font-mono text-stone-400">
+                            Performance across 4 core master-planning pillars
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                          {comparison.ranking.map((rank) => {
+                            const cand = comparison.candidates.find((c) => c.placementId === rank.placementId);
+                            const pillars = getCandidatePillars(cand?.criteria || [], rank.overallScore);
+
+                            return (
+                              <div
+                                key={rank.placementId}
+                                className="p-3.5 rounded-control bg-stone-50/80 border border-stone-200 flex flex-col gap-2.5"
+                              >
+                                <div className="flex items-center justify-between border-b border-stone-200/60 pb-1.5">
+                                  <span className="text-xs font-bold text-stone-900 truncate">
+                                    {rank.label}
+                                  </span>
+                                  <span className="text-xs font-mono font-extrabold text-stone-700">
+                                    Score: {rank.overallScore}/100
+                                  </span>
+                                </div>
+
+                                <div className="space-y-2">
+                                  {pillars.map((pillar) => (
+                                    <div key={pillar.id} className="flex flex-col gap-1">
+                                      <div className="flex items-center justify-between text-[11px]">
+                                        <span className="text-stone-600 font-medium">{pillar.name}</span>
+                                        <span className="font-mono font-bold" style={{ color: getScoreColor(pillar.score) }}>
+                                          {pillar.score}%
+                                        </span>
+                                      </div>
+                                      <div className="w-full bg-stone-200 h-1.5 rounded-full overflow-hidden">
+                                        <div
+                                          className="h-full rounded-full transition-all duration-500"
+                                          style={{
+                                            width: `${pillar.score}%`,
+                                            backgroundColor: getScoreColor(pillar.score),
+                                          }}
+                                        />
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Executive Summary Cards: 1 Top Advantage & 1 Primary Risk */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {comparison.ranking.map((rank) => {
+                          const cand = comparison.candidates.find((c) => c.placementId === rank.placementId);
+                          const isWinner = rank.rank === 1 && !rank.hasMandatoryViolation;
+
+                          return (
+                            <div
+                              key={rank.placementId}
+                              className={`p-4 rounded-panel bg-white border flex flex-col justify-between shadow-2xs ${
+                                isWinner
+                                  ? "border-emerald-600/70 ring-2 ring-emerald-600/10"
+                                  : "border-stone-200"
+                              }`}
+                            >
+                              <div>
+                                <div className="flex items-center justify-between mb-2">
+                                  <span
+                                    className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded uppercase ${
+                                      isWinner ? "bg-emerald-700 text-white" : "bg-stone-100 text-stone-700"
+                                    }`}
+                                  >
+                                    Rank #{rank.rank}
+                                  </span>
+                                  <span className="text-xs font-mono font-bold text-stone-900">
+                                    {rank.overallScore}/100
+                                  </span>
+                                </div>
+                                <h3 className="text-xs font-bold text-stone-900 truncate mb-2">
+                                  {rank.label}
+                                </h3>
+
+                                {/* 1 Key Strength */}
+                                {rank.topAdvantages[0] && (
+                                  <div className="p-2 rounded bg-emerald-50/60 border border-emerald-100 mb-2">
+                                    <span className="text-[10px] font-mono font-bold uppercase text-emerald-800 block mb-0.5 flex items-center gap-1">
+                                      <Check className="w-3 h-3" /> Core Strength
+                                    </span>
+                                    <p className="text-xs text-stone-800 line-clamp-2">
+                                      {rank.topAdvantages[0]}
+                                    </p>
+                                  </div>
+                                )}
+
+                                {/* 1 Key Bottleneck */}
+                                {rank.topDisadvantages[0] ? (
+                                  <div className="p-2 rounded bg-amber-50/60 border border-amber-200 mb-2">
+                                    <span className="text-[10px] font-mono font-bold uppercase text-amber-800 block mb-0.5 flex items-center gap-1">
+                                      <AlertTriangle className="w-3 h-3" /> Critical Watchout
+                                    </span>
+                                    <p className="text-xs text-stone-800 line-clamp-2">
+                                      {rank.topDisadvantages[0]}
+                                    </p>
+                                  </div>
+                                ) : (
+                                  <div className="p-2 rounded bg-stone-50 border border-stone-200 mb-2 text-xs text-stone-500 font-mono">
+                                    No major statutory constraints detected.
+                                  </div>
+                                )}
+                              </div>
+
+                              {cand && onSelectCandidateLocation && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    onSelectCandidateLocation(cand.lat, cand.lng);
+                                    onClose();
+                                  }}
+                                  className="mt-2 w-full py-1.5 px-3 rounded-btn border border-stone-200 hover:border-emerald-700/50 bg-stone-50 hover:bg-emerald-50/50 text-xs font-semibold text-stone-700 hover:text-emerald-800 flex items-center justify-center gap-1.5 transition-colors"
+                                >
+                                  <MapPin className="w-3.5 h-3.5" />
+                                  <span>Focus Candidate on Map</span>
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Footer Prompt to Deep Analysis */}
+                      <div className="p-3 bg-stone-100 rounded-control border border-stone-200 flex items-center justify-between text-xs text-stone-600">
+                        <span>Need full ranking rationales and all itemized penalty factors?</span>
+                        <button
+                          type="button"
+                          onClick={() => setViewMode("deep")}
+                          className="font-mono text-emerald-800 font-bold hover:underline flex items-center gap-1"
+                        >
+                          <span>Open Deep Analysis Rankings</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    /* DEEP ANALYSIS MODE: FULL ORIGINAL CARDS & ALL CONSTRAINTS */
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {comparison.ranking.map((rank) => {
+                        const cand = comparison.candidates.find((c) => c.placementId === rank.placementId);
+                        const isWinner = rank.rank === 1 && !rank.hasMandatoryViolation;
+
+                        return (
+                          <div
+                            key={rank.placementId}
+                            className={`rounded-panel border p-4 bg-white shadow-2xs flex flex-col justify-between transition-all ${
+                              isWinner
+                                ? "border-emerald-700/60 ring-2 ring-emerald-600/20"
+                                : rank.hasMandatoryViolation
+                                ? "border-red-300 bg-red-50/20"
+                                : "border-stone-200"
+                            }`}
+                          >
+                            <div>
+                              {/* Card Header */}
+                              <div className="flex items-center justify-between mb-2">
+                                <span
+                                  className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full uppercase ${
+                                    isWinner
+                                      ? "bg-emerald-700 text-white"
+                                      : "bg-stone-100 text-stone-600 border border-stone-200"
+                                  }`}
+                                >
+                                  Rank #{rank.rank}
                                 </span>
-                              ) : (
-                                <span className="text-emerald-700 font-bold flex items-center gap-1 text-[11px]">
-                                  <CheckCircle2 className="w-3.5 h-3.5" />
-                                  <span>Passed (0 conflicts)</span>
+                                <span className="text-[10px] font-mono text-stone-400 truncate">
+                                  {rank.type}
                                 </span>
+                              </div>
+
+                              <h3 className="text-sm font-bold text-stone-900 truncate mb-1">
+                                {rank.label}
+                              </h3>
+
+                              {/* Score & Band */}
+                              <div className="flex items-baseline justify-between mt-2 pt-2 border-t border-stone-100">
+                                <div className="flex items-baseline gap-1">
+                                  <span className="text-2xl font-mono font-extrabold text-stone-900">
+                                    {rank.overallScore}
+                                  </span>
+                                  <span className="text-xs text-stone-400 font-mono">/100</span>
+                                </div>
+                                <StatusBadge
+                                  status={
+                                    rank.overallScore >= 75
+                                      ? "optimal"
+                                      : rank.overallScore >= 50
+                                      ? "acceptable"
+                                      : "constrained"
+                                  }
+                                  label={rank.scoreBand.replace(" Suitability", "")}
+                                />
+                              </div>
+
+                              {/* Mandatory Constraints Status */}
+                              <div className="mt-3 py-1.5 px-2.5 rounded-control text-xs flex items-center justify-between font-mono bg-stone-50 border border-stone-200">
+                                <span className="text-[11px] text-stone-600">Mandatory Rules:</span>
+                                {rank.hasMandatoryViolation ? (
+                                  <span className="text-red-700 font-bold flex items-center gap-1 text-[11px]">
+                                    <XCircle className="w-3.5 h-3.5" />
+                                    <span>{rank.mandatoryViolationsCount} Violations</span>
+                                  </span>
+                                ) : (
+                                  <span className="text-emerald-700 font-bold flex items-center gap-1 text-[11px]">
+                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                    <span>Passed (0 conflicts)</span>
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Rationale */}
+                              <p className="text-xs text-stone-600 mt-2.5 leading-snug">
+                                {rank.rankingRationale}
+                              </p>
+
+                              {/* Top Advantages */}
+                              {rank.topAdvantages.length > 0 && (
+                                <div className="mt-3">
+                                  <div className="text-[10px] font-mono uppercase tracking-wider text-stone-400 font-bold mb-1">
+                                    Key Strengths ({rank.winningCriteriaCount} criteria won)
+                                  </div>
+                                  <ul className="text-xs text-stone-700 space-y-1">
+                                    {rank.topAdvantages.map((adv, idx) => (
+                                      <li key={idx} className="flex items-start gap-1.5 text-[11px]">
+                                        <span className="text-emerald-700 font-bold">✓</span>
+                                        <span className="line-clamp-1">{adv}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+
+                              {/* Top Disadvantages */}
+                              {rank.topDisadvantages.length > 0 && (
+                                <div className="mt-2.5">
+                                  <div className="text-[10px] font-mono uppercase tracking-wider text-stone-400 font-bold mb-1">
+                                    Constraints & Penalties
+                                  </div>
+                                  <ul className="text-xs text-red-700 space-y-1">
+                                    {rank.topDisadvantages.map((dis, idx) => (
+                                      <li key={idx} className="flex items-start gap-1.5 text-[11px]">
+                                        <span className="font-bold">✗</span>
+                                        <span className="line-clamp-1">{dis}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
                               )}
                             </div>
 
-                            {/* Rationale */}
-                            <p className="text-xs text-stone-600 mt-2.5 leading-snug">
-                              {rank.rankingRationale}
-                            </p>
-
-                            {/* Top Advantages */}
-                            {rank.topAdvantages.length > 0 && (
-                              <div className="mt-3">
-                                <div className="text-[10px] font-mono uppercase tracking-wider text-stone-400 font-bold mb-1">
-                                  Key Strengths ({rank.winningCriteriaCount} criteria won)
-                                </div>
-                                <ul className="text-xs text-stone-700 space-y-1">
-                                  {rank.topAdvantages.map((adv, idx) => (
-                                    <li key={idx} className="flex items-start gap-1.5 text-[11px]">
-                                      <span className="text-emerald-700 font-bold">✓</span>
-                                      <span className="line-clamp-1">{adv}</span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
-                            )}
-
-                            {/* Top Disadvantages */}
-                            {rank.topDisadvantages.length > 0 && (
-                              <div className="mt-2.5">
-                                <div className="text-[10px] font-mono uppercase tracking-wider text-stone-400 font-bold mb-1">
-                                  Constraints & Penalties
-                                </div>
-                                <ul className="text-xs text-red-700 space-y-1">
-                                  {rank.topDisadvantages.map((dis, idx) => (
-                                    <li key={idx} className="flex items-start gap-1.5 text-[11px]">
-                                      <span className="font-bold">✗</span>
-                                      <span className="line-clamp-1">{dis}</span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
+                            {/* Footer Action */}
+                            {cand && onSelectCandidateLocation && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  onSelectCandidateLocation(cand.lat, cand.lng);
+                                  onClose();
+                                }}
+                                className="mt-4 w-full py-1.5 px-3 rounded-btn border border-stone-200 hover:border-emerald-700/50 bg-stone-50 hover:bg-emerald-50/50 text-xs font-semibold text-stone-700 hover:text-emerald-800 flex items-center justify-center gap-1.5 transition-colors"
+                              >
+                                <MapPin className="w-3.5 h-3.5" />
+                                <span>Focus Candidate on Map</span>
+                              </button>
                             )}
                           </div>
-
-                          {/* Footer Action */}
-                          {cand && onSelectCandidateLocation && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                onSelectCandidateLocation(cand.lat, cand.lng);
-                                onClose();
-                              }}
-                              className="mt-4 w-full py-1.5 px-3 rounded-btn border border-stone-200 hover:border-emerald-700/50 bg-stone-50 hover:bg-emerald-50/50 text-xs font-semibold text-stone-700 hover:text-emerald-800 flex items-center justify-center gap-1.5 transition-colors"
-                            >
-                              <MapPin className="w-3.5 h-3.5" />
-                              <span>Focus Candidate on Map</span>
-                            </button>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* TAB 2: CRITERIA DIFFERENTIAL MATRIX */}
+              {/* ========================================================================= */}
+              {/* TAB 2: CRITERIA DIFFERENTIAL MATRIX                                       */}
+              {/* ========================================================================= */}
               {activeTab === "criteria" && (
                 <div className="flex flex-col gap-4">
-                  <div className="flex items-center justify-between text-xs text-stone-600 bg-white p-3 rounded-control border border-stone-200">
-                    <span className="flex items-center gap-1.5">
-                      <Info className="w-4 h-4 text-emerald-700 shrink-0" />
-                      <span>
-                        Criteria differential matrix compares measured metrics and normalized scores (0–100) side-by-side across all candidates.
-                      </span>
-                    </span>
-                    <span className="font-mono text-[11px] text-stone-400">
-                      Delta = Leader Score − Trailing Score
-                    </span>
-                  </div>
+                  {viewMode === "executive" ? (
+                    <div className="flex flex-col gap-4">
+                      {/* Executive Decisive Criteria Header */}
+                      <div className="p-4 bg-white rounded-panel border border-stone-200 shadow-2xs flex flex-col gap-2">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-xs font-bold font-mono uppercase tracking-wider text-stone-900 flex items-center gap-2">
+                            <GitCompare className="w-4 h-4 text-emerald-700" />
+                            <span>Pivotal Siting Differentiators (Top Decisive Criteria)</span>
+                          </h4>
+                          <span className="text-[10px] font-mono text-stone-500">
+                            Criteria with the highest score divergence (Δ)
+                          </span>
+                        </div>
+                        <p className="text-xs text-stone-600 leading-relaxed">
+                          Rather than reading the full 15-row engineering matrix, town planners can immediately review the key criteria where candidate performance differs and influences the final site selection.
+                        </p>
+                      </div>
 
-                  <div className="bg-white rounded-panel border border-stone-200 shadow-2xs overflow-hidden">
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left text-xs border-collapse">
-                        <thead>
-                          <tr className="bg-stone-50 border-b border-stone-200 text-stone-500 font-mono text-[11px] uppercase">
-                            <th className="py-2.5 px-4 font-semibold">Evaluation Criterion</th>
-                            <th className="py-2.5 px-3 font-semibold text-center">Weight</th>
-                            {comparison.candidates.map((cand) => (
-                              <th key={cand.placementId} className="py-2.5 px-3 font-semibold max-w-[160px] truncate">
-                                {cand.label}
-                              </th>
-                            ))}
-                            <th className="py-2.5 px-3 font-semibold text-center">Score Delta</th>
-                            <th className="py-2.5 px-3 font-semibold">Advantage Rationale</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-stone-100 font-sans">
-                          {comparison.criteriaMatrix.map((crit) => (
-                            <tr key={crit.criterionId} className="hover:bg-stone-50/60 transition-colors">
-                              {/* Criterion Label & Benchmark */}
-                              <td className="py-3 px-4">
-                                <div className="font-bold text-stone-900">{crit.label}</div>
-                                <div className="text-[10px] text-stone-500 font-mono mt-0.5 line-clamp-1">
-                                  Benchmark: {crit.benchmark}
+                      {/* Decisive Criteria Bars */}
+                      <div className="space-y-3">
+                        {comparison.criteriaMatrix
+                          .filter((crit) => crit.deltaScore > 0)
+                          .slice(0, 6)
+                          .map((crit) => (
+                            <div
+                              key={crit.criterionId}
+                              className="p-4 bg-white rounded-panel border border-stone-200 shadow-2xs flex flex-col gap-3"
+                            >
+                              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-stone-100 pb-2">
+                                <div>
+                                  <h4 className="text-xs font-bold text-stone-900">{crit.label}</h4>
+                                  <span className="text-[10px] font-mono text-stone-400">
+                                    Benchmark: {crit.benchmark}
+                                  </span>
                                 </div>
-                              </td>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-stone-100 text-stone-700 font-semibold border border-stone-200">
+                                    Weight: {crit.weight}%
+                                  </span>
+                                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold border border-emerald-200">
+                                    Δ {crit.deltaScore} pts
+                                  </span>
+                                </div>
+                              </div>
 
-                              {/* Weight */}
-                              <td className="py-3 px-3 text-center font-mono text-stone-600">
-                                {crit.weight}%
-                              </td>
+                              {/* Head-to-Head Candidate Bars for this criterion */}
+                              <div className="space-y-2">
+                                {comparison.candidates.map((cand) => {
+                                  const val = crit.valuesByPlacement[cand.placementId];
+                                  const score = val?.score ?? 0;
+                                  const isLeader = cand.placementId === crit.bestPlacementId && crit.deltaScore > 0;
 
-                              {/* Candidate Values */}
-                              {comparison.candidates.map((cand) => {
-                                const val = crit.valuesByPlacement[cand.placementId];
-                                const isWinner = cand.placementId === crit.bestPlacementId && crit.deltaScore > 0;
-
-                                return (
-                                  <td
-                                    key={cand.placementId}
-                                    className={`py-3 px-3 ${
-                                      isWinner ? "bg-emerald-50/50" : ""
-                                    }`}
-                                  >
-                                    {val ? (
-                                      <div>
-                                        <div className="flex items-center gap-1.5">
-                                          <span className="font-mono font-bold text-stone-900">
-                                            {val.score !== null ? `${val.score}/100` : "--"}
-                                          </span>
-                                          {isWinner && (
-                                            <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-emerald-100 text-emerald-800 font-bold">
+                                  return (
+                                    <div key={cand.placementId} className="flex flex-col gap-1">
+                                      <div className="flex items-center justify-between text-xs">
+                                        <div className="flex items-center gap-2">
+                                          <span className="font-semibold text-stone-900">{cand.label}</span>
+                                          {isLeader && (
+                                            <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 font-bold">
                                               LEAD
                                             </span>
                                           )}
                                         </div>
-                                        <div className="text-[11px] text-stone-600 font-mono mt-0.5">
-                                          {val.valueText}
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-[11px] font-mono text-stone-500">
+                                            {val?.valueText || "--"}
+                                          </span>
+                                          <span
+                                            className="font-mono font-bold"
+                                            style={{ color: getScoreColor(score) }}
+                                          >
+                                            {score}/100
+                                          </span>
                                         </div>
                                       </div>
-                                    ) : (
-                                      <span className="text-stone-400 font-mono text-[11px]">N/A</span>
-                                    )}
-                                  </td>
-                                );
-                              })}
 
-                              {/* Delta Score */}
-                              <td className="py-3 px-3 text-center">
-                                {crit.deltaScore > 0 ? (
-                                  <span
-                                    className={`font-mono font-bold px-1.5 py-0.5 rounded text-[11px] ${
-                                      crit.deltaScore >= 20
-                                        ? "bg-emerald-100 text-emerald-800"
-                                        : "bg-stone-100 text-stone-700"
-                                    }`}
-                                  >
-                                    +{crit.deltaScore} pts
-                                  </span>
-                                ) : (
-                                  <span className="text-stone-400 font-mono text-[11px]">Tie</span>
-                                )}
-                              </td>
+                                      {/* Bar */}
+                                      <div className="w-full bg-stone-100 h-2 rounded-full overflow-hidden">
+                                        <div
+                                          className="h-full rounded-full transition-all duration-500"
+                                          style={{
+                                            width: `${score}%`,
+                                            backgroundColor: getScoreColor(score),
+                                          }}
+                                        />
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
 
-                              {/* Explanation */}
-                              <td className="py-3 px-3 text-stone-600 text-xs max-w-xs">
-                                {crit.explanation}
-                              </td>
-                            </tr>
+                              {/* Concise Advantage Takeaway */}
+                              <div className="p-2 rounded bg-stone-50 border border-stone-100 text-[11px] text-stone-600 flex items-start gap-1.5">
+                                <Info className="w-3.5 h-3.5 text-stone-400 shrink-0 mt-0.5" />
+                                <span>{crit.explanation}</span>
+                              </div>
+                            </div>
                           ))}
-                        </tbody>
-                      </table>
+                      </div>
+
+                      {/* Prompt to view full matrix table in Deep Analysis */}
+                      <div className="p-4 bg-stone-100 rounded-panel border border-stone-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-stone-700">
+                        <div>
+                          <span className="font-bold block">Need the exhaustive 15-criteria engineering matrix?</span>
+                          <span className="text-stone-500 text-[11px]">
+                            Switch to Deep Analysis to view every benchmark, raw unit, weight, and formulaic delta.
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setViewMode("deep")}
+                          className="px-3.5 py-1.5 rounded-btn bg-emerald-700 hover:bg-emerald-800 text-white font-semibold transition-colors shrink-0 flex items-center gap-1.5 shadow-2xs"
+                        >
+                          <Table className="w-3.5 h-3.5" />
+                          <span>View Full Engineering Table</span>
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    /* DEEP ANALYSIS MODE: FULL 15-COLUMN TABLE */
+                    <div className="bg-white rounded-panel border border-stone-200 shadow-2xs overflow-hidden">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-xs border-collapse">
+                          <thead>
+                            <tr className="bg-stone-50 border-b border-stone-200 text-stone-500 font-mono text-[11px] uppercase">
+                              <th className="py-2.5 px-4 font-semibold">Evaluation Criterion</th>
+                              <th className="py-2.5 px-3 font-semibold text-center">Weight</th>
+                              {comparison.candidates.map((cand) => (
+                                <th key={cand.placementId} className="py-2.5 px-3 font-semibold max-w-[160px] truncate">
+                                  {cand.label}
+                                </th>
+                              ))}
+                              <th className="py-2.5 px-3 font-semibold text-center">Score Delta</th>
+                              <th className="py-2.5 px-3 font-semibold">Advantage Rationale</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-stone-100 font-sans">
+                            {comparison.criteriaMatrix.map((crit) => (
+                              <tr key={crit.criterionId} className="hover:bg-stone-50/60 transition-colors">
+                                {/* Criterion Label & Benchmark */}
+                                <td className="py-3 px-4">
+                                  <div className="font-bold text-stone-900">{crit.label}</div>
+                                  <div className="text-[10px] text-stone-500 font-mono mt-0.5 line-clamp-1">
+                                    Benchmark: {crit.benchmark}
+                                  </div>
+                                </td>
+
+                                {/* Weight */}
+                                <td className="py-3 px-3 text-center font-mono text-stone-600">
+                                  {crit.weight}%
+                                </td>
+
+                                {/* Candidate Values */}
+                                {comparison.candidates.map((cand) => {
+                                  const val = crit.valuesByPlacement[cand.placementId];
+                                  const isWinner = cand.placementId === crit.bestPlacementId && crit.deltaScore > 0;
+
+                                  return (
+                                    <td
+                                      key={cand.placementId}
+                                      className={`py-3 px-3 ${
+                                        isWinner ? "bg-emerald-50/50" : ""
+                                      }`}
+                                    >
+                                      {val ? (
+                                        <div>
+                                          <div className="flex items-center gap-1.5">
+                                            <span className="font-mono font-bold text-stone-900">
+                                              {val.score !== null ? `${val.score}/100` : "--"}
+                                            </span>
+                                            {isWinner && (
+                                              <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-emerald-100 text-emerald-800 font-bold">
+                                                LEAD
+                                              </span>
+                                            )}
+                                          </div>
+                                          <div className="text-[11px] text-stone-600 font-mono mt-0.5">
+                                            {val.valueText}
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        <span className="text-stone-400 font-mono text-[11px]">N/A</span>
+                                      )}
+                                    </td>
+                                  );
+                                })}
+
+                                {/* Delta Score */}
+                                <td className="py-3 px-3 text-center">
+                                  {crit.deltaScore > 0 ? (
+                                    <span
+                                      className={`font-mono font-bold px-1.5 py-0.5 rounded text-[11px] ${
+                                        crit.deltaScore >= 20
+                                          ? "bg-emerald-100 text-emerald-800"
+                                          : "bg-stone-100 text-stone-700"
+                                      }`}
+                                    >
+                                      +{crit.deltaScore} pts
+                                    </span>
+                                  ) : (
+                                    <span className="text-stone-400 font-mono text-[11px]">Tie</span>
+                                  )}
+                                </td>
+
+                                {/* Explanation */}
+                                <td className="py-3 px-3 text-stone-600 text-xs max-w-xs">
+                                  {crit.explanation}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* TAB: DECISION TRADE-OFFS (PART E) */}
+              {/* ========================================================================= */}
+              {/* TAB 3: DECISION TRADE-OFFS                                                */}
+              {/* ========================================================================= */}
               {activeTab === "tradeoffs" && (
                 <div className="flex flex-col gap-5">
                   <div className="p-4 rounded-panel bg-white border border-stone-200 shadow-2xs">
@@ -629,23 +1153,23 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
 
                             {/* Primary Advantage & Disadvantage */}
                             <div className="grid grid-cols-1 gap-2 mt-3 text-xs">
-                              <div className="p-2 rounded bg-emerald-50/40 border border-emerald-100 flex items-start gap-2">
-                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700 shrink-0 mt-0.5" />
+                              <div className="p-2.5 rounded bg-emerald-50/50 border border-emerald-200 flex items-start gap-2">
+                                <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
                                 <div>
                                   <span className="font-bold text-[10px] uppercase font-mono text-emerald-800 block">
                                     Primary Advantage
                                   </span>
-                                  <span className="text-stone-800">{item.primaryAdvantage}</span>
+                                  <span className="text-stone-800 leading-snug">{item.primaryAdvantage}</span>
                                 </div>
                               </div>
 
-                              <div className="p-2 rounded bg-amber-50/40 border border-amber-100 flex items-start gap-2">
-                                <AlertTriangle className="w-3.5 h-3.5 text-amber-700 shrink-0 mt-0.5" />
+                              <div className="p-2.5 rounded bg-amber-50/50 border border-amber-200 flex items-start gap-2">
+                                <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
                                 <div>
                                   <span className="font-bold text-[10px] uppercase font-mono text-amber-800 block">
                                     Primary Disadvantage / Constraint
                                   </span>
-                                  <span className="text-stone-800">{item.primaryDisadvantage}</span>
+                                  <span className="text-stone-800 leading-snug">{item.primaryDisadvantage}</span>
                                 </div>
                               </div>
                             </div>
@@ -655,28 +1179,43 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
                               <span className="text-[10px] font-mono uppercase font-bold text-stone-400 block mb-1">
                                 Differentiating Siting Metrics
                               </span>
-                              <ul className="space-y-1 text-xs text-stone-700">
+                              <div className="flex flex-wrap gap-1.5">
                                 {item.differentiatingFactors.map((diff, idx) => (
-                                  <li key={idx} className="flex items-center gap-1.5 font-mono text-[11px]">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-700 shrink-0" />
-                                    <span>{diff}</span>
-                                  </li>
+                                  <span
+                                    key={idx}
+                                    className="px-2 py-0.5 rounded bg-stone-100 text-stone-700 border border-stone-200 font-mono text-[11px]"
+                                  >
+                                    • {diff}
+                                  </span>
                                 ))}
-                              </ul>
+                              </div>
                             </div>
                           </div>
 
-                          {/* Epistemic Limitations */}
-                          <div className="mt-2 pt-2 border-t border-stone-100">
-                            <span className="text-[10px] font-mono uppercase font-bold text-stone-400 block mb-1">
-                              Methodological Boundaries & Unknowns
-                            </span>
-                            <div className="space-y-0.5 text-[10px] text-stone-500 font-mono">
-                              {item.epistemicLimitations.map((lim, idx) => (
-                                <div key={idx}>• {lim}</div>
-                              ))}
+                          {/* Epistemic Limitations (Deep Analysis Only) */}
+                          {viewMode === "deep" ? (
+                            <div className="mt-2 pt-2 border-t border-stone-100">
+                              <span className="text-[10px] font-mono uppercase font-bold text-stone-400 block mb-1">
+                                Methodological Boundaries & Unknowns
+                              </span>
+                              <div className="space-y-0.5 text-[10px] text-stone-500 font-mono">
+                                {item.epistemicLimitations.map((lim, idx) => (
+                                  <div key={idx}>• {lim}</div>
+                                ))}
+                              </div>
                             </div>
-                          </div>
+                          ) : (
+                            <div className="mt-2 pt-2 border-t border-stone-100 flex items-center justify-between text-[11px] text-stone-400 font-mono">
+                              <span>Epistemic limitations hidden in Executive view</span>
+                              <button
+                                type="button"
+                                onClick={() => setViewMode("deep")}
+                                className="text-emerald-700 hover:underline"
+                              >
+                                View Details
+                              </button>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -684,7 +1223,9 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
                 </div>
               )}
 
-              {/* TAB: BASELINE COMPARISON (PART C) */}
+              {/* ========================================================================= */}
+              {/* TAB 4: BASELINE COMPARISON                                                */}
+              {/* ========================================================================= */}
               {activeTab === "baseline" && (
                 <div className="flex flex-col gap-5">
                   <div className="p-4 rounded-panel bg-white border border-stone-200 shadow-2xs">
@@ -705,7 +1246,7 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
                           {comparison.baselineEvaluation?.statusQuo.description}
                         </div>
                         <div className="text-[11px] text-stone-500 font-mono mt-0.5">
-                          0 m² new footprint • 0 kW added load/generation • Natural terrain undisturbed
+                          0 m² new footprint • 0 kW added load • Natural terrain undisturbed
                         </div>
                       </div>
 
@@ -723,318 +1264,718 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
                     </div>
                   </div>
 
-                  {/* Candidate Metrics Table vs Baselines */}
-                  <div className="space-y-4">
-                    {comparison.candidates.map((cand) => {
-                      const metrics = comparison.baselineEvaluation?.metricsByCandidate[cand.placementId] || [];
-
-                      return (
-                        <div
-                          key={cand.placementId}
-                          className="rounded-panel border border-stone-200 bg-white overflow-hidden shadow-2xs"
-                        >
-                          <div className="px-4 py-2.5 bg-stone-50/80 border-b border-stone-200 flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-bold text-stone-900">{cand.label}</span>
-                              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-stone-200/70 text-stone-700">
-                                {cand.type}
-                              </span>
-                            </div>
-                            <span className="text-xs font-mono font-bold text-emerald-800">
-                              Suitability: {cand.overallScore}/100 ({cand.scoreBand})
-                            </span>
-                          </div>
-
-                          <div className="overflow-x-auto">
-                            <table className="w-full text-left text-xs border-collapse">
-                              <thead>
-                                <tr className="border-b border-stone-200 bg-stone-100/50 text-[10px] font-mono text-stone-500 uppercase">
-                                  <th className="py-2 px-3 font-semibold">Evaluation Metric</th>
-                                  <th className="py-2 px-3 font-semibold">Reference Baseline</th>
-                                  <th className="py-2 px-3 font-semibold">Baseline Value</th>
-                                  <th className="py-2 px-3 font-semibold">Candidate Value</th>
-                                  <th className="py-2 px-3 font-semibold text-center">Absolute Delta (Δ)</th>
-                                  <th className="py-2 px-3 font-semibold text-center">% Change</th>
-                                  <th className="py-2 px-3 font-semibold">Interpretation & Method Notice</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-stone-100 font-sans">
-                                {metrics.map((m) => (
-                                  <tr key={m.metricId} className="hover:bg-stone-50/60">
-                                    <td className="py-2.5 px-3 font-bold text-stone-900">{m.label}</td>
-                                    <td className="py-2.5 px-3 font-mono text-stone-600">
-                                      {m.baselineType === "status_quo" ? "Status Quo" : "Naive Proximity"}
-                                    </td>
-                                    <td className="py-2.5 px-3 font-mono text-stone-600">{m.baselineValueText}</td>
-                                    <td className="py-2.5 px-3 font-mono font-bold text-stone-900">
-                                      {m.candidateValueText}
-                                    </td>
-                                    <td className="py-2.5 px-3 font-mono font-bold text-center">
-                                      {m.absoluteDelta !== null ? (
-                                        <span
-                                          className={
-                                            m.absoluteDelta > 0
-                                              ? "text-emerald-800"
-                                              : m.absoluteDelta < 0
-                                              ? "text-amber-700"
-                                              : "text-stone-500"
-                                          }
-                                        >
-                                          {m.absoluteDelta > 0 ? `+${m.absoluteDelta}` : m.absoluteDelta}{" "}
-                                          {m.unit || ""}
-                                        </span>
-                                      ) : (
-                                        "--"
-                                      )}
-                                    </td>
-                                    <td className="py-2.5 px-3 font-mono text-center">
-                                      {m.percentageChange !== null ? (
-                                        <span
-                                          className={`px-1.5 py-0.5 rounded text-[11px] font-bold ${
-                                            m.percentageChange > 0
-                                              ? "bg-emerald-100 text-emerald-800"
-                                              : m.percentageChange < 0
-                                              ? "bg-amber-100 text-amber-800"
-                                              : "bg-stone-100 text-stone-600"
-                                          }`}
-                                        >
-                                          {m.percentageChange > 0
-                                            ? `+${m.percentageChange}%`
-                                            : `${m.percentageChange}%`}
-                                        </span>
-                                      ) : (
-                                        <span className="text-[10px] text-stone-400 font-mono">
-                                          Net Addition
-                                        </span>
-                                      )}
-                                    </td>
-                                    <td className="py-2.5 px-3 text-stone-600 text-[11px] max-w-xs">
-                                      <div>{m.interpretation}</div>
-                                      <div className="text-[10px] text-stone-400 font-mono mt-0.5">
-                                        {m.limitations}
-                                      </div>
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
+                  {/* EXECUTIVE MODE: VISUAL COMPARATIVE BARS & IMPACT METERS */}
+                  {viewMode === "executive" ? (
+                    <div className="flex flex-col gap-4">
+                      {/* Comparative Bar Chart vs Baselines */}
+                      <div className="p-4 bg-white rounded-panel border border-stone-200 shadow-2xs flex flex-col gap-3">
+                        <div className="flex items-center justify-between border-b border-stone-100 pb-2">
+                          <span className="text-xs font-mono uppercase tracking-wider font-bold text-stone-800">
+                            Performance Gain Over Neutral Planning Baselines
+                          </span>
+                          <span className="text-[10px] font-mono text-stone-400">
+                            Status Quo (0 pts) vs Naive (50 pts) vs Candidates
+                          </span>
                         </div>
-                      );
-                    })}
-                  </div>
 
-                  {/* Baseline Limitations Notice */}
-                  <div className="p-3 rounded-control bg-stone-100 text-stone-600 text-[11px] font-mono space-y-1">
-                    <span className="font-bold text-stone-800 uppercase block">
-                      Comparative Baseline Disclosure:
-                    </span>
-                    {(comparison.baselineEvaluation?.limitations || []).map((lim, idx) => (
-                      <div key={idx}>• {lim}</div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* TAB: EQUITY & ACCESSIBILITY (PART D) */}
-              {activeTab === "equity" && (
-                <div className="flex flex-col gap-5">
-                  {/* Strict Geographic Disclaimer */}
-                  <div className="p-3.5 rounded-panel bg-amber-50/80 border border-amber-200/80 flex items-start gap-3 text-xs text-amber-950">
-                    <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
-                    <div className="leading-relaxed">
-                      <span className="font-bold block uppercase text-[10px] font-mono text-amber-800">
-                        Equity & Accessibility Geographic Disclosures
-                      </span>
-                      Service catchments are geometric approximations calculated using a standard 500m Euclidean radial buffer (0.79 km²). They do NOT calculate census population figures, demographic distributions, or transit network routing. Inferences regarding underserved communities are based strictly on observed absence of mapped OpenStreetMap civic and transit nodes.
-                    </div>
-                  </div>
-
-                  {/* Candidate Equity Cards */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {comparison.candidates.map((cand) => {
-                      const eq = comparison.equityAccessibilityMatrix?.[cand.placementId] || cand.impacts.equityAccessibility;
-
-                      return (
-                        <div
-                          key={cand.placementId}
-                          className="p-4 rounded-panel bg-white border border-stone-200 shadow-2xs flex flex-col gap-3"
-                        >
-                          <div className="flex items-center justify-between border-b border-stone-100 pb-2">
-                            <div>
-                              <span className="text-[10px] font-mono text-stone-400 uppercase">
-                                Accessibility Catchment
-                              </span>
-                              <h4 className="text-xs font-bold text-stone-900">{cand.label}</h4>
+                        <div className="space-y-3 pt-1">
+                          {/* Baseline 2 Bar */}
+                          <div className="p-2.5 rounded bg-stone-50 border border-stone-200 flex flex-col gap-1">
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="font-semibold text-stone-700">Naive Siting Benchmark (Baseline)</span>
+                              <span className="font-mono font-bold text-stone-600">50/100</span>
                             </div>
-                            <span
-                              className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded uppercase ${
-                                eq?.accessibilityTier === "High Access"
-                                  ? "bg-emerald-100 text-emerald-800"
-                                  : eq?.accessibilityTier === "Moderate Access"
-                                  ? "bg-amber-100 text-amber-800"
-                                  : "bg-red-100 text-red-800"
-                              }`}
-                            >
-                              {eq?.accessibilityTier || "Unassessed"}
-                            </span>
+                            <div className="w-full bg-stone-200 h-2.5 rounded-full overflow-hidden">
+                              <div className="h-full bg-stone-400 rounded-full" style={{ width: "50%" }} />
+                            </div>
                           </div>
 
-                          <div className="grid grid-cols-2 gap-2 text-xs">
-                            <div className="p-2.5 rounded bg-stone-50 border border-stone-100">
-                              <span className="text-[10px] font-mono text-stone-400 uppercase block">
-                                Catchment Area (500m)
-                              </span>
-                              <span className="text-sm font-bold font-mono text-stone-900">
-                                {eq?.catchmentAreaKm2 ?? 0.79} km²
-                              </span>
-                              <span className="text-[10px] font-mono text-stone-500 block mt-0.5">
-                                Euclidean radial boundary
-                              </span>
-                            </div>
-
-                            <div className="p-2.5 rounded bg-stone-50 border border-stone-100">
-                              <span className="text-[10px] font-mono text-stone-400 uppercase block">
-                                Connected Arterials
-                              </span>
-                              <span className="text-sm font-bold font-mono text-stone-900">
-                                {eq?.connectedArterialsCount ?? 0}
-                              </span>
-                              <span className="text-[10px] font-mono text-stone-500 block mt-0.5">
-                                Arterial within 300m
-                              </span>
-                            </div>
-
-                            <div className="p-2.5 rounded bg-stone-50 border border-stone-100 col-span-2">
-                              <span className="text-[10px] font-mono text-stone-400 uppercase block">
-                                Service Zone Status
-                              </span>
-                              <div className="font-semibold text-stone-800 mt-0.5">
-                                {eq?.underservedZoneFlag ? (
-                                  <span className="text-amber-800 flex items-center gap-1">
-                                    <AlertTriangle className="w-3.5 h-3.5 text-amber-700" />
-                                    <span>Underserved Facility Zone — Elevated Siting Priority</span>
+                          {/* Candidates Bars with Lift */}
+                          {comparison.candidates.map((cand) => {
+                            const lift = cand.overallScore - 50;
+                            return (
+                              <div
+                                key={cand.placementId}
+                                className="p-2.5 rounded bg-emerald-50/30 border border-emerald-200 flex flex-col gap-1"
+                              >
+                                <div className="flex items-center justify-between text-xs">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-bold text-stone-900">{cand.label}</span>
+                                    <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 font-bold">
+                                      +{lift} pts lift over naive
+                                    </span>
+                                  </div>
+                                  <span
+                                    className="font-mono font-bold"
+                                    style={{ color: getScoreColor(cand.overallScore) }}
+                                  >
+                                    {cand.overallScore}/100
                                   </span>
-                                ) : (
-                                  <span className="text-emerald-800 flex items-center gap-1">
-                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
-                                    <span>Integrated Service Zone — Proximate Supporting Nodes</span>
-                                  </span>
-                                )}
+                                </div>
+                                <div className="w-full bg-stone-200 h-2.5 rounded-full overflow-hidden">
+                                  <div
+                                    className="h-full rounded-full transition-all duration-700"
+                                    style={{
+                                      width: `${cand.overallScore}%`,
+                                      backgroundColor: getScoreColor(cand.overallScore),
+                                    }}
+                                  />
+                                </div>
                               </div>
-                              <p className="text-[10px] text-stone-500 font-mono mt-1">
-                                {cand.impacts.serviceCatchmentProxy.nearbyAmenitiesCount} civic amenities observed in immediate 500m radius.
-                              </p>
-                            </div>
-                          </div>
+                            );
+                          })}
                         </div>
-                      );
-                    })}
-                  </div>
+                      </div>
 
-                  {/* Geodesic Spatial Separation Matrix */}
-                  {comparison.spatialSeparation.length > 0 && (
-                    <div className="p-4 rounded-panel bg-white border border-stone-200 shadow-2xs">
-                      <h4 className="text-xs font-bold font-mono uppercase tracking-wider text-stone-900 mb-2 flex items-center gap-1.5">
-                        <Ruler className="w-4 h-4 text-emerald-700" />
-                        <span>Candidate Geodesic Separation Matrix (Cannibalization Guard)</span>
-                      </h4>
-                      <div className="space-y-1.5 mt-2">
-                        {comparison.spatialSeparation.map((sep, idx) => (
+                      {/* Impact KPI Grid for each candidate */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {comparison.candidates.map((cand) => (
                           <div
-                            key={idx}
-                            className="px-3 py-2 rounded-control bg-stone-50 border border-stone-100 text-xs flex items-center justify-between font-mono"
+                            key={cand.placementId}
+                            className="p-4 bg-white rounded-panel border border-stone-200 shadow-2xs flex flex-col gap-3"
                           >
-                            <span className="text-stone-700">
-                              {sep.labelA} ⟷ {sep.labelB}
-                            </span>
-                            <span className="font-bold text-emerald-800">
-                              {sep.distanceMeters.toLocaleString()} meters
-                            </span>
+                            <div className="flex items-center justify-between border-b border-stone-100 pb-2">
+                              <h4 className="text-xs font-bold text-stone-900">{cand.label}</h4>
+                              <span className="text-xs font-mono font-bold text-emerald-800">
+                                {cand.overallScore}/100 ({cand.scoreBand})
+                              </span>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              <div className="p-2 bg-stone-50 rounded border border-stone-100">
+                                <span className="text-[10px] font-mono text-stone-400 uppercase block">
+                                  Footprint Added
+                                </span>
+                                <span className="font-bold font-mono text-stone-900">
+                                  {cand.footprintAreaM2.toLocaleString()} m²
+                                </span>
+                              </div>
+                              <div className="p-2 bg-stone-50 rounded border border-stone-100">
+                                <span className="text-[10px] font-mono text-stone-400 uppercase block">
+                                  Corridor Proximity
+                                </span>
+                                <span className="font-bold font-mono text-stone-900">
+                                  {cand.impacts.arterialDistanceM !== null
+                                    ? `${Math.round(cand.impacts.arterialDistanceM)}m`
+                                    : "Direct frontage"}
+                                </span>
+                              </div>
+                              <div className="p-2 bg-stone-50 rounded border border-stone-100">
+                                <span className="text-[10px] font-mono text-stone-400 uppercase block">
+                                  Civic Amenities Reach
+                                </span>
+                                <span className="font-bold font-mono text-stone-900">
+                                  {cand.impacts.serviceCatchmentProxy.nearbyAmenitiesCount} nodes in 500m
+                                </span>
+                              </div>
+                              <div className="p-2 bg-stone-50 rounded border border-stone-100">
+                                <span className="text-[10px] font-mono text-stone-400 uppercase block">
+                                  Environmental Conflicts
+                                </span>
+                                <span className="font-bold font-mono text-emerald-700">
+                                  {cand.impacts.environmentalExclusionCount === 0
+                                    ? "0 Exclusions (Clear)"
+                                    : `${cand.impacts.environmentalExclusionCount} Exclusions`}
+                                </span>
+                              </div>
+                            </div>
                           </div>
                         ))}
                       </div>
+
+                      {/* Prompt to Deep Analysis */}
+                      <div className="p-3 bg-stone-100 rounded-control border border-stone-200 flex items-center justify-between text-xs text-stone-600">
+                        <span>Need the full 7-column comparative table with absolute and % deltas?</span>
+                        <button
+                          type="button"
+                          onClick={() => setViewMode("deep")}
+                          className="font-mono text-emerald-800 font-bold hover:underline flex items-center gap-1"
+                        >
+                          <span>Open Deep Analysis Baseline Table</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    /* DEEP ANALYSIS MODE: FULL 7-COLUMN METRIC TABLE */
+                    <div className="space-y-4">
+                      {comparison.candidates.map((cand) => {
+                        const metrics = comparison.baselineEvaluation?.metricsByCandidate[cand.placementId] || [];
+
+                        return (
+                          <div
+                            key={cand.placementId}
+                            className="rounded-panel border border-stone-200 bg-white overflow-hidden shadow-2xs"
+                          >
+                            <div className="px-4 py-2.5 bg-stone-50/80 border-b border-stone-200 flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-stone-900">{cand.label}</span>
+                                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-stone-200/70 text-stone-700">
+                                  {cand.type}
+                                </span>
+                              </div>
+                              <span className="text-xs font-mono font-bold text-emerald-800">
+                                Suitability: {cand.overallScore}/100 ({cand.scoreBand})
+                              </span>
+                            </div>
+
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-left text-xs border-collapse">
+                                <thead>
+                                  <tr className="border-b border-stone-200 bg-stone-100/50 text-[10px] font-mono text-stone-500 uppercase">
+                                    <th className="py-2 px-3 font-semibold">Evaluation Metric</th>
+                                    <th className="py-2 px-3 font-semibold">Reference Baseline</th>
+                                    <th className="py-2 px-3 font-semibold">Baseline Value</th>
+                                    <th className="py-2 px-3 font-semibold">Candidate Value</th>
+                                    <th className="py-2 px-3 font-semibold text-center">Absolute Delta (Δ)</th>
+                                    <th className="py-2 px-3 font-semibold text-center">% Change</th>
+                                    <th className="py-2 px-3 font-semibold">Interpretation & Method Notice</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-stone-100 font-sans">
+                                  {metrics.map((m) => (
+                                    <tr key={m.metricId} className="hover:bg-stone-50/60">
+                                      <td className="py-2.5 px-3 font-bold text-stone-900">{m.label}</td>
+                                      <td className="py-2.5 px-3 font-mono text-stone-600">
+                                        {m.baselineType === "status_quo" ? "Status Quo" : "Naive Proximity"}
+                                      </td>
+                                      <td className="py-2.5 px-3 font-mono text-stone-600">{m.baselineValueText}</td>
+                                      <td className="py-2.5 px-3 font-mono font-bold text-stone-900">
+                                        {m.candidateValueText}
+                                      </td>
+                                      <td className="py-2.5 px-3 font-mono font-bold text-center">
+                                        {m.absoluteDelta !== null ? (
+                                          <span
+                                            className={
+                                              m.absoluteDelta > 0
+                                                ? "text-emerald-800"
+                                                : m.absoluteDelta < 0
+                                                ? "text-amber-700"
+                                                : "text-stone-500"
+                                            }
+                                          >
+                                            {m.absoluteDelta > 0 ? `+${m.absoluteDelta}` : m.absoluteDelta}{" "}
+                                            {m.unit || ""}
+                                          </span>
+                                        ) : (
+                                          "--"
+                                        )}
+                                      </td>
+                                      <td className="py-2.5 px-3 font-mono text-center">
+                                        {m.percentageChange !== null ? (
+                                          <span
+                                            className={`px-1.5 py-0.5 rounded text-[11px] font-bold ${
+                                              m.percentageChange > 0
+                                                ? "bg-emerald-100 text-emerald-800"
+                                                : m.percentageChange < 0
+                                                ? "bg-amber-100 text-amber-800"
+                                                : "bg-stone-100 text-stone-600"
+                                            }`}
+                                          >
+                                            {m.percentageChange > 0
+                                              ? `+${m.percentageChange}%`
+                                              : `${m.percentageChange}%`}
+                                          </span>
+                                        ) : (
+                                          <span className="text-[10px] text-stone-400 font-mono">
+                                            Net Addition
+                                          </span>
+                                        )}
+                                      </td>
+                                      <td className="py-2.5 px-3 text-stone-600 text-[11px] max-w-xs">
+                                        <div>{m.interpretation}</div>
+                                        <div className="text-[10px] text-stone-400 font-mono mt-0.5">
+                                          {m.limitations}
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
               )}
 
+              {/* ========================================================================= */}
+              {/* TAB 5: EQUITY & CATCHMENT                                                 */}
+              {/* ========================================================================= */}
+              {activeTab === "equity" && (
+                <div className="flex flex-col gap-5">
+                  {viewMode === "executive" ? (
+                    <div className="flex flex-col gap-4">
+                      {/* Visual Catchment Cards */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {comparison.candidates.map((cand) => {
+                          const eq =
+                            comparison.equityAccessibilityMatrix?.[cand.placementId] ||
+                            cand.impacts.equityAccessibility;
+                          const accessTier = eq?.accessibilityTier || "Moderate Access";
 
-              {/* TAB 4: DATA QUALITY & UNCERTAINTY */}
-              {activeTab === "uncertainty" && (
-                <div className="flex flex-col gap-4">
-                  <div className="p-4 rounded-panel bg-white border border-stone-200 shadow-2xs">
-                    <h4 className="text-xs font-bold font-mono uppercase tracking-wider text-stone-900 mb-1 flex items-center gap-1.5">
-                      <ShieldCheck className="w-4 h-4 text-emerald-700" />
-                      <span>Data Completeness & Evidence Uncertainty Profiles</span>
-                    </h4>
-                    <p className="text-xs text-stone-600">
-                      Transparency classification distinguishing confirmed constraints, empirical evidence, screening proxies, and unobserved data gaps.
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {comparison.candidates.map((cand) => {
-                      const profile = comparison.uncertaintyProfiles[cand.placementId];
-                      return (
-                        <div
-                          key={cand.placementId}
-                          className="p-4 rounded-panel bg-white border border-stone-200 shadow-2xs flex flex-col gap-3"
-                        >
-                          <div className="flex items-center justify-between border-b border-stone-100 pb-2">
-                            <h4 className="text-xs font-bold text-stone-900 truncate">{cand.label}</h4>
-                            <span className="text-[11px] font-mono font-bold text-emerald-800">
-                              {Math.round((profile?.evidenceCompleteness ?? 0.8) * 100)}% completeness
-                            </span>
-                          </div>
-
-                          <div className="space-y-2 text-xs">
-                            <div className="flex items-center justify-between py-1 border-b border-stone-50">
-                              <span className="text-stone-600">Confirmed Constraints:</span>
-                              <span className="font-mono font-bold text-stone-900">
-                                {profile?.confirmedConstraints ?? 0}
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between py-1 border-b border-stone-50">
-                              <span className="text-stone-600">Evidence Supported Criteria:</span>
-                              <span className="font-mono font-bold text-emerald-700">
-                                {profile?.evidenceSupported ?? 0}
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between py-1 border-b border-stone-50">
-                              <span className="text-stone-600">Screening Proxies:</span>
-                              <span className="font-mono font-bold text-amber-700">
-                                {profile?.estimatedProxies ?? 0}
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between py-1 border-b border-stone-50">
-                              <span className="text-stone-600">Unknown / Unobserved Gaps:</span>
-                              <span className="font-mono font-bold text-stone-500">
-                                {profile?.unknownCount ?? 0}
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* Data Sources Provenance */}
-                          <div className="mt-2 pt-2 border-t border-stone-100">
-                            <span className="text-[10px] font-mono text-stone-400 uppercase font-bold block mb-1">
-                              Authoritative Sources Polled
-                            </span>
-                            <div className="flex flex-wrap gap-1.5">
-                              {cand.dataSources.map((ds, idx) => (
+                          return (
+                            <div
+                              key={cand.placementId}
+                              className="p-4 rounded-panel bg-white border border-stone-200 shadow-2xs flex flex-col gap-3"
+                            >
+                              <div className="flex items-center justify-between border-b border-stone-100 pb-2">
+                                <div>
+                                  <span className="text-[10px] font-mono text-stone-400 uppercase">
+                                    Citizen Service Reach
+                                  </span>
+                                  <h4 className="text-xs font-bold text-stone-900">{cand.label}</h4>
+                                </div>
                                 <span
-                                  key={idx}
-                                  className="text-[10px] font-mono px-2 py-0.5 rounded bg-stone-100 text-stone-700 border border-stone-200"
+                                  className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded uppercase ${
+                                    accessTier === "High Access"
+                                      ? "bg-emerald-100 text-emerald-800"
+                                      : accessTier === "Moderate Access"
+                                      ? "bg-amber-100 text-amber-800"
+                                      : "bg-red-100 text-red-800"
+                                  }`}
                                 >
-                                  {ds.provider} ({ds.status})
+                                  {accessTier}
                                 </span>
-                              ))}
+                              </div>
+
+                              {/* Visual Circular Gauge & Metrics */}
+                              <div className="flex items-center gap-4">
+                                <div className="relative w-16 h-16 flex items-center justify-center shrink-0">
+                                  <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
+                                    <path
+                                      className="text-stone-200"
+                                      strokeWidth="3.5"
+                                      stroke="currentColor"
+                                      fill="none"
+                                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                    />
+                                    <path
+                                      className={
+                                        accessTier === "High Access"
+                                          ? "text-emerald-700"
+                                          : accessTier === "Moderate Access"
+                                          ? "text-amber-600"
+                                          : "text-red-600"
+                                      }
+                                      strokeDasharray={
+                                        accessTier === "High Access"
+                                          ? "85, 100"
+                                          : accessTier === "Moderate Access"
+                                          ? "60, 100"
+                                          : "30, 100"
+                                      }
+                                      strokeWidth="3.5"
+                                      strokeLinecap="round"
+                                      stroke="currentColor"
+                                      fill="none"
+                                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                    />
+                                  </svg>
+                                  <span className="absolute text-[10px] font-mono font-extrabold text-stone-800">
+                                    500m
+                                  </span>
+                                </div>
+
+                                <div className="flex-1 space-y-1.5 text-xs">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-stone-500">Catchment Area:</span>
+                                    <span className="font-mono font-bold text-stone-900">
+                                      {eq?.catchmentAreaKm2 ?? 0.79} km²
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-stone-500">Connected Arterials:</span>
+                                    <span className="font-mono font-bold text-stone-900">
+                                      {eq?.connectedArterialsCount ?? 0} corridors
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-stone-500">Civic Nodes in 500m:</span>
+                                    <span className="font-mono font-bold text-stone-900">
+                                      {cand.impacts.serviceCatchmentProxy.nearbyAmenitiesCount} nodes
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Service Zone Status Chip */}
+                              <div className="p-2 rounded bg-stone-50 border border-stone-100 text-xs flex items-center gap-1.5">
+                                {eq?.underservedZoneFlag ? (
+                                  <span className="text-amber-800 font-semibold flex items-center gap-1">
+                                    <AlertTriangle className="w-3.5 h-3.5 text-amber-700" />
+                                    <span>Underserved Facility Zone — High Priority</span>
+                                  </span>
+                                ) : (
+                                  <span className="text-emerald-800 font-semibold flex items-center gap-1">
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
+                                    <span>Established Civic Coverage Zone</span>
+                                  </span>
+                                )}
+                              </div>
                             </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Visual Geodesic Separation Track */}
+                      {comparison.spatialSeparation.length > 0 && (
+                        <div className="p-4 bg-white rounded-panel border border-stone-200 shadow-2xs flex flex-col gap-3">
+                          <div className="flex items-center justify-between border-b border-stone-100 pb-2">
+                            <span className="text-xs font-mono uppercase tracking-wider font-bold text-stone-800 flex items-center gap-2">
+                              <Ruler className="w-4 h-4 text-emerald-700" />
+                              <span>Inter-Site Separation & Cannibalization Guard</span>
+                            </span>
+                            <span className="text-[10px] font-mono text-stone-400">
+                              Target distance: &gt; 300m to prevent service redundancy
+                            </span>
+                          </div>
+
+                          <div className="space-y-2">
+                            {comparison.spatialSeparation.map((sep, idx) => {
+                              const isSafe = sep.distanceMeters >= 300;
+                              return (
+                                <div
+                                  key={idx}
+                                  className="p-3 rounded bg-stone-50 border border-stone-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+                                >
+                                  <span className="text-xs font-semibold text-stone-800">
+                                    {sep.labelA} ⟷ {sep.labelB}
+                                  </span>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-mono font-bold text-stone-900">
+                                      {sep.distanceMeters.toLocaleString()} meters
+                                    </span>
+                                    <span
+                                      className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold ${
+                                        isSafe
+                                          ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                                          : "bg-amber-100 text-amber-800 border border-amber-200"
+                                      }`}
+                                    >
+                                      {isSafe ? "Safe Separation" : "Potential Overlap"}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
+                      )}
+
+                      {/* Prompt to Deep Analysis */}
+                      <div className="p-3 bg-stone-100 rounded-control border border-stone-200 flex items-center justify-between text-xs text-stone-600">
+                        <span>Need full statutory Euclidean buffering disclosures and methodology?</span>
+                        <button
+                          type="button"
+                          onClick={() => setViewMode("deep")}
+                          className="font-mono text-emerald-800 font-bold hover:underline flex items-center gap-1"
+                        >
+                          <span>Open Deep Analysis Disclosures</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    /* DEEP ANALYSIS MODE: FULL DISCLOSURES & TABLES */
+                    <div className="flex flex-col gap-5">
+                      <div className="p-3.5 rounded-panel bg-amber-50/80 border border-amber-200/80 flex items-start gap-3 text-xs text-amber-950">
+                        <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                        <div className="leading-relaxed">
+                          <span className="font-bold block uppercase text-[10px] font-mono text-amber-800">
+                            Equity & Accessibility Geographic Disclosures
+                          </span>
+                          Service catchments are geometric approximations calculated using a standard 500m Euclidean radial buffer (0.79 km²). They do NOT calculate census population figures, demographic distributions, or transit network routing. Inferences regarding underserved communities are based strictly on observed absence of mapped OpenStreetMap civic and transit nodes.
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {comparison.candidates.map((cand) => {
+                          const eq =
+                            comparison.equityAccessibilityMatrix?.[cand.placementId] ||
+                            cand.impacts.equityAccessibility;
+
+                          return (
+                            <div
+                              key={cand.placementId}
+                              className="p-4 rounded-panel bg-white border border-stone-200 shadow-2xs flex flex-col gap-3"
+                            >
+                              <div className="flex items-center justify-between border-b border-stone-100 pb-2">
+                                <div>
+                                  <span className="text-[10px] font-mono text-stone-400 uppercase">
+                                    Accessibility Catchment
+                                  </span>
+                                  <h4 className="text-xs font-bold text-stone-900">{cand.label}</h4>
+                                </div>
+                                <span
+                                  className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded uppercase ${
+                                    eq?.accessibilityTier === "High Access"
+                                      ? "bg-emerald-100 text-emerald-800"
+                                      : eq?.accessibilityTier === "Moderate Access"
+                                      ? "bg-amber-100 text-amber-800"
+                                      : "bg-red-100 text-red-800"
+                                  }`}
+                                >
+                                  {eq?.accessibilityTier || "Unassessed"}
+                                </span>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-2 text-xs">
+                                <div className="p-2.5 rounded bg-stone-50 border border-stone-100">
+                                  <span className="text-[10px] font-mono text-stone-400 uppercase block">
+                                    Catchment Area (500m)
+                                  </span>
+                                  <span className="text-sm font-bold font-mono text-stone-900">
+                                    {eq?.catchmentAreaKm2 ?? 0.79} km²
+                                  </span>
+                                  <span className="text-[10px] font-mono text-stone-500 block mt-0.5">
+                                    Euclidean radial boundary
+                                  </span>
+                                </div>
+
+                                <div className="p-2.5 rounded bg-stone-50 border border-stone-100">
+                                  <span className="text-[10px] font-mono text-stone-400 uppercase block">
+                                    Connected Arterials
+                                  </span>
+                                  <span className="text-sm font-bold font-mono text-stone-900">
+                                    {eq?.connectedArterialsCount ?? 0}
+                                  </span>
+                                  <span className="text-[10px] font-mono text-stone-500 block mt-0.5">
+                                    Arterial within 300m
+                                  </span>
+                                </div>
+
+                                <div className="p-2.5 rounded bg-stone-50 border border-stone-100 col-span-2">
+                                  <span className="text-[10px] font-mono text-stone-400 uppercase block">
+                                    Service Zone Status
+                                  </span>
+                                  <div className="font-semibold text-stone-800 mt-0.5">
+                                    {eq?.underservedZoneFlag ? (
+                                      <span className="text-amber-800 flex items-center gap-1">
+                                        <AlertTriangle className="w-3.5 h-3.5 text-amber-700" />
+                                        <span>Underserved Facility Zone — Elevated Siting Priority</span>
+                                      </span>
+                                    ) : (
+                                      <span className="text-emerald-800 flex items-center gap-1">
+                                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
+                                        <span>Integrated Service Zone — Proximate Supporting Nodes</span>
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-[10px] text-stone-500 font-mono mt-1">
+                                    {cand.impacts.serviceCatchmentProxy.nearbyAmenitiesCount} civic amenities observed in immediate 500m radius.
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {comparison.spatialSeparation.length > 0 && (
+                        <div className="p-4 rounded-panel bg-white border border-stone-200 shadow-2xs">
+                          <h4 className="text-xs font-bold font-mono uppercase tracking-wider text-stone-900 mb-2 flex items-center gap-1.5">
+                            <Ruler className="w-4 h-4 text-emerald-700" />
+                            <span>Candidate Geodesic Separation Matrix (Cannibalization Guard)</span>
+                          </h4>
+                          <div className="space-y-1.5 mt-2">
+                            {comparison.spatialSeparation.map((sep, idx) => (
+                              <div
+                                key={idx}
+                                className="px-3 py-2 rounded-control bg-stone-50 border border-stone-100 text-xs flex items-center justify-between font-mono"
+                              >
+                                <span className="text-stone-700">
+                                  {sep.labelA} ⟷ {sep.labelB}
+                                </span>
+                                <span className="font-bold text-emerald-800">
+                                  {sep.distanceMeters.toLocaleString()} meters
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ========================================================================= */}
+              {/* TAB 6: DATA QUALITY & UNCERTAINTY                                         */}
+              {/* ========================================================================= */}
+              {activeTab === "uncertainty" && (
+                <div className="flex flex-col gap-4">
+                  {viewMode === "executive" ? (
+                    <div className="flex flex-col gap-4">
+                      {/* Visual Completeness Card */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {comparison.candidates.map((cand) => {
+                          const profile = comparison.uncertaintyProfiles[cand.placementId];
+                          const completenessPct = Math.round((profile?.evidenceCompleteness ?? 0.8) * 100);
+
+                          return (
+                            <div
+                              key={cand.placementId}
+                              className="p-4 rounded-panel bg-white border border-stone-200 shadow-2xs flex flex-col gap-3"
+                            >
+                              <div className="flex items-center justify-between border-b border-stone-100 pb-2">
+                                <h4 className="text-xs font-bold text-stone-900 truncate">{cand.label}</h4>
+                                <span className="text-xs font-mono font-bold text-emerald-800">
+                                  {completenessPct}% Data Reliability
+                                </span>
+                              </div>
+
+                              {/* Stacked Visual Bar */}
+                              <div className="flex flex-col gap-1">
+                                <div className="w-full bg-stone-100 h-3 rounded-full overflow-hidden flex">
+                                  <div
+                                    className="bg-emerald-600 h-full"
+                                    style={{
+                                      width: `${Math.min(100, (profile?.confirmedConstraints || 1) * 20)}%`,
+                                    }}
+                                    title="Confirmed Constraints"
+                                  />
+                                  <div
+                                    className="bg-sky-500 h-full"
+                                    style={{
+                                      width: `${Math.min(100, (profile?.evidenceSupported || 4) * 15)}%`,
+                                    }}
+                                    title="Evidence Supported"
+                                  />
+                                  <div
+                                    className="bg-amber-400 h-full"
+                                    style={{
+                                      width: `${Math.min(100, (profile?.estimatedProxies || 2) * 12)}%`,
+                                    }}
+                                    title="Screening Proxies"
+                                  />
+                                </div>
+                                <div className="flex items-center justify-between text-[10px] font-mono text-stone-500 mt-1">
+                                  <span className="flex items-center gap-1">
+                                    <span className="w-2 h-2 rounded-full bg-emerald-600" /> Confirmed
+                                  </span>
+                                  <span className="flex items-center gap-1">
+                                    <span className="w-2 h-2 rounded-full bg-sky-500" /> Evidence
+                                  </span>
+                                  <span className="flex items-center gap-1">
+                                    <span className="w-2 h-2 rounded-full bg-amber-400" /> Proxies
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Verified Sources Chips */}
+                              <div className="pt-2 border-t border-stone-100">
+                                <span className="text-[10px] font-mono text-stone-400 uppercase font-bold block mb-1">
+                                  Authoritative GIS Providers
+                                </span>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {cand.dataSources.map((ds, idx) => (
+                                    <span
+                                      key={idx}
+                                      className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 font-medium"
+                                    >
+                                      ✓ {ds.provider}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Prompt to Deep Analysis */}
+                      <div className="p-3 bg-stone-100 rounded-control border border-stone-200 flex items-center justify-between text-xs text-stone-600">
+                        <span>Need itemized confidence classification and stale cache logs?</span>
+                        <button
+                          type="button"
+                          onClick={() => setViewMode("deep")}
+                          className="font-mono text-emerald-800 font-bold hover:underline flex items-center gap-1"
+                        >
+                          <span>Open Deep Analysis Data Profiles</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    /* DEEP ANALYSIS MODE: FULL PROVENANCE AND DATA AUDIT */
+                    <div className="flex flex-col gap-4">
+                      <div className="p-4 rounded-panel bg-white border border-stone-200 shadow-2xs">
+                        <h4 className="text-xs font-bold font-mono uppercase tracking-wider text-stone-900 mb-1 flex items-center gap-1.5">
+                          <ShieldCheck className="w-4 h-4 text-emerald-700" />
+                          <span>Data Completeness & Evidence Uncertainty Profiles</span>
+                        </h4>
+                        <p className="text-xs text-stone-600">
+                          Transparency classification distinguishing confirmed constraints, empirical evidence, screening proxies, and unobserved data gaps.
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {comparison.candidates.map((cand) => {
+                          const profile = comparison.uncertaintyProfiles[cand.placementId];
+                          return (
+                            <div
+                              key={cand.placementId}
+                              className="p-4 rounded-panel bg-white border border-stone-200 shadow-2xs flex flex-col gap-3"
+                            >
+                              <div className="flex items-center justify-between border-b border-stone-100 pb-2">
+                                <h4 className="text-xs font-bold text-stone-900 truncate">{cand.label}</h4>
+                                <span className="text-[11px] font-mono font-bold text-emerald-800">
+                                  {Math.round((profile?.evidenceCompleteness ?? 0.8) * 100)}% completeness
+                                </span>
+                              </div>
+
+                              <div className="space-y-2 text-xs">
+                                <div className="flex items-center justify-between py-1 border-b border-stone-50">
+                                  <span className="text-stone-600">Confirmed Constraints:</span>
+                                  <span className="font-mono font-bold text-stone-900">
+                                    {profile?.confirmedConstraints ?? 0}
+                                  </span>
+                                </div>
+                                <div className="flex items-center justify-between py-1 border-b border-stone-50">
+                                  <span className="text-stone-600">Evidence Supported Criteria:</span>
+                                  <span className="font-mono font-bold text-emerald-700">
+                                    {profile?.evidenceSupported ?? 0}
+                                  </span>
+                                </div>
+                                <div className="flex items-center justify-between py-1 border-b border-stone-50">
+                                  <span className="text-stone-600">Screening Proxies:</span>
+                                  <span className="font-mono font-bold text-amber-700">
+                                    {profile?.estimatedProxies ?? 0}
+                                  </span>
+                                </div>
+                                <div className="flex items-center justify-between py-1 border-b border-stone-50">
+                                  <span className="text-stone-600">Unknown / Unobserved Gaps:</span>
+                                  <span className="font-mono font-bold text-stone-500">
+                                    {profile?.unknownCount ?? 0}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Data Sources Provenance */}
+                              <div className="mt-2 pt-2 border-t border-stone-100">
+                                <span className="text-[10px] font-mono text-stone-400 uppercase font-bold block mb-1">
+                                  Authoritative Sources Polled
+                                </span>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {cand.dataSources.map((ds, idx) => (
+                                    <span
+                                      key={idx}
+                                      className="text-[10px] font-mono px-2 py-0.5 rounded bg-stone-100 text-stone-700 border border-stone-200"
+                                    >
+                                      {ds.provider} ({ds.status})
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
