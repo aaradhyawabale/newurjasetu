@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import { prisma } from "@/server/db/prisma";
 import { hashPassword, createSessionToken } from "@/server/auth/session";
 import { GET as getScenarioCompare } from "@/app/api/scenarios/[id]/compare/route";
@@ -252,4 +252,19 @@ describe("Scenario Comparison & Simulator Integration Tests", () => {
     const header = Buffer.from(pdfBytes.subarray(0, 5)).toString("utf-8");
     expect(header).toBe("%PDF-");
   });
+
+  afterAll(async () => {
+    const testUsers = await prisma.user.findMany({
+      where: { email: { contains: "urjasetu.local" } },
+      select: { id: true },
+    });
+    const testUserIds = testUsers.map((u) => u.id);
+    if (testUserIds.length > 0) {
+      await prisma.analysis.deleteMany({ where: { userId: { in: testUserIds } } });
+      await prisma.placement.deleteMany({ where: { userId: { in: testUserIds } } });
+      await prisma.scenario.deleteMany({ where: { userId: { in: testUserIds } } });
+      await prisma.user.deleteMany({ where: { id: { in: testUserIds } } });
+    }
+  });
 });
+

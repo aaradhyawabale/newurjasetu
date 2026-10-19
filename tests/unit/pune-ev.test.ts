@@ -367,7 +367,7 @@ describe("Pune EV Charging Infrastructure: Snapshot, Siting Engine & Gap Analysi
       expect(comparison.ranking[1].rank).toBe(2);
 
       // Verify trade-offs explain why Candidate 1 ranks above Candidate 2
-      expect(comparison.tradeoffs.length).toBeGreaterThan(0);
+      expect(comparison.tradeoffs!.length).toBeGreaterThan(0);
       expect(comparison.criteriaMatrix.length).toBeGreaterThanOrEqual(6);
     });
   });

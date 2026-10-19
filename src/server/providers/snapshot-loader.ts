@@ -133,7 +133,7 @@ export function isInsidePuneStudyArea(lat: number, lng: number): boolean {
     const { bbox } = loadPuneSnapshot().metadata;
     return (
       lat >= bbox.swLat - 0.05 &&
-      lat <= bbox.neLat + 0.05 &&
+      lat <= 18.58 &&
       lng >= bbox.swLng - 0.05 &&
       lng <= bbox.neLng + 0.05
     );
@@ -146,7 +146,7 @@ export function isInsidePcmcStudyArea(lat: number, lng: number): boolean {
   try {
     const { bbox } = loadPcmcSnapshot().metadata;
     return (
-      lat >= bbox.swLat - 0.02 &&
+      lat > 18.58 &&
       lat <= bbox.neLat + 0.02 &&
       lng >= bbox.swLng - 0.02 &&
       lng <= bbox.neLng + 0.02

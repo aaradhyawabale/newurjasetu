@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import { prisma } from "@/server/db/prisma";
 import { hashPassword, createSessionToken } from "@/server/auth/session";
 
@@ -10,11 +10,18 @@ describe("API Route Integration & Auth Ownership", () => {
   let user1ScenarioId: string;
 
   beforeEach(async () => {
-    // Clear test tables
-    await prisma.analysis.deleteMany();
-    await prisma.placement.deleteMany();
-    await prisma.scenario.deleteMany();
-    await prisma.user.deleteMany();
+    // Clear only test-generated entities (preserve demo@urjasetu.gov.in and seeded plans)
+    const testUsers = await prisma.user.findMany({
+      where: { email: { contains: "urjasetu.local" } },
+      select: { id: true },
+    });
+    const testUserIds = testUsers.map((u) => u.id);
+    if (testUserIds.length > 0) {
+      await prisma.analysis.deleteMany({ where: { userId: { in: testUserIds } } });
+      await prisma.placement.deleteMany({ where: { userId: { in: testUserIds } } });
+      await prisma.scenario.deleteMany({ where: { userId: { in: testUserIds } } });
+      await prisma.user.deleteMany({ where: { id: { in: testUserIds } } });
+    }
 
     const pwd = await hashPassword("password123");
     const uniqueSuffix = `api-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
@@ -259,6 +266,20 @@ describe("API Route Integration & Auth Ownership", () => {
     const resPdf = await getAnalysisPdf(reqPdfByPlacementId, { params: { id: placement.id } });
     expect(resPdf.status).toBe(200);
     expect(resPdf.headers.get("Content-Type")).toBe("application/pdf");
+  });
+
+  afterAll(async () => {
+    const testUsers = await prisma.user.findMany({
+      where: { email: { contains: "urjasetu.local" } },
+      select: { id: true },
+    });
+    const testUserIds = testUsers.map((u) => u.id);
+    if (testUserIds.length > 0) {
+      await prisma.analysis.deleteMany({ where: { userId: { in: testUserIds } } });
+      await prisma.placement.deleteMany({ where: { userId: { in: testUserIds } } });
+      await prisma.scenario.deleteMany({ where: { userId: { in: testUserIds } } });
+      await prisma.user.deleteMany({ where: { id: { in: testUserIds } } });
+    }
   });
 });
 
