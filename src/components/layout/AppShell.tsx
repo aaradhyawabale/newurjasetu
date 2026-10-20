@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import * as turf from "@turf/turf";
 import { TopBar } from "./TopBar";
 import { ToolSidebar } from "./ToolSidebar";
 import { MapView, StudyAreaBounds } from "../map/MapView";
@@ -11,15 +12,16 @@ import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { ShadowSimulatorModal } from "../solar/ShadowSimulatorModal";
 import { SolarRealityModal } from "../solar/SolarRealityModal";
 import { ScenarioComparisonModal } from "../scenarios/ScenarioComparisonModal";
+import { CopilotDrawer } from "../copilot/CopilotDrawer";
 import { useToast } from "../ui/Toast";
 import { InfrastructureTypeId, INFRASTRUCTURE_TYPES } from "@/config/infra-types";
 import { ValidationResult } from "@/server/analysis-engine/validation";
 import { AnalysisReportResult } from "@/server/analysis-engine/engine";
 import { exportPlacementsToGeoJson, downloadJsonFile } from "@/lib/geojson-export";
 import { calculateDistanceMeters } from "@/server/gis/geometry";
-import * as turf from "@turf/turf";
+import type { CopilotChatContext } from "@/server/ai/gemini-advisor";
 
-const LINEAR_TOOLS = ["Bridge", "Road", "Water Canal", "Drainage"];
+const LINEAR_TOOLS: string[] = ["Road", "Bridge", "Water Canal", "Drainage"];
 
 interface UserProfile {
   id: string;
@@ -104,6 +106,7 @@ export const AppShell: React.FC<AppShellProps> = ({
   const [currentReport, setCurrentReport] = useState<AnalysisReportResult | null>(null);
   const [currentAnalysisId, setCurrentAnalysisId] = useState<string | null>(null);
   const [isReportOpen, setIsReportOpen] = useState<boolean>(false);
+  const [isCopilotOpen, setIsCopilotOpen] = useState<boolean>(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState<boolean>(false);
 
   // State: Shadow-of-the-Future & Solar Reality Modals
@@ -876,6 +879,52 @@ export const AppShell: React.FC<AppShellProps> = ({
     }
   };
 
+  const copilotContext: CopilotChatContext = React.useMemo(
+    () => ({
+      studyArea: locationLabel,
+      infrastructureType: activePlacement?.type || activeTool,
+      placement: activePlacement
+        ? {
+            lat: activePlacement.lat,
+            lng: activePlacement.lng,
+            lengthM: activePlacement.lengthM,
+            widthM: activePlacement.widthM,
+            areaM2: Math.round(activePlacement.lengthM * activePlacement.widthM),
+            bearingDeg: activePlacement.bearingDeg,
+            label: activePlacement.label,
+            params: activePlacement.params,
+          }
+        : undefined,
+      validation: validationResult
+        ? {
+            status: validationResult.status,
+            geometryValid: validationResult.geometryValid,
+            conflicts: validationResult.conflicts.map((c) => ({
+              category: c.category,
+              label: c.label,
+              distanceM: c.distanceM,
+              requiredBufferM: c.requiredBufferM,
+              severity: c.severity,
+              description: c.description,
+            })),
+            roadAccess: validationResult.roadAccess,
+            officialPlanningContext: validationResult.planningContext,
+          }
+        : undefined,
+      report: currentReport
+        ? {
+            overallScore: currentReport.overall.score,
+            suitabilityBand: currentReport.overall.band,
+            verdictSummary: currentReport.overall.verdictSummary,
+            supportingFactors: currentReport.supporting,
+            risks: currentReport.risks,
+            dataGaps: currentReport.dataGaps,
+          }
+        : undefined,
+    }),
+    [locationLabel, activePlacement, activeTool, validationResult, currentReport]
+  );
+
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-background">
       {/* TopBar (56px) */}
@@ -907,6 +956,7 @@ export const AppShell: React.FC<AppShellProps> = ({
           setComparisonPlacementIds(undefined);
           setIsComparisonOpen(true);
         }}
+        onCopilotClick={() => setIsCopilotOpen(true)}
         userName={user.name || user.email}
         historyCount={historyItems.length}
         isAnalyzing={isAnalyzing}
@@ -946,7 +996,6 @@ export const AppShell: React.FC<AppShellProps> = ({
             analyzedFeatures={currentReport?.analyzedFeatures || []}
             searchRings={currentReport?.searchRings || null}
             solarShadingData={solarShadingOverlay}
-            bridgeApproachData={bridgeApproachData || currentReport?.bridgeAppraisal}
             onMapClick={handleMapClick}
             onPlacementChange={handlePlacementChangeFromMap}
             onStudyAreaChange={handleStudyAreaChange}
@@ -1031,18 +1080,6 @@ export const AppShell: React.FC<AppShellProps> = ({
           isValidating={isValidating}
           onOpenShadowSimulator={() => setIsShadowSimulatorOpen(true)}
           onOpenSolarReality={() => setIsSolarRealityOpen(true)}
-          onStartTwoClickDraw={() => {
-            setLinearStartPoint(null);
-            setIsTwoClickDrawMode(true);
-            showToast("Click start point on map, then click endpoint", "info");
-          }}
-          isDrawingTwoClick={isTwoClickDrawMode || Boolean(linearStartPoint)}
-          onSmartFit={handleSmartFit}
-          isSmartFitting={isSmartFitting}
-          onBridgeRelocateToCrossing={handleBridgeRelocateToCrossing}
-          isBridgeRelocating={isBridgeRelocating}
-          onBridgePlanApproaches={handleBridgePlanApproaches}
-          isBridgePlanningApproaches={isBridgePlanningApproaches}
         />
       </div>
 
@@ -1053,8 +1090,6 @@ export const AppShell: React.FC<AppShellProps> = ({
         report={currentReport}
         onDownloadPdf={handleDownloadPdf}
         isDownloadingPdf={isDownloadingPdf}
-        onBridgeRelocateToCrossing={handleBridgeRelocateToCrossing}
-        isBridgeRelocating={isBridgeRelocating}
       />
 
       {/* History Drawer */}
@@ -1111,6 +1146,13 @@ export const AppShell: React.FC<AppShellProps> = ({
         onSelectCandidateLocation={(lat, lng) => {
           setMapCenter({ lat, lng });
         }}
+      />
+
+      {/* AI Planning Copilot Drawer */}
+      <CopilotDrawer
+        isOpen={isCopilotOpen}
+        onClose={() => setIsCopilotOpen(false)}
+        context={copilotContext}
       />
     </div>
   );

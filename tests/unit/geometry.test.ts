@@ -9,6 +9,7 @@ import {
   doesFootprintIntersect,
   validateCoordinates,
   validatePolygonGeometry,
+  calculateAccessRoadAlignment,
 } from "@/server/gis/geometry";
 import * as turf from "@turf/turf";
 
@@ -115,4 +116,21 @@ describe("GIS Geometry & Validation Utilities", () => {
     const outsidePoint = turf.point([77.3000, 28.7000]).geometry;
     expect(doesFootprintIntersect(footprint, outsidePoint)).toBe(false);
   });
+
+  it("calculates preliminary access road alignment connecting footprint perimeter to nearest road", () => {
+    const footprint = createFootprintPolygon(18.5204, 73.8567, 80, 50, 0);
+    const nearbyRoad = turf.lineString([
+      [73.8550, 18.5215],
+      [73.8580, 18.5215],
+    ]).geometry;
+
+    const access = calculateAccessRoadAlignment(footprint, nearbyRoad);
+    expect(access).toBeDefined();
+    expect(access!.alignment.geometry.type).toBe("LineString");
+    expect(access!.lengthM).toBeGreaterThan(60);
+    expect(access!.lengthM).toBeLessThan(120);
+    expect(access!.fromCoord.length).toBe(2);
+    expect(access!.toCoord.length).toBe(2);
+  });
 });
+

@@ -344,3 +344,75 @@ export function isPointInPolygon(
   }
 }
 
+/**
+ * Calculates a preliminary access road alignment connecting a footprint perimeter
+ * to the nearest point on a road network geometry.
+ */
+export function calculateAccessRoadAlignment(
+  footprint: Feature<Polygon>,
+  roadGeometry: Geometry
+): {
+  alignment: Feature<LineString>;
+  lengthM: number;
+  fromCoord: [number, number];
+  toCoord: [number, number];
+} | null {
+  try {
+    const center = turf.centroid(footprint);
+    let targetPoint: [number, number] | null = null;
+
+    if (roadGeometry.type === "Point") {
+      targetPoint = [roadGeometry.coordinates[0], roadGeometry.coordinates[1]];
+    } else if (roadGeometry.type === "LineString") {
+      const nearest = turf.nearestPointOnLine(turf.lineString(roadGeometry.coordinates), center);
+      targetPoint = [nearest.geometry.coordinates[0], nearest.geometry.coordinates[1]];
+    } else if (roadGeometry.type === "MultiLineString") {
+      let minDist = Infinity;
+      for (const coords of roadGeometry.coordinates) {
+        if (coords.length >= 2) {
+          const nearest = turf.nearestPointOnLine(turf.lineString(coords), center);
+          const d = turf.distance(center, nearest, { units: "meters" });
+          if (d < minDist) {
+            minDist = d;
+            targetPoint = [nearest.geometry.coordinates[0], nearest.geometry.coordinates[1]];
+          }
+        }
+      }
+    }
+
+    if (!targetPoint) return null;
+
+    // Find the closest point on the footprint perimeter ring to the road target point
+    const ring = footprint.geometry.coordinates[0];
+    const targetPtFeature = turf.point(targetPoint);
+    let bestRingPoint: [number, number] = [ring[0][0], ring[0][1]];
+    let minD = Infinity;
+
+    for (let i = 0; i < ring.length - 1; i++) {
+      const seg = turf.lineString([ring[i], ring[i + 1]]);
+      const np = turf.nearestPointOnLine(seg, targetPtFeature);
+      const d = turf.distance(targetPtFeature, np, { units: "meters" });
+      if (d < minD) {
+        minD = d;
+        bestRingPoint = [np.geometry.coordinates[0], np.geometry.coordinates[1]];
+      }
+    }
+
+    const lengthM = Math.round(
+      turf.distance(turf.point(bestRingPoint), targetPtFeature, { units: "meters" })
+    );
+    const alignment = turf.lineString([bestRingPoint, targetPoint], {
+      lengthM,
+      type: "proposed_access_road",
+    });
+
+    return {
+      alignment,
+      lengthM,
+      fromCoord: bestRingPoint,
+      toCoord: targetPoint,
+    };
+  } catch {
+    return null;
+  }
+}

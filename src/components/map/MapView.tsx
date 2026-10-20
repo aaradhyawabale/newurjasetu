@@ -44,6 +44,7 @@ interface MapViewProps {
     sunAzimuthDeg?: number;
     sunElevationDeg?: number;
   } | null;
+  proposedAccessRoad?: GeoJSON.Feature<GeoJSON.LineString> | null;
   onMapClick: (lat: number, lng: number) => void;
   onPlacementChange?: (updated: {
     lat: number;
@@ -72,6 +73,7 @@ export const MapView: React.FC<MapViewProps> = ({
   searchRings = null,
   solarShadingData = null,
   bridgeApproachData = null,
+  proposedAccessRoad = null,
   onMapClick,
   onPlacementChange,
   onStudyAreaChange,
@@ -535,6 +537,23 @@ export const MapView: React.FC<MapViewProps> = ({
           ],
           "circle-stroke-width": 2,
           "circle-stroke-color": "#ffffff",
+        },
+      });
+
+      // Add proposed access road alignment GeoJSON source and layer
+      map.addSource("proposed-access-road-source", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+
+      map.addLayer({
+        id: "proposed-access-road-line",
+        type: "line",
+        source: "proposed-access-road-source",
+        paint: {
+          "line-color": "#f59e0b",
+          "line-width": 3.5,
+          "line-dasharray": [3, 2],
         },
       });
 
@@ -1183,6 +1202,25 @@ export const MapView: React.FC<MapViewProps> = ({
       features: geoFeatures,
     });
   }, [conflicts, isLoaded]);
+
+  // Update Proposed Access Road Alignment on Map
+  useEffect(() => {
+    if (!mapRef.current || !isLoaded) return;
+    const source = mapRef.current.getSource(
+      "proposed-access-road-source"
+    ) as maplibregl.GeoJSONSource;
+    if (!source) return;
+
+    if (!proposedAccessRoad) {
+      source.setData({ type: "FeatureCollection", features: [] });
+      return;
+    }
+
+    source.setData({
+      type: "FeatureCollection",
+      features: [proposedAccessRoad as any],
+    });
+  }, [proposedAccessRoad, isLoaded]);
 
   // Update Pin Marker, Perimeter Control Handles, and Footprint Polygon
   useEffect(() => {

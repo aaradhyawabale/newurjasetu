@@ -219,8 +219,10 @@ describe("Multi-City GIS Integration & Snapshot Provider (Pune, PCMC, Nashik)", 
         expect(ds.originalPath).toBeDefined();
         expect(ds.license).toBeDefined();
         expect(ds.consumedBy.length).toBeGreaterThan(0);
-        // Verify original source exists in ndata
-        expect(fs.existsSync(ds.originalPath)).toBe(true);
+        // Verify original source exists if local ndata directory is present
+        if (fs.existsSync("ndata")) {
+          expect(fs.existsSync(ds.originalPath)).toBe(true);
+        }
       }
     });
   });

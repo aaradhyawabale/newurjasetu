@@ -30,7 +30,10 @@ import { Drawer } from "../ui/Drawer";
 import { ScoreBar } from "../ui/ScoreBar";
 import { StatusBadge } from "../ui/StatusBadge";
 import { EvidenceChip } from "../ui/EvidenceChip";
-import { AnalysisReportResult, CriterionResult } from "@/server/analysis-engine/engine";
+import { AnalysisReportResult } from "@/server/analysis-engine/engine";
+import { GeminiInsightsCard } from "./GeminiInsightsCard";
+import { AiPlanningInsights } from "@/server/ai/types";
+import { CriterionResult } from "@/server/analysis-engine/engine";
 
 interface ReportDrawerProps {
   isOpen: boolean;
@@ -40,6 +43,7 @@ interface ReportDrawerProps {
   isDownloadingPdf?: boolean;
   onBridgeRelocateToCrossing?: () => void;
   isBridgeRelocating?: boolean;
+  onInsightsUpdated?: (insights: AiPlanningInsights) => void;
 }
 
 interface PlanningPillar {
@@ -116,6 +120,7 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
   isDownloadingPdf = false,
   onBridgeRelocateToCrossing,
   isBridgeRelocating = false,
+  onInsightsUpdated,
 }) => {
   const [activeTab, setActiveTab] = useState<"visual" | "detail">("visual");
   const [expandedCriterionId, setExpandedCriterionId] = useState<string | null>(null);
@@ -273,6 +278,15 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                 </button>
               </div>
             </div>
+
+            {/* Decision-support limitations and optional AI insights */}
+            <div className="p-3 bg-stone-100 rounded-panel border border-stone-200 text-stone-600 text-[11px] leading-relaxed flex items-start gap-2">
+              <ShieldAlert className="w-4 h-4 text-stone-500 shrink-0 mt-0.5" />
+              <span>
+                <strong>DECISION SUPPORT NOTICE:</strong> This analysis is an indicative geospatial screening tool. It does not constitute an official government approval, environmental clearance, or structural engineering certification. All thresholds must be verified against local municipal development control regulations.
+              </span>
+            </div>
+            <GeminiInsightsCard report={report} onInsightsUpdated={onInsightsUpdated} />
 
             {/* Verdict Summary Text */}
             <p className="text-xs text-stone-700 leading-relaxed bg-stone-50 p-3 rounded-panel border border-stone-200">

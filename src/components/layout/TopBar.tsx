@@ -40,6 +40,7 @@ interface TopBarProps {
   onSearchSelectLocation: (lat: number, lng: number, label: string) => void;
   onSignOut: () => void;
   onCompareClick?: () => void;
+  onCopilotClick?: () => void;
   userName?: string | null;
   historyCount: number;
   isAnalyzing: boolean;
@@ -64,6 +65,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   onSearchSelectLocation,
   onSignOut,
   onCompareClick,
+  onCopilotClick,
   userName,
   historyCount,
   isAnalyzing,
@@ -346,6 +348,19 @@ export const TopBar: React.FC<TopBarProps> = ({
 
       {/* Right: Actions, Exports & Profile */}
       <div className="flex items-center gap-2">
+        {/* AI Planning Copilot Button */}
+        {onCopilotClick && (
+          <button
+            type="button"
+            onClick={onCopilotClick}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-btn border border-purple-200 hover:border-purple-300 bg-purple-50/80 hover:bg-purple-100 text-xs font-semibold text-purple-900 transition-colors shadow-2xs"
+            title="Open AI Planning Assistant & Siting Copilot"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+            <span className="hidden sm:inline">AI Copilot</span>
+          </button>
+        )}
+
         {/* Primary Analyze Button */}
         <button
           type="button"

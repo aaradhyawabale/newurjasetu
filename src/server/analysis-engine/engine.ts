@@ -159,6 +159,7 @@ export interface AnalysisReportResult {
   narrativeText: string;
   sensitivity?: import("./sensitivity").SensitivityAnalysisResult;
   bridgeAppraisal?: BridgeSuitabilityAppraisal;
+  aiInsights?: import("../ai/types").AiPlanningInsights;
 }
 
 const overpassProvider = new OverpassProvider();

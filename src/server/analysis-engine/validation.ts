@@ -10,10 +10,13 @@ import {
   computeFootprintDistanceToGeometryMeters,
   validateCoordinates,
   validatePolygonGeometry,
+  calculateAccessRoadAlignment,
 } from "../gis/geometry";
+import * as turf from "@turf/turf";
 import { OverpassProvider, osmElementToGeoJson } from "../providers/overpass";
 import { OsmElement } from "../providers/types";
 import { analyzeBridgeConnectivity } from "./bridge-planner";
+import { getStudyArea } from "../providers/snapshot-loader";
 
 export interface ConflictingFeature {
   id: string;
@@ -23,6 +26,8 @@ export interface ConflictingFeature {
     | "railway"
     | "restricted_landuse"
     | "major_road"
+    | "road_collision"
+    | "access_obstacle"
     | "separation_buffer"
     | "parameter_constraint";
   label: string;
@@ -31,6 +36,27 @@ export interface ConflictingFeature {
   requiredBufferM?: number;
   description: string;
   geometry?: GeoJSON.Geometry;
+}
+
+export interface ProposedAccessRoad {
+  nearestRoadName: string;
+  nearestRoadClass: string;
+  distanceM: number;
+  requiresNewAccessRoad: boolean;
+  alignmentGeoJson?: GeoJSON.Feature<GeoJSON.LineString>;
+  crossesObstacle: boolean;
+  obstacleDetails?: string;
+  preliminaryNotice: string;
+}
+
+export interface OfficialPlanningContext {
+  jurisdiction: string;
+  masterPlan: string;
+  statutoryRules: string;
+  zoningStatus: "RESIDENTIAL" | "COMMERCIAL" | "INDUSTRIAL" | "AGRICULTURAL" | "PUBLIC_SEMI_PUBLIC" | "UNVERIFIED";
+  verifiedSources: string[];
+  unverifiedAttributes: string[];
+  complianceDisclaimer: string;
 }
 
 export interface ValidationResult {
@@ -45,6 +71,56 @@ export interface ValidationResult {
   conflicts: ConflictingFeature[];
   messages: string[];
   evidenceComplete?: boolean;
+  roadAccess?: ProposedAccessRoad;
+  planningContext?: OfficialPlanningContext;
+}
+
+/**
+ * Resolves official municipal planning framework and statutory sources based on coordinates.
+ */
+export function resolveOfficialPlanningContext(lat: number, lng: number): OfficialPlanningContext {
+  const city = getStudyArea(lat, lng);
+
+  let jurisdiction = "Maharashtra Urban Local Body (ULB)";
+  let masterPlan = "Draft Regional Development Plan / Spatial Framework";
+  let statutoryRules = "Maharashtra Unified Development Control and Promotion Regulations (UDCPR 2020) & MRTP Act 1966";
+
+  if (city === "pune") {
+    jurisdiction = "Pune Municipal Corporation (PMC)";
+    masterPlan = "PMC Comprehensive Development Plan (DP 2007-2027) & City Mobility Plan";
+    statutoryRules = "UDCPR 2020 (Chapters 3 & 4), PMC Building Bye-laws & MRTP Act 1966";
+  } else if (city === "pcmc") {
+    jurisdiction = "Pimpri Chinchwad Municipal Corporation (PCMC)";
+    masterPlan = "PCMC Revised Sanctioned Development Plan & BRTS Transit Corridor Plan";
+    statutoryRules = "UDCPR 2020 & PCMC Development Control Regulations (DCR)";
+  } else if (city === "nashik") {
+    jurisdiction = "Nashik Municipal Corporation (NMC)";
+    masterPlan = "NMC Sanctioned Development Plan 2016-2036";
+    statutoryRules = "UDCPR 2020 (Part II) & NMC Development Rules";
+  }
+
+  return {
+    jurisdiction,
+    masterPlan,
+    statutoryRules,
+    zoningStatus: "UNVERIFIED",
+    verifiedSources: [
+      "OpenStreetMap (OSM) Road Network & Infrastructure Geometry",
+      "Copernicus / Open-Meteo 30m Global DEM Terrain Data",
+      "NASA POWER Climatological Solar & Meteorological Archive",
+      `${jurisdiction} Administrative Geographic Extent`,
+    ],
+    unverifiedAttributes: [
+      "Cadastral Revenue Survey / CTS Number and Title Ownership (7/12 Extract)",
+      "Official Municipal Development Plan (DP) Reservation Color Code & Land Use Zone",
+      "Non-Agricultural (NA) Permission & Encumbrance Certificate",
+      "Site-Specific Tree Preservation & Environmental NOC Status",
+    ],
+    complianceDisclaimer:
+      "Statutory Notice: While spatial feasibility (footprint fit, road access, and physical buffers) has been computed against available georeferenced GIS data, statutory development rights require formal verification with the Town Planning Department of " +
+      jurisdiction +
+      ". UrjaSetu does not certify title clearance or official zoning conformity without revenue records.",
+  };
 }
 
 const overpassProvider = new OverpassProvider();
@@ -81,6 +157,7 @@ export async function validateFootprint(
   const conflicts: ConflictingFeature[] = [];
   const messages: string[] = [];
   let evidenceComplete = true;
+  let roadAccess: ProposedAccessRoad | undefined = undefined;
 
   if (!geomCheck.valid) {
     conflicts.push({
@@ -305,21 +382,60 @@ export async function validateFootprint(
           );
         }
 
-        // Expressways / motorways
-        if (tags.highway === "motorway" || tags.highway === "trunk") {
-          if (type !== "Bridge" && type !== "Road") {
-            const hLabel = `High-speed highway (${tags.name || tags.highway})`;
+        // Roadway collision check (motorway, trunk, primary, secondary, tertiary, residential, service, etc.)
+        const isLinearCorridor =
+          type === "Road" || type === "Bridge" || type === "Water Canal" || type === "Drainage";
+        if (!isLinearCorridor && tags.highway) {
+          const hw = tags.highway;
+          const roadName = tags.name || `Road (${hw})`;
+          const isMotorway = hw === "motorway" || hw === "trunk";
+          const isMajorRoad = ["primary", "secondary", "tertiary"].includes(hw);
+          const isLocalRoad = [
+            "residential",
+            "service",
+            "unclassified",
+            "living_street",
+            "pedestrian",
+          ].includes(hw);
+
+          if (isMotorway) {
             addConflict(
               {
                 id: `osm_${el.id}`,
                 category: "major_road",
-                label: hLabel,
+                label: `Motorway Collision (${roadName})`,
                 severity: "critical",
                 distanceM: 0,
-                description: "Direct collision with high-speed motorway right-of-way.",
+                description: `Footprint directly collides with high-speed motorway / expressway right-of-way (${roadName}). Building placement on active expressway corridor is strictly prohibited.`,
                 geometry: feature.geometry,
               },
-              `major_road:${hLabel}`
+              `major_road:${roadName}`
+            );
+          } else if (isMajorRoad) {
+            addConflict(
+              {
+                id: `osm_${el.id}`,
+                category: "road_collision",
+                label: `Arterial Road Collision (${roadName})`,
+                severity: "critical",
+                distanceM: 0,
+                description: `Footprint directly collides with active arterial/collector carriage-way (${roadName}). Proposed facility footprint cannot obstruct public vehicular rights-of-way.`,
+                geometry: feature.geometry,
+              },
+              `road:${roadName}`
+            );
+          } else if (isLocalRoad) {
+            addConflict(
+              {
+                id: `osm_${el.id}`,
+                category: "road_collision",
+                label: `Street Alignment Collision (${roadName})`,
+                severity: "critical",
+                distanceM: 0,
+                description: `Footprint directly obstructs existing mapped street corridor (${roadName}). Placed facility must be repositioned outside active public street right-of-way.`,
+                geometry: feature.geometry,
+              },
+              `road:${roadName}`
             );
           }
         }
@@ -480,6 +596,118 @@ export async function validateFootprint(
         }
       }
     }
+
+    // 3.5. Evaluate Road Access and Compute Preliminary Access Road Alignment
+    const publicRoadElements = elements.filter(
+      (e) =>
+        e.tags?.highway &&
+        [
+          "motorway",
+          "trunk",
+          "primary",
+          "secondary",
+          "tertiary",
+          "residential",
+          "unclassified",
+          "service",
+          "living_street",
+        ].includes(e.tags.highway)
+    );
+
+    if (publicRoadElements.length > 0) {
+      let closestRoadEl: OsmElement | null = null;
+      let closestRoadGeom: GeoJSON.Geometry | null = null;
+      let minRoadDistM = Infinity;
+
+      for (const rEl of publicRoadElements) {
+        const feat = osmElementToGeoJson(rEl);
+        if (!feat) continue;
+        const distM = computeFootprintDistanceToGeometryMeters(footprint, feat.geometry);
+        if (distM < minRoadDistM) {
+          minRoadDistM = distM;
+          closestRoadEl = rEl;
+          closestRoadGeom = feat.geometry;
+        }
+      }
+
+      if (closestRoadEl && closestRoadGeom) {
+        const roadName = closestRoadEl.tags?.name || `Unnamed ${closestRoadEl.tags?.highway || "road"}`;
+        const roadClass = closestRoadEl.tags?.highway || "road";
+
+        if (minRoadDistM <= 15) {
+          roadAccess = {
+            nearestRoadName: roadName,
+            nearestRoadClass: roadClass,
+            distanceM: Math.round(minRoadDistM),
+            requiresNewAccessRoad: false,
+            crossesObstacle: false,
+            preliminaryNotice: "Direct road frontage available. Site perimeter is directly adjacent (<= 15m) to public road network.",
+          };
+        } else {
+          // Generate preliminary access road alignment
+          const roadAlignment = calculateAccessRoadAlignment(footprint, closestRoadGeom);
+          let crossesObstacle = false;
+          let obstacleDetails: string | undefined = undefined;
+
+          if (roadAlignment) {
+            // Check if alignment line intersects any buildings, waterways, or railways
+            for (const el of elements) {
+              if (el.id === closestRoadEl.id) continue;
+              const f = osmElementToGeoJson(el);
+              if (!f) continue;
+              const t = el.tags || {};
+              const isBldg = t.building && t.building !== "no";
+              const isWater = t.waterway || t.natural === "water";
+              const isRail = t.railway && t.railway !== "abandoned";
+
+              if (
+                (isBldg || isWater || isRail) &&
+                turf.booleanIntersects(roadAlignment.alignment, f.geometry as any)
+              ) {
+                crossesObstacle = true;
+                const obsName =
+                  t.name ||
+                  (isBldg ? "existing building" : isWater ? "water body" : "railway corridor");
+                obstacleDetails = `Proposed access alignment crosses ${obsName}.`;
+                addConflict(
+                  {
+                    id: `access_obs_${el.id}`,
+                    category: "access_obstacle",
+                    label: `Access Road Obstacle (${obsName})`,
+                    severity: "warning",
+                    distanceM: Math.round(minRoadDistM),
+                    description: `Preliminary access road alignment intersects ${obsName}. Requires grade separation, culvert/bridge, or right-of-way negotiation.`,
+                    geometry: f.geometry,
+                  },
+                  `access_obs:${obsName}`
+                );
+                break;
+              }
+            }
+
+            roadAccess = {
+              nearestRoadName: roadName,
+              nearestRoadClass: roadClass,
+              distanceM: roadAlignment.lengthM,
+              requiresNewAccessRoad: true,
+              alignmentGeoJson: roadAlignment.alignment,
+              crossesObstacle,
+              obstacleDetails,
+              preliminaryNotice: `Preliminary concept alignment only (~${roadAlignment.lengthM}m). Not an approved engineering design, official right-of-way, or sanctioned DP reservation. Field survey required.`,
+            };
+          } else {
+            roadAccess = {
+              nearestRoadName: roadName,
+              nearestRoadClass: roadClass,
+              distanceM: Math.round(minRoadDistM),
+              requiresNewAccessRoad: true,
+              crossesObstacle: false,
+              preliminaryNotice: `Preliminary road access (~${Math.round(minRoadDistM)}m to ${roadName}). Ground survey required to establish vehicular corridor.`,
+            };
+          }
+        }
+      }
+    }
   } catch (err: any) {
     evidenceComplete = false;
     console.warn("[Validation Feature Check Warning]", err.message);
@@ -521,6 +749,8 @@ export async function validateFootprint(
     limitReason = `Clear site: footprint satisfies spatial intersection and setback norms for ${config.label}.`;
   }
 
+  const planningContext = resolveOfficialPlanningContext(lat, lng);
+
   return {
     status,
     geometryValid: geomCheck.valid,
@@ -533,6 +763,7 @@ export async function validateFootprint(
     conflicts,
     messages,
     evidenceComplete,
+    roadAccess,
+    planningContext,
   };
 }
-

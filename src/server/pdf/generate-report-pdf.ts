@@ -425,6 +425,189 @@ export async function generateReportPdf(
     y -= 10;
   }
 
+  // Road Access & Preliminary Alignment Analysis
+  if (report.validation?.roadAccess) {
+    y -= 10;
+    ensureSpace(45);
+    page.drawText("ROAD CONNECTIVITY & PRELIMINARY ACCESS ALIGNMENT", {
+      x: 30,
+      y,
+      size: 9,
+      font: boldFont,
+      color: rgb(0.12, 0.44, 0.33),
+    });
+    y -= 11;
+
+    const ra = report.validation.roadAccess;
+    const roadDesc = ra.requiresNewAccessRoad
+      ? `Preliminary Access Road Needed: ~${ra.distanceM}m connection to ${ra.nearestRoadName} (${ra.nearestRoadClass}). ${
+          ra.crossesObstacle
+            ? `Obstacle Alert: ${ra.obstacleDetails || "Corridor intersects mapped feature."}`
+            : "Direct unobstructed corridor."
+        }`
+      : `Direct Road Frontage: Site perimeter is directly adjacent (<=15m) to ${ra.nearestRoadName} (${ra.nearestRoadClass}).`;
+
+    const raLines = wrapText(roadDesc, 95);
+    for (const line of raLines) {
+      page.drawText(line, {
+        x: 34,
+        y,
+        size: 7.5,
+        font: timesRoman,
+        color: ra.crossesObstacle ? rgb(0.6, 0.1, 0.1) : rgb(0.2, 0.2, 0.2),
+      });
+      y -= 9.5;
+    }
+
+    page.drawText(`Notice: ${ra.preliminaryNotice}`, {
+      x: 34,
+      y,
+      size: 6.5,
+      font: timesRoman,
+      color: rgb(0.45, 0.45, 0.45),
+    });
+    y -= 10;
+  }
+
+  // Official Municipal Planning Framework
+  if (report.validation?.planningContext) {
+    y -= 8;
+    ensureSpace(40);
+    const pc = report.validation.planningContext;
+    page.drawText(`OFFICIAL PLANNING FRAMEWORK (${pc.jurisdiction.toUpperCase()})`, {
+      x: 30,
+      y,
+      size: 9,
+      font: boldFont,
+      color: rgb(0.12, 0.44, 0.33),
+    });
+    y -= 11;
+
+    const planLines = wrapText(
+      `Master Plan: ${pc.masterPlan} | Statutory Rules: ${pc.statutoryRules} | Unverified Records: ${pc.unverifiedAttributes.slice(0, 2).join("; ")}.`,
+      95
+    );
+    for (const pl of planLines) {
+      page.drawText(pl, {
+        x: 34,
+        y,
+        size: 7,
+        font: timesRoman,
+        color: rgb(0.25, 0.25, 0.25),
+      });
+      y -= 9;
+    }
+  }
+
+  // AI Planning Insights & Statutory Mitigations (Gemini)
+  if (report.aiInsights) {
+    y -= 10;
+    ensureSpace(120);
+
+    page.drawRectangle({
+      x: 30,
+      y: y - 16,
+      width: width - 60,
+      height: 20,
+      color: rgb(0.95, 0.92, 0.98),
+      borderColor: rgb(0.85, 0.78, 0.92),
+      borderWidth: 1,
+    });
+
+    page.drawText("AI PLANNING SYNTHESIS & STATUTORY MITIGATIONS (GEMINI)", {
+      x: 38,
+      y: y - 5,
+      size: 9,
+      font: boldFont,
+      color: rgb(0.35, 0.15, 0.55),
+    });
+
+    const badgeText = `PRELIMINARY: ${report.aiInsights.preliminaryAssessment.replace(/_/g, " ")}`;
+    page.drawText(badgeText, {
+      x: width - 210,
+      y: y - 5,
+      size: 8,
+      font: boldFont,
+      color: rgb(0.35, 0.15, 0.55),
+    });
+
+    y -= 24;
+
+    // Executive summary
+    const sumLines = wrapText(`Executive Summary: ${report.aiInsights.executiveSummary}`, 102);
+    ensureSpace(sumLines.length * 10 + 10);
+    for (const sLine of sumLines) {
+      page.drawText(sLine, {
+        x: 34,
+        y,
+        size: 7.5,
+        font: timesRoman,
+        color: rgb(0.15, 0.15, 0.15),
+      });
+      y -= 9.5;
+    }
+
+    y -= 4;
+
+    // Recommended Mitigations
+    if (report.aiInsights.recommendedMitigations && report.aiInsights.recommendedMitigations.length > 0) {
+      ensureSpace(20);
+      page.drawText("RECOMMENDED ENGINEERING MITIGATIONS:", {
+        x: 34,
+        y,
+        size: 7.5,
+        font: boldFont,
+        color: rgb(0.25, 0.25, 0.25),
+      });
+      y -= 10;
+
+      for (const m of report.aiInsights.recommendedMitigations.slice(0, 3)) {
+        const mLines = wrapText(`* [${m.provenance}] Issue: ${m.issue} -> Mitigation: ${m.mitigation}`, 100);
+        ensureSpace(mLines.length * 9 + 4);
+        for (const mLine of mLines) {
+          page.drawText(mLine, {
+            x: 38,
+            y,
+            size: 7,
+            font: timesRoman,
+            color: rgb(0.2, 0.2, 0.2),
+          });
+          y -= 9;
+        }
+      }
+    }
+
+    // Statutory checklist summary
+    if (report.aiInsights.statutoryChecklist && report.aiInsights.statutoryChecklist.length > 0) {
+      y -= 4;
+      ensureSpace(20);
+      page.drawText("STATUTORY CLEARANCE & NOC REQUIREMENTS:", {
+        x: 34,
+        y,
+        size: 7.5,
+        font: boldFont,
+        color: rgb(0.25, 0.25, 0.25),
+      });
+      y -= 10;
+
+      for (const noc of report.aiInsights.statutoryChecklist.slice(0, 3)) {
+        const nocLine = `* ${noc.authority} — ${noc.clearanceName} (${noc.isMandatory ? "Mandatory" : "Recommended"}): ${noc.triggerCondition}`;
+        const nLines = wrapText(nocLine, 100);
+        ensureSpace(nLines.length * 9 + 4);
+        for (const nLine of nLines) {
+          page.drawText(nLine, {
+            x: 38,
+            y,
+            size: 7,
+            font: timesRoman,
+            color: rgb(0.2, 0.2, 0.2),
+          });
+          y -= 9;
+        }
+      }
+    }
+  }
+
   // Calculation Assumptions & Evidence Provenance
   if (report.assumptions && report.assumptions.length > 0) {
     y -= 10;

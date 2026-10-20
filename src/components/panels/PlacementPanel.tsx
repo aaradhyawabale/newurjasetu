@@ -20,6 +20,8 @@ import {
   Sliders,
   Compass,
   Route,
+  FileText,
+  AlertOctagon,
 } from "lucide-react";
 import {
   InfrastructureTypeId,
@@ -58,6 +60,7 @@ interface PlacementPanelProps {
   isBridgeRelocating?: boolean;
   onBridgePlanApproaches?: () => void;
   isBridgePlanningApproaches?: boolean;
+  onOpenCopilot?: () => void;
   className?: string;
 }
 
@@ -77,6 +80,7 @@ export const PlacementPanel: React.FC<PlacementPanelProps> = ({
   isBridgeRelocating = false,
   onBridgePlanApproaches,
   isBridgePlanningApproaches = false,
+  onOpenCopilot,
   className = "",
 }) => {
   if (!placement) {
@@ -636,6 +640,82 @@ export const PlacementPanel: React.FC<PlacementPanelProps> = ({
             </div>
           )}
 
+          {/* Road Access & Connectivity Card */}
+          {validationResult && validationResult.roadAccess && (
+            <div className="p-3 rounded-panel bg-amber-50/70 border border-amber-200 flex flex-col gap-1.5 mt-1">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono uppercase tracking-wider font-semibold text-amber-900 flex items-center gap-1">
+                  <Route className="w-3.5 h-3.5 text-amber-700" />
+                  <span>Road Access & Alignment</span>
+                </span>
+                <span
+                  className={`text-[9px] font-mono px-1.5 py-0.5 rounded font-bold ${
+                    validationResult.roadAccess.requiresNewAccessRoad
+                      ? "bg-amber-100 text-amber-800 border border-amber-300"
+                      : "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                  }`}
+                >
+                  {validationResult.roadAccess.requiresNewAccessRoad
+                    ? "New Road Required"
+                    : "Direct Frontage"}
+                </span>
+              </div>
+              <div className="text-[11px] text-stone-700 flex flex-col gap-0.5 mt-0.5">
+                <div>
+                  <span className="font-semibold">Nearest road:</span>{" "}
+                  {validationResult.roadAccess.nearestRoadName} (
+                  <span className="capitalize">{validationResult.roadAccess.nearestRoadClass}</span>)
+                </div>
+                <div>
+                  <span className="font-semibold">Access distance:</span>{" "}
+                  {validationResult.roadAccess.distanceM}m
+                </div>
+                {validationResult.roadAccess.crossesObstacle && (
+                  <div className="text-red-700 font-medium flex items-center gap-1 mt-0.5">
+                    <AlertOctagon className="w-3 h-3 text-red-600 shrink-0" />
+                    <span>{validationResult.roadAccess.obstacleDetails || "Crosses obstacle"}</span>
+                  </div>
+                )}
+                <div className="text-[10px] text-stone-500 italic mt-1 leading-snug">
+                  {validationResult.roadAccess.preliminaryNotice}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Official Planning & Statutory Context Card */}
+          {validationResult && validationResult.planningContext && (
+            <div className="p-3 rounded-panel bg-sky-50/70 border border-sky-200 flex flex-col gap-1.5 mt-1">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono uppercase tracking-wider font-semibold text-sky-900 flex items-center gap-1">
+                  <FileText className="w-3.5 h-3.5 text-sky-700" />
+                  <span>Planning Framework</span>
+                </span>
+                <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-sky-100 text-sky-800 border border-sky-300 font-bold">
+                  {validationResult.planningContext.zoningStatus}
+                </span>
+              </div>
+              <div className="text-[11px] text-stone-700 flex flex-col gap-0.5">
+                <div>
+                  <span className="font-semibold">Jurisdiction:</span>{" "}
+                  {validationResult.planningContext.jurisdiction}
+                </div>
+                <div>
+                  <span className="font-semibold">Statutory DP:</span>{" "}
+                  {validationResult.planningContext.masterPlan}
+                </div>
+                <div>
+                  <span className="font-semibold">Norms:</span>{" "}
+                  {validationResult.planningContext.statutoryRules}
+                </div>
+                <div className="text-[10px] text-stone-500 mt-1 leading-snug">
+                  <span className="font-semibold text-amber-800">Unverified:</span>{" "}
+                  {validationResult.planningContext.unverifiedAttributes.slice(0, 2).join("; ")}.
+                </div>
+              </div>
+            </div>
+          )}
+
           {validationResult && validationResult.messages.length > 0 && (
             <div className="flex flex-col gap-1 mt-1">
               {validationResult.messages.map((msg, idx) => (
@@ -647,6 +727,18 @@ export const PlacementPanel: React.FC<PlacementPanelProps> = ({
                 </div>
               ))}
             </div>
+          )}
+
+          {/* Ask AI Planning Assistant Button */}
+          {onOpenCopilot && (
+            <button
+              type="button"
+              onClick={onOpenCopilot}
+              className="mt-2 w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-900 text-xs font-semibold transition-colors shadow-2xs"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-purple-700" />
+              <span>Consult AI Planning Assistant</span>
+            </button>
           )}
         </div>
       </div>

@@ -16,6 +16,8 @@ prisma/test.db-journal
 prisma/test.db-wal
 prisma/test.db-shm
 .env
+.env*.local
+.env.local
 *.log
 *.tsbuildinfo
 .DS_Store
