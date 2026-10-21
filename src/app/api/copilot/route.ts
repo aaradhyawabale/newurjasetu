@@ -22,14 +22,6 @@ export async function POST(req: NextRequest) {
   try {
     await requireAuthUser(req);
 
-    if (!isGeminiConfigured()) {
-      return errorResponse(
-        "Gemini API key is not configured on the server. Please add GEMINI_API_KEY to your .env file.",
-        "KEY_NOT_CONFIGURED",
-        503
-      );
-    }
-
     let body: any;
     try {
       body = await req.json();
@@ -45,6 +37,14 @@ export async function POST(req: NextRequest) {
 
     if (!message || typeof message !== "string" || message.trim().length === 0) {
       return errorResponse("Message is required and cannot be empty", "BAD_REQUEST", 400);
+    }
+
+    if (!isGeminiConfigured()) {
+      return errorResponse(
+        "Gemini API key is not configured on the server. Please add GEMINI_API_KEY to your .env file.",
+        "KEY_NOT_CONFIGURED",
+        503
+      );
     }
 
     const result = await generateCopilotResponse(message.trim(), context, history);
