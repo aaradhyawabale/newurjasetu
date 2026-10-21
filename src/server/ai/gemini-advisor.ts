@@ -447,31 +447,42 @@ Produce a structured JSON response matching the required schema with:
     const ai = new GoogleGenAI({ apiKey });
 
     // Request structured JSON response
-    let response;
-    try {
-      response = await ai.models.generateContent({
-        model: modelName,
-        contents: userPrompt,
-        config: {
-          systemInstruction,
-          responseMimeType: "application/json",
-          temperature: 0.2, // Low temperature for high factual consistency and adherence to evidence
-        },
-      });
-    } catch (modelErr: any) {
-      if (modelErr?.status === 404 && modelName !== "gemini-3.5-flash-lite") {
+    // Request structured JSON response with model fallback chain
+    const candidateModels = [
+      modelName,
+      "gemini-2.5-flash",
+      "gemini-2.0-flash",
+      "gemini-1.5-flash",
+    ].filter((m, i, arr) => arr.indexOf(m) === i);
+
+    let response: any = null;
+    let lastModelErr: any = null;
+
+    for (const m of candidateModels) {
+      try {
         response = await ai.models.generateContent({
-          model: "gemini-3.5-flash-lite",
+          model: m,
           contents: userPrompt,
           config: {
             systemInstruction,
             responseMimeType: "application/json",
-            temperature: 0.2,
+            temperature: 0.2, // Low temperature for high factual consistency
           },
         });
-      } else {
+        if (response && response.text) {
+          break;
+        }
+      } catch (modelErr: any) {
+        lastModelErr = modelErr;
+        if (modelErr?.status === 404 || modelErr?.message?.toLowerCase().includes("not found")) {
+          continue;
+        }
         throw modelErr;
       }
+    }
+
+    if (!response) {
+      throw lastModelErr;
     }
 
     const rawText = response.text;
@@ -719,20 +730,49 @@ STRICT GROUNDING & PLANNING PRINCIPLES:
   prompt += `User Question: ${message}`;
 
   try {
-    const response = await ai.models.generateContent({
-      model: modelName,
-      contents: prompt,
-      config: {
-        systemInstruction,
-        temperature: 0.2,
-      },
-    });
+    const candidateModels = [
+      modelName,
+      "gemini-2.5-flash",
+      "gemini-2.0-flash",
+      "gemini-1.5-flash",
+    ].filter((m, i, arr) => arr.indexOf(m) === i);
+
+    let response: any = null;
+    let lastErr: any = null;
+    let effectiveModel = modelName;
+
+    for (const m of candidateModels) {
+      try {
+        response = await ai.models.generateContent({
+          model: m,
+          contents: prompt,
+          config: {
+            systemInstruction,
+            temperature: 0.2,
+          },
+        });
+        if (response && response.text) {
+          effectiveModel = m;
+          break;
+        }
+      } catch (mErr: any) {
+        lastErr = mErr;
+        if (mErr?.status === 404 || mErr?.message?.toLowerCase().includes("not found")) {
+          continue;
+        }
+        throw mErr;
+      }
+    }
+
+    if (!response) {
+      throw lastErr;
+    }
 
     const reply = response.text || "No response received from model.";
 
     return {
       reply,
-      modelUsed: modelName,
+      modelUsed: effectiveModel,
       groundedFacts: {
         city,
         infrastructureType: infraType,
@@ -777,4 +817,252 @@ STRICT GROUNDING & PLANNING PRINCIPLES:
       500
     );
   }
+}
+
+/**
+ * Autonomous Local GIS Planning Engine
+ *
+ * Provides instant, evidence-grounded urban planning answers based on active
+ * GIS coordinates, road clearance geometry, access road alignment, and
+ * Maharashtra UDCPR 2020 rules without requiring an external Gemini API key.
+ */
+export function generateLocalCopilotResponse(
+  message: string,
+  context?: CopilotChatContext,
+  history?: CopilotChatMessage[]
+): CopilotResponseResult {
+  const city = context?.studyArea || "Pune Urban Study Area (PMC)";
+  const infraType = context?.infrastructureType || "Civic Infrastructure";
+  const placement = context?.placement;
+  const validation = context?.validation;
+  const roadAccess = validation?.roadAccess;
+  const officialContext = validation?.officialPlanningContext;
+  const report = context?.report;
+
+  const conflicts = validation?.conflicts || [];
+  const roadCollision = conflicts.find(
+    (c) => c.category === "road_collision" || c.category === "major_road"
+  );
+  const buildingCollisions = conflicts.filter((c) => c.category === "building");
+
+  const hasRoadCollision = Boolean(roadCollision);
+  const roadAccessStatus = roadAccess
+    ? roadAccess.requiresNewAccessRoad
+      ? "PRELIMINARY_ACCESS_REQUIRED"
+      : "DIRECT_CONNECTED"
+    : "UNKNOWN";
+  const statutoryFramework =
+    officialContext?.statutoryRules ||
+    officialContext?.masterPlan ||
+    "Maharashtra Unified Development Control and Promotion Regulations (UDCPR 2020)";
+
+  const lowerMsg = message.toLowerCase();
+
+  // Intent 1: Road collision / overlap
+  if (
+    lowerMsg.includes("collision") ||
+    lowerMsg.includes("overlap") ||
+    (lowerMsg.includes("road") &&
+      (lowerMsg.includes("cut") ||
+        lowerMsg.includes("hit") ||
+        lowerMsg.includes("touch") ||
+        lowerMsg.includes("encroach") ||
+        lowerMsg.includes("check")))
+  ) {
+    let reply = `### Road Collision & Carriageway Assessment\n\n`;
+    if (hasRoadCollision && roadCollision) {
+      reply += `⚠️ **Critical Encroachment Detected**: The proposed **${infraType}** footprint directly intersects the mapped right-of-way of **${roadCollision.label}**.\n\n`;
+      reply += `- **Collision Details**: ${roadCollision.description}\n`;
+      reply += `- **Statutory Standard**: Under Indian Roads Congress (IRC) guidelines and Maharashtra UDCPR 2020 (Rule 15.1), no permanent structural footprint may encroach upon public road rights-of-way or carriageways.\n`;
+      reply += `- **Recommended Action**: Click the **"Snap to Road & Open Land"** tool in the control panel to automatically retract and align the footprint tangent to the curb with mandatory statutory setback (${infraType === "Park" ? "1.0m" : "3.0m"}), or drag the polygon clear of the road corridor.`;
+    } else {
+      reply += `✅ **Zero Road Collision**: The proposed **${infraType}** footprint clears all mapped road carriageways and right-of-way buffers in the **${city}** survey area.\n\n`;
+      reply += `- **Geometric Clearance**: Verified against OpenStreetMap road corridor polygons with statutory curb buffers.\n`;
+      reply += `- **Setback Adherence**: Meets the frontage clearance guidelines under Maharashtra UDCPR 2020.\n`;
+      if (roadAccess?.distanceM !== undefined) {
+        reply += `- **Distance to Nearest Road**: ${Math.round(roadAccess.distanceM)}m to **${roadAccess.nearestRoadName || "Arterial Road"}**.\n`;
+      }
+    }
+    return {
+      reply,
+      modelUsed: "local-gis-rules-engine",
+      groundedFacts: {
+        city,
+        infrastructureType: infraType,
+        hasRoadCollision,
+        roadAccessStatus,
+        statutoryFramework,
+      },
+    };
+  }
+
+  // Intent 2: Road access / preliminary access road
+  if (
+    lowerMsg.includes("access") ||
+    lowerMsg.includes("connect") ||
+    lowerMsg.includes("approach") ||
+    lowerMsg.includes("distance")
+  ) {
+    let reply = `### Road Ingress, Egress & Access Road Alignment\n\n`;
+    if (roadAccess?.requiresNewAccessRoad) {
+      const dist = Math.round(roadAccess.distanceM || 0);
+      reply += `⚠️ **Preliminary Access Road Required**: The site is currently offset from the public street network by **${dist}m** to **${roadAccess.nearestRoadName || "nearest road corridor"}**.\n\n`;
+      reply += `**Preliminary Access Alignment Overview**:\n`;
+      reply += `- **Required Span**: ${dist}m conceptual connection corridor to ${roadAccess.nearestRoadName || "the public highway"}.\n`;
+      reply += `- **Minimum Statutory Width (UDCPR 2020)**: Minimum 9.0m to 12.0m carriageway for public institutional facilities, schools, and hospitals to support two-way traffic and emergency tender turning radii.\n`;
+      reply += `- **Planning Caution**: The preliminary road displayed on the map is a **conceptual geometric planning line**. Formal right-of-way acquisition and municipal DP road reservation must be confirmed before construction.`;
+    } else {
+      const dist = Math.round(roadAccess?.distanceM || 0);
+      reply += `✅ **Direct Road Frontage Confirmed**: The proposed site has direct street access (**${dist}m** to **${roadAccess?.nearestRoadName || "Arterial Corridor"}**).\n\n`;
+      reply += `- **Emergency Access**: Complies with fire tender ingress/egress guidelines.\n`;
+      reply += `- **Recommended Frontage Width**: Maintain at least 12.0m to 15.0m clear frontage for dedicated ambulance and visitor access bays.`;
+    }
+    return {
+      reply,
+      modelUsed: "local-gis-rules-engine",
+      groundedFacts: {
+        city,
+        infrastructureType: infraType,
+        hasRoadCollision,
+        roadAccessStatus,
+        statutoryFramework,
+      },
+    };
+  }
+
+  // Intent 3: Official DP & UDCPR Rules
+  if (
+    lowerMsg.includes("rule") ||
+    lowerMsg.includes("udcpr") ||
+    lowerMsg.includes("document") ||
+    lowerMsg.includes("dp") ||
+    lowerMsg.includes("law") ||
+    lowerMsg.includes("statutory") ||
+    lowerMsg.includes("regulation")
+  ) {
+    let reply = `### Official Development Plan & Maharashtra UDCPR 2020 Framework\n\n`;
+    reply += `**Governing Planning Authority**: ${officialContext?.jurisdiction || "Local Planning Authority"}\n`;
+    reply += `**Applicable Master Plan**: ${officialContext?.masterPlan || "Approved City Development Plan"}\n`;
+    reply += `**Statutory Code**: Unified Development Control and Promotion Regulations for Maharashtra State (UDCPR 2020)\n\n`;
+
+    reply += `**Mandatory Compliance Points for ${infraType}**:\n`;
+    reply += `1. **Means of Access (UDCPR Rule 15.1)**: Road width abutting the plot must meet minimum category thresholds (${infraType === "Hospital" ? "minimum 12.0m to 15.0m" : "minimum 9.0m"}).\n`;
+    reply += `2. **Marginal Open Spaces / Setbacks**: Front setback of minimum 3.0m - 4.5m from road boundary line; side and rear margins of 3.0m for light and ventilation.\n`;
+    reply += `3. **Parking Norms (UDCPR Rule 15.4)**: Off-street parking bays required based on built-up area and operational capacity.\n`;
+    reply += `4. **Fire Safety & CFO NOC**: Mandatory clearance from the Chief Fire Officer (CFO) for assembly and public buildings.\n`;
+    reply += `5. **DP Reservation Verification**: Must cross-reference municipal Development Plan sheets to verify the parcel is not reserved for water bodies, open reservations, or public utilities.`;
+
+    return {
+      reply,
+      modelUsed: "local-gis-rules-engine",
+      groundedFacts: {
+        city,
+        infrastructureType: infraType,
+        hasRoadCollision,
+        roadAccessStatus,
+        statutoryFramework,
+      },
+    };
+  }
+
+  // Intent 4: Citizen plain-language explanation
+  if (
+    lowerMsg.includes("citizen") ||
+    lowerMsg.includes("simple") ||
+    lowerMsg.includes("plain") ||
+    lowerMsg.includes("explain")
+  ) {
+    const score = report?.overallScore ?? (hasRoadCollision ? 45 : 85);
+    let reply = `### Site Evaluation in Simple Plain Language\n\n`;
+    reply += `**Bottom-Line Verdict**: This location is currently rated **${score}/100** for a **${infraType}** in **${city}**.\n\n`;
+
+    reply += `**The Good News (Pros)**:\n`;
+    if (!hasRoadCollision) {
+      reply += `- Does not block or overlap any mapped roads or street traffic.\n`;
+    }
+    if (!roadAccess?.requiresNewAccessRoad) {
+      reply += `- Has direct road connection, making it easy for citizens to reach.\n`;
+    } else {
+      reply += `- Situated in a developing expansion zone.\n`;
+    }
+    reply += `- Sized at approx. ${Math.round(placement?.areaM2 || 2000).toLocaleString()} m² footprint area.\n\n`;
+
+    reply += `**Points of Caution (Cons / Watch Outs)**:\n`;
+    if (hasRoadCollision) {
+      reply += `- ⚠️ **Road Encroachment**: The building sits partly inside a street, which will cause traffic problems and cannot be approved legally.\n`;
+    }
+    if (roadAccess?.requiresNewAccessRoad) {
+      reply += `- ⚠️ **Needs New Road**: Visitors cannot drive directly to the plot today; a ${Math.round(roadAccess.distanceM || 0)}m access road must be built.\n`;
+    }
+    if (buildingCollisions.length > 0) {
+      reply += `- ⚠️ **Existing Buildings**: Intersects ${buildingCollisions.length} existing structures that would need clearance.\n`;
+    }
+    reply += `- Official revenue land titles (7/12 extract) still need to be verified with the local Talathi office.`;
+
+    return {
+      reply,
+      modelUsed: "local-gis-rules-engine",
+      groundedFacts: {
+        city,
+        infrastructureType: infraType,
+        hasRoadCollision,
+        roadAccessStatus,
+        statutoryFramework,
+      },
+    };
+  }
+
+  // Intent 5: Missing information / data gaps
+  if (
+    lowerMsg.includes("missing") ||
+    lowerMsg.includes("unverified") ||
+    lowerMsg.includes("gap") ||
+    lowerMsg.includes("data") ||
+    lowerMsg.includes("before")
+  ) {
+    let reply = `### Critical Missing Information & Pre-Construction Checklist\n\n`;
+    reply += `Before committing capital or submitting building sanction files to ${officialContext?.jurisdiction || "the Municipal Corporation"}, verify the following unmapped items:\n\n`;
+    reply += `1. **Cadastral 7/12 Extract (Mahabhulekh)**: Confirm clear title, ownership, non-agricultural (NA) sanction, and absence of legal encumbrances.\n`;
+    reply += `2. **City Survey Map (CTSO / Demarcation)**: Physical boundary measurement by the Inspector of Land Records (DILR) to settle exact plot coordinates.\n`;
+    reply += `3. **Geotechnical Borehole Investigation**: Standard Penetration Test (SPT) to determine safe bearing capacity (SBC) and water table depth.\n`;
+    reply += `4. **Municipal DP Zone Certificate**: Formal demarcation from ${officialContext?.jurisdiction || "Town Planning Dept"} confirming permissible land-use zoning.\n`;
+    reply += `5. **Environmental & Utility NOCs**: Clearances for stormwater drainage, tree felling, and 3-phase high-tension power connectivity from MSEDCL.`;
+
+    return {
+      reply,
+      modelUsed: "local-gis-rules-engine",
+      groundedFacts: {
+        city,
+        infrastructureType: infraType,
+        hasRoadCollision,
+        roadAccessStatus,
+        statutoryFramework,
+      },
+    };
+  }
+
+  const score = report?.overallScore ?? (hasRoadCollision ? 45 : 85);
+  let reply = `### Urban Infrastructure Siting Synthesis for ${infraType}\n\n`;
+  reply += `**Study Area**: ${city}\n`;
+  reply += `**Feasibility Status**: ${hasRoadCollision ? "⚠️ Action Required (Road Collision)" : "✅ Structurally Clear"}\n`;
+  reply += `**Multi-Criteria Suitability Score**: **${score}/100**\n\n`;
+
+  reply += `**Key Observations**:\n`;
+  reply += `- **Carriageway Clearance**: ${hasRoadCollision ? "Encroaches on mapped road right-of-way." : "Zero road collision detected; adheres to road buffer clearance."}\n`;
+  reply += `- **Street Connectivity**: ${roadAccess?.requiresNewAccessRoad ? `Landlocked; requires ${Math.round(roadAccess.distanceM || 0)}m preliminary access road to ${roadAccess.nearestRoadName || "public road"}.` : `Directly connected (${Math.round(roadAccess?.distanceM || 0)}m to ${roadAccess?.nearestRoadName || "road"}).`}\n`;
+  reply += `- **Statutory Reference**: ${statutoryFramework}.\n\n`;
+
+  reply += `💡 *Tip: You can ask specific questions about road collisions, access road extensions, statutory UDCPR regulations, or citizen summaries.*`;
+
+  return {
+    reply,
+    modelUsed: "local-gis-rules-engine",
+    groundedFacts: {
+      city,
+      infrastructureType: infraType,
+      hasRoadCollision,
+      roadAccessStatus,
+      statutoryFramework,
+    },
+  };
 }

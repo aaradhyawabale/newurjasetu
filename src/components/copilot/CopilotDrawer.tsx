@@ -15,13 +15,19 @@ import {
   ShieldAlert,
   Layers,
   ArrowRight,
-  RefreshCw,
+  Key,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { Drawer } from "../ui/Drawer";
 import {
   CopilotChatContext,
   CopilotChatMessage,
 } from "@/server/ai/gemini-advisor";
+
+interface ExtendedChatMessage extends CopilotChatMessage {
+  modelUsed?: string;
+}
 
 interface CopilotDrawerProps {
   isOpen: boolean;
@@ -34,10 +40,20 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
   onClose,
   context,
 }) => {
-  const [messages, setMessages] = useState<CopilotChatMessage[]>([]);
+  const [messages, setMessages] = useState<ExtendedChatMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Gemini configuration state
+  const [isConfigured, setIsConfigured] = useState<boolean | null>(null);
+  const [configuredModel, setConfiguredModel] = useState<string>("gemini-2.5-flash");
+  const [showKeyConfig, setShowKeyConfig] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState("");
+  const [isSavingKey, setIsSavingKey] = useState(false);
+  const [saveKeySuccess, setSaveKeySuccess] = useState<string | null>(null);
+  const [saveKeyError, setSaveKeyError] = useState<string | null>(null);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -48,6 +64,21 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
   );
   const roadAccess = context.validation?.roadAccess;
   const officialContext = context.validation?.officialPlanningContext;
+
+  // Check Gemini status when drawer opens
+  useEffect(() => {
+    if (isOpen) {
+      fetch("/api/copilot")
+        .then((r) => r.json())
+        .then((data) => {
+          if (data && typeof data.configured === "boolean") {
+            setIsConfigured(data.configured);
+            if (data.model) setConfiguredModel(data.model);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [isOpen]);
 
   // Auto-scroll to bottom of messages
   useEffect(() => {
@@ -84,6 +115,44 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
     },
   ];
 
+  const handleSaveKey = async () => {
+    const key = apiKeyInput.trim();
+    if (!key) return;
+
+    setIsSavingKey(true);
+    setSaveKeyError(null);
+    setSaveKeySuccess(null);
+
+    try {
+      const res = await fetch("/api/copilot/configure", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          apiKey: key,
+          model: configuredModel || "gemini-2.5-flash",
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || data.error?.message || "Failed to configure key");
+      }
+
+      setIsConfigured(true);
+      setSaveKeySuccess("Gemini API Key activated and saved to your laptop (.env)!");
+      setApiKeyInput("");
+      setTimeout(() => {
+        setShowKeyConfig(false);
+        setSaveKeySuccess(null);
+      }, 2500);
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      setSaveKeyError(errMsg);
+    } finally {
+      setIsSavingKey(false);
+    }
+  };
+
   const handleSendMessage = async (textToSend?: string) => {
     const text = (textToSend || inputValue).trim();
     if (!text || isLoading) return;
@@ -91,7 +160,7 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
     setError(null);
     setInputValue("");
 
-    const newMessages: CopilotChatMessage[] = [
+    const newMessages: ExtendedChatMessage[] = [
       ...messages,
       { role: "user", content: text },
     ];
@@ -106,17 +175,27 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
           message: text,
           context,
           history: messages,
+          fallbackToLocal: true, // Always fallback to local GIS rules engine so copilot NEVER breaks
         }),
       });
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error?.message || "Failed to get Copilot response");
+        const errMsg =
+          data.message ||
+          data.error?.message ||
+          (typeof data.error === "string" ? data.error : null) ||
+          "Failed to get Copilot response";
+        throw new Error(errMsg);
       }
 
       setMessages([
         ...newMessages,
-        { role: "assistant", content: data.data.reply },
+        {
+          role: "assistant",
+          content: data.reply,
+          modelUsed: data.modelUsed,
+        },
       ]);
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
@@ -214,10 +293,90 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
               <Sparkles className="w-3 h-3 text-purple-600" />
               Active Geospatial Grounding
             </span>
-            <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-purple-50 text-purple-700 border border-purple-200">
-              gemini-3.5-flash-lite
-            </span>
+            <div className="flex items-center gap-2">
+              {isConfigured ? (
+                <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-purple-50 text-purple-700 border border-purple-200 flex items-center gap-1">
+                  <Sparkles className="w-2.5 h-2.5 text-purple-600" />
+                  {configuredModel}
+                </span>
+              ) : (
+                <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1">
+                  <Info className="w-2.5 h-2.5 text-amber-600" />
+                  Local GIS Rules Engine
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowKeyConfig(!showKeyConfig)}
+                className="text-[10px] font-medium text-purple-700 hover:text-purple-900 underline flex items-center gap-0.5"
+              >
+                <Key className="w-2.5 h-2.5" />
+                <span>{isConfigured ? "API Key" : "Add Gemini Key"}</span>
+                {showKeyConfig ? (
+                  <ChevronUp className="w-2.5 h-2.5" />
+                ) : (
+                  <ChevronDown className="w-2.5 h-2.5" />
+                )}
+              </button>
+            </div>
           </div>
+
+          {/* Collapsible Key Configuration Card */}
+          {showKeyConfig && (
+            <div className="p-2.5 bg-purple-50/80 rounded-lg border border-purple-200 text-xs flex flex-col gap-2 my-1">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-purple-900 flex items-center gap-1">
+                  <Key className="w-3 h-3 text-purple-700" />
+                  Google Gemini API Configuration
+                </span>
+                <a
+                  href="https://aistudio.google.com/app/apikey"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-[10px] text-purple-700 hover:underline flex items-center gap-0.5"
+                >
+                  <span>Get Free Key (Google AI Studio)</span>
+                  <ArrowRight className="w-2.5 h-2.5" />
+                </a>
+              </div>
+              <p className="text-[11px] text-purple-800 leading-normal">
+                Paste your Google Gemini API key to activate cloud conversational reasoning. (The key will be saved directly to your laptop&apos;s local <code>.env</code> file).
+              </p>
+              <div className="flex gap-2">
+                <input
+                  type="password"
+                  value={apiKeyInput}
+                  onChange={(e) => setApiKeyInput(e.target.value)}
+                  placeholder="Paste your key: AIzaSy..."
+                  className="flex-1 px-2.5 py-1 text-xs bg-white border border-purple-300 rounded focus:outline-none focus:ring-1 focus:ring-purple-600 font-mono"
+                />
+                <button
+                  type="button"
+                  onClick={handleSaveKey}
+                  disabled={isSavingKey || !apiKeyInput.trim()}
+                  className="px-3 py-1 bg-purple-700 hover:bg-purple-800 text-white font-medium rounded text-xs transition-colors disabled:opacity-50 flex items-center gap-1 shrink-0"
+                >
+                  {isSavingKey ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    "Save & Connect"
+                  )}
+                </button>
+              </div>
+              {saveKeySuccess && (
+                <div className="text-[11px] text-emerald-700 font-medium flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                  <span>{saveKeySuccess}</span>
+                </div>
+              )}
+              {saveKeyError && (
+                <div className="text-[11px] text-red-700 font-medium flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3 text-red-600" />
+                  <span>{saveKeyError}</span>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="flex flex-wrap gap-1.5">
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] bg-white border border-stone-200 text-stone-700">
@@ -267,13 +426,27 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
             <div className="flex flex-col gap-1.5 flex-1">
               <div className="flex items-center justify-between">
                 <span className="font-semibold text-stone-900">UrjaSetu Planning Assistant</span>
-                <span className="text-[10px] font-mono text-stone-400">Ready</span>
+                <span className="text-[10px] font-mono text-stone-400">
+                  {isConfigured ? "Gemini Live AI Ready" : "Local GIS Engine Ready"}
+                </span>
               </div>
               <p className="text-stone-700 leading-relaxed">
                 Welcome! I am your AI Siting Copilot, directly grounded in UrjaSetu&apos;s GIS engine for{" "}
                 <strong>{city}</strong>. I can answer spatial queries regarding road network overlaps, preliminary
                 access road alignments, and statutory building guidelines under the <strong>Maharashtra UDCPR 2020</strong>.
               </p>
+              {!isConfigured && (
+                <div className="mt-1 p-2 bg-amber-50 rounded border border-amber-200 text-amber-800 text-[11px] flex items-center justify-between">
+                  <span>Running in <strong>Local GIS Planning Mode</strong>. No external API key required.</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowKeyConfig(true)}
+                    className="underline text-amber-900 font-semibold hover:text-black ml-2 shrink-0"
+                  >
+                    Enable Gemini Cloud AI
+                  </button>
+                </div>
+              )}
               <div className="pt-1 flex items-center gap-1.5 text-[10px] text-stone-500 font-mono">
                 <ShieldAlert className="w-3 h-3 text-stone-400 shrink-0" />
                 <span>Responses are decision-support guidance, not statutory municipal building sanctions.</span>
@@ -324,7 +497,15 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
                 {msg.role === "user" ? (
                   <p className="leading-relaxed whitespace-pre-wrap">{msg.content}</p>
                 ) : (
-                  <div>{renderFormattedReply(msg.content)}</div>
+                  <div>
+                    {msg.modelUsed === "local-gis-rules-engine" && (
+                      <div className="mb-2 pb-1.5 border-b border-stone-100 flex items-center gap-1 text-[10px] font-mono text-amber-700">
+                        <Info className="w-2.5 h-2.5 text-amber-600" />
+                        <span>Synthesized by UrjaSetu Local GIS Rules Engine</span>
+                      </div>
+                    )}
+                    {renderFormattedReply(msg.content)}
+                  </div>
                 )}
               </div>
             </div>
@@ -343,8 +524,17 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
             <div className="p-3 bg-red-50 rounded-panel border border-red-200 text-xs text-red-800 flex items-start gap-2">
               <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
               <div className="flex-1">
-                <span className="font-semibold">Copilot Error: </span>
+                <span className="font-semibold">Copilot Advisory: </span>
                 <span>{error}</span>
+                {error.includes("GEMINI_API_KEY") && (
+                  <button
+                    type="button"
+                    onClick={() => setShowKeyConfig(true)}
+                    className="block mt-1 font-medium underline text-red-900"
+                  >
+                    Click here to enter your Gemini API key
+                  </button>
+                )}
               </div>
             </div>
           )}

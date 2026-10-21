@@ -10,6 +10,7 @@ import {
   getGeminiModel,
   generateGeminiPlanningInsights,
   generateCopilotResponse,
+  generateLocalCopilotResponse,
   CopilotChatContext,
   GeminiAdvisorError,
 } from "@/server/ai/gemini-advisor";
@@ -344,4 +345,61 @@ describe("Gemini Copilot — Grounded Planning Assistant", () => {
     expect(mockContext.validation?.roadAccess?.requiresNewAccessRoad).toBe(true);
     expect(mockContext.validation?.officialPlanningContext?.masterPlan).toContain("PCMC");
   });
+
+  it("generateLocalCopilotResponse provides accurate road collision advice without external API key", () => {
+    const mockContext: CopilotChatContext = {
+      studyArea: "Pune Central Study Area (PMC)",
+      infrastructureType: "Hospital",
+      validation: {
+        status: "fail",
+        conflicts: [
+          {
+            category: "road_collision",
+            label: "Jangali Maharaj Road Carriageway",
+            distanceM: 0,
+            requiredBufferM: 10,
+            severity: "critical",
+            description: "Footprint intersects road carriageway surface.",
+          },
+        ],
+        roadAccess: {
+          requiresNewAccessRoad: false,
+          distanceM: 0,
+          nearestRoadName: "JM Road",
+        },
+      },
+    };
+
+    const result = generateLocalCopilotResponse("Check road collision", mockContext);
+    expect(result.modelUsed).toBe("local-gis-rules-engine");
+    expect(result.groundedFacts.hasRoadCollision).toBe(true);
+    expect(result.reply).toContain("Encroachment Detected");
+    expect(result.reply).toContain("Snap to Road & Open Land");
+  });
+
+  it("generateLocalCopilotResponse advises on access road requirements and statutory UDCPR rules", () => {
+    const mockContext: CopilotChatContext = {
+      studyArea: "Nashik Urban Study Area (NMC)",
+      infrastructureType: "School",
+      validation: {
+        status: "warn",
+        conflicts: [],
+        roadAccess: {
+          requiresNewAccessRoad: true,
+          distanceM: 65,
+          nearestRoadName: "Gangapur Road",
+        },
+        officialPlanningContext: {
+          jurisdiction: "Nashik Municipal Corporation (NMC)",
+          masterPlan: "NMC Development Plan (2016-2036)",
+          statutoryRules: "Maharashtra UDCPR 2020",
+        },
+      },
+    };
+
+    const result = generateLocalCopilotResponse("What are the official rules?", mockContext);
+    expect(result.reply).toContain("UDCPR 2020");
+    expect(result.reply).toContain("Nashik Municipal Corporation");
+  });
 });
+
