@@ -450,6 +450,7 @@ Produce a structured JSON response matching the required schema with:
     // Request structured JSON response with model fallback chain
     const candidateModels = [
       modelName,
+      "gemini-3.5-flash-lite",
       "gemini-2.5-flash",
       "gemini-2.0-flash",
       "gemini-1.5-flash",
@@ -732,6 +733,7 @@ STRICT GROUNDING & PLANNING PRINCIPLES:
   try {
     const candidateModels = [
       modelName,
+      "gemini-3.5-flash-lite",
       "gemini-2.5-flash",
       "gemini-2.0-flash",
       "gemini-1.5-flash",
