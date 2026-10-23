@@ -11,6 +11,9 @@ import {
   generateGeminiPlanningInsights,
   generateCopilotResponse,
   generateLocalCopilotResponse,
+  movePointGeodesic,
+  extractSpatialAdjustmentFromIntent,
+  CopilotAdjustment,
   CopilotChatContext,
   GeminiAdvisorError,
 } from "@/server/ai/gemini-advisor";
@@ -480,6 +483,128 @@ describe("Gemini Copilot — Grounded Planning Assistant", () => {
     expect(result.reply).toContain("MWp");
     expect(result.reply).toContain("Optimal Fixed Tilt & Azimuth");
     expect(result.reply).toContain("Carriageway Buffer");
+  });
+
+  describe("Copilot Conversational Spatial Adjustments", () => {
+    const basePlacement = {
+      lat: 20.3506,
+      lng: 74.3626,
+      lengthM: 200,
+      widthM: 100,
+      bearingDeg: 0,
+      areaM2: 20000,
+    };
+
+    it("movePointGeodesic moves points accurately along cardinal bearings", () => {
+      // Move 111,139 meters north (~1 degree latitude)
+      const movedNorth = movePointGeodesic(20.0, 74.0, 111139, 0);
+      expect(movedNorth.lat).toBeCloseTo(21.0, 1);
+      expect(movedNorth.lng).toBeCloseTo(74.0, 3);
+
+      // Move east
+      const movedEast = movePointGeodesic(20.0, 74.0, 50, 90);
+      expect(movedEast.lat).toBeCloseTo(20.0, 3);
+      expect(movedEast.lng).toBeGreaterThan(74.0);
+    });
+
+    it("extractSpatialAdjustmentFromIntent parses directional move commands", () => {
+      const adj1 = extractSpatialAdjustmentFromIntent("move 50m north", basePlacement);
+      expect(adj1).not.toBeNull();
+      expect(adj1?.actionType).toBe("move");
+      expect(adj1?.lat).toBeGreaterThan(basePlacement.lat);
+      expect(adj1?.lng).toBeCloseTo(basePlacement.lng, 4);
+      expect(adj1?.summary).toContain("Move 50m North");
+      expect(adj1?.autoApply).toBe(true);
+
+      const adj2 = extractSpatialAdjustmentFromIntent("shift 30 meters south", basePlacement);
+      expect(adj2).not.toBeNull();
+      expect(adj2?.lat).toBeLessThan(basePlacement.lat);
+      expect(adj2?.summary).toContain("Move 30m South");
+
+      const adj3 = extractSpatialAdjustmentFromIntent("move east 100m", basePlacement);
+      expect(adj3).not.toBeNull();
+      expect(adj3?.lng).toBeGreaterThan(basePlacement.lng);
+      expect(adj3?.summary).toContain("Move 100m East");
+    });
+
+    it("extractSpatialAdjustmentFromIntent parses rotation commands", () => {
+      const rot1 = extractSpatialAdjustmentFromIntent("rotate 90 degrees", basePlacement);
+      expect(rot1).not.toBeNull();
+      expect(rot1?.actionType).toBe("rotate");
+      expect(rot1?.bearingDeg).toBe(90);
+      expect(rot1?.summary).toContain("Rotate by 90° CW");
+
+      const rot2 = extractSpatialAdjustmentFromIntent("turn 45 deg counterclockwise", {
+        ...basePlacement,
+        bearingDeg: 90,
+      });
+      expect(rot2).not.toBeNull();
+      expect(rot2?.bearingDeg).toBe(45);
+
+      const rot3 = extractSpatialAdjustmentFromIntent("set bearing to 180", basePlacement);
+      expect(rot3).not.toBeNull();
+      expect(rot3?.bearingDeg).toBe(180);
+      expect(rot3?.summary).toContain("Set orientation to 180°");
+    });
+
+    it("extractSpatialAdjustmentFromIntent parses dimensional resize commands", () => {
+      const size1 = extractSpatialAdjustmentFromIntent("increase length to 300m", basePlacement);
+      expect(size1).not.toBeNull();
+      expect(size1?.actionType).toBe("resize");
+      expect(size1?.lengthM).toBe(300);
+
+      const size2 = extractSpatialAdjustmentFromIntent("set width to 60m", basePlacement);
+      expect(size2).not.toBeNull();
+      expect(size2?.widthM).toBe(60);
+
+      const size3 = extractSpatialAdjustmentFromIntent("make size 250m by 120m", basePlacement);
+      expect(size3).not.toBeNull();
+      expect(size3?.lengthM).toBe(250);
+      expect(size3?.widthM).toBe(120);
+
+      const size4 = extractSpatialAdjustmentFromIntent("expand size by 25%", basePlacement);
+      expect(size4).not.toBeNull();
+      expect(size4?.lengthM).toBe(250); // 200 * 1.25
+      expect(size4?.widthM).toBe(125); // 100 * 1.25
+
+      const size5 = extractSpatialAdjustmentFromIntent("shrink footprint by 20%", basePlacement);
+      expect(size5).not.toBeNull();
+      expect(size5?.lengthM).toBe(160); // 200 * 0.8
+      expect(size5?.widthM).toBe(80); // 100 * 0.8
+    });
+
+    it("extractSpatialAdjustmentFromIntent parses snap to road and bridge crossing commands", () => {
+      const roadAdj = extractSpatialAdjustmentFromIntent("align to the road corridor", basePlacement);
+      expect(roadAdj).not.toBeNull();
+      expect(roadAdj?.actionType).toBe("snap_to_road");
+      expect(roadAdj?.summary).toContain("Align footprint tangent to road corridor");
+
+      const overlapAdj = extractSpatialAdjustmentFromIntent("fix road collision", basePlacement);
+      expect(overlapAdj).not.toBeNull();
+      expect(overlapAdj?.actionType).toBe("snap_to_road");
+
+      const bridgeAdj = extractSpatialAdjustmentFromIntent("relocate bridge to river crossing", basePlacement);
+      expect(bridgeAdj).not.toBeNull();
+      expect(bridgeAdj?.actionType).toBe("relocate_to_crossing");
+      expect(bridgeAdj?.summary).toContain("Relocate bridge span");
+    });
+
+    it("generateLocalCopilotResponse returns proposedAdjustment with full civil engineering summary", () => {
+      const mockContext: CopilotChatContext = {
+        studyArea: "Pune Central",
+        infrastructureType: "Hospital",
+        placement: basePlacement,
+      };
+
+      const result = generateLocalCopilotResponse("move 40m north and rotate 90 degrees", mockContext);
+      expect(result.modelUsed).toBe("local-gis-rules-engine");
+      expect(result.proposedAdjustment).toBeDefined();
+      expect(result.proposedAdjustment?.lat).toBeGreaterThan(basePlacement.lat);
+      expect(result.proposedAdjustment?.bearingDeg).toBe(90);
+      expect(result.reply).toContain("Infrastructure Spatial Adjustment Executed");
+      expect(result.reply).toContain("Site Coordinates");
+      expect(result.reply).toContain("Orientation / Bearing");
+    });
   });
 });
 

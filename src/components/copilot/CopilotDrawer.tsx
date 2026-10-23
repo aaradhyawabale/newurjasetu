@@ -18,27 +18,42 @@ import {
   Key,
   ChevronDown,
   ChevronUp,
+  Compass,
+  RotateCw,
+  Maximize2,
+  Undo2,
+  Sliders,
 } from "lucide-react";
 import { Drawer } from "../ui/Drawer";
 import {
   CopilotChatContext,
   CopilotChatMessage,
+  CopilotAdjustment,
 } from "@/server/ai/gemini-advisor";
 
 interface ExtendedChatMessage extends CopilotChatMessage {
   modelUsed?: string;
+  proposedAdjustment?: CopilotAdjustment | null;
+  applied?: boolean;
+  reverted?: boolean;
 }
 
 interface CopilotDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   context: CopilotChatContext;
+  onApplyAdjustment?: (adjustment: CopilotAdjustment) => Promise<boolean | void> | boolean | void;
+  onUndoAdjustment?: () => Promise<boolean | void> | boolean | void;
+  activePlacement?: any;
 }
 
 export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
   isOpen,
   onClose,
   context,
+  onApplyAdjustment,
+  onUndoAdjustment,
+  activePlacement,
 }) => {
   const [messages, setMessages] = useState<ExtendedChatMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
@@ -94,6 +109,18 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
 
   const quickPrompts = [
     {
+      label: "Align to Road & Clear Overlap",
+      prompt: "Align this infrastructure to the road corridor and retract from any road overlaps.",
+    },
+    {
+      label: "Move 30m North",
+      prompt: "Move the infrastructure 30m north.",
+    },
+    {
+      label: "Rotate 90°",
+      prompt: "Rotate the infrastructure 90 degrees.",
+    },
+    {
       label: "Check Road Collision",
       prompt: "Is this proposed building overlapping an existing road or road right-of-way?",
     },
@@ -108,10 +135,6 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
     {
       label: "Simple Citizen Explanation",
       prompt: "Explain whether this site is suitable or has problems in simple plain language for a citizen.",
-    },
-    {
-      label: "Missing Information",
-      prompt: "What critical data is missing or unverified before construction decisions can be made?",
     },
   ];
 
@@ -189,12 +212,27 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
         throw new Error(errMsg);
       }
 
+      const adjustment = data.proposedAdjustment as CopilotAdjustment | null | undefined;
+      let applied = false;
+      if (adjustment && onApplyAdjustment) {
+        if (adjustment.autoApply) {
+          try {
+            onApplyAdjustment(adjustment);
+            applied = true;
+          } catch {
+            applied = false;
+          }
+        }
+      }
+
       setMessages([
         ...newMessages,
         {
           role: "assistant",
           content: data.reply,
           modelUsed: data.modelUsed,
+          proposedAdjustment: adjustment || null,
+          applied,
         },
       ]);
     } catch (err: unknown) {
@@ -202,6 +240,30 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
       setError(errMsg);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleManualApplyAdjustment = async (index: number, adj: CopilotAdjustment) => {
+    if (!onApplyAdjustment) return;
+    try {
+      await onApplyAdjustment(adj);
+      setMessages((prev) =>
+        prev.map((m, i) => (i === index ? { ...m, applied: true, reverted: false } : m))
+      );
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleManualUndoAdjustment = async (index: number) => {
+    if (!onUndoAdjustment) return;
+    try {
+      await onUndoAdjustment();
+      setMessages((prev) =>
+        prev.map((m, i) => (i === index ? { ...m, applied: false, reverted: true } : m))
+      );
+    } catch {
+      // ignore
     }
   };
 
@@ -505,6 +567,99 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
                       </div>
                     )}
                     {renderFormattedReply(msg.content)}
+
+                    {/* Proposed Infrastructure Adjustment Card */}
+                    {msg.proposedAdjustment && (
+                      <div className="mt-3 p-3 bg-amber-50/90 border border-amber-200/90 rounded-xl shadow-xs">
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                          <div className="flex items-center gap-1.5 text-amber-900 font-semibold text-xs">
+                            {msg.proposedAdjustment.actionType === "move" && <Compass className="w-3.5 h-3.5 text-amber-700" />}
+                            {msg.proposedAdjustment.actionType === "rotate" && <RotateCw className="w-3.5 h-3.5 text-amber-700" />}
+                            {msg.proposedAdjustment.actionType === "resize" && <Maximize2 className="w-3.5 h-3.5 text-amber-700" />}
+                            {msg.proposedAdjustment.actionType === "snap_to_road" && <Route className="w-3.5 h-3.5 text-amber-700" />}
+                            {msg.proposedAdjustment.actionType === "relocate_to_crossing" && <Layers className="w-3.5 h-3.5 text-amber-700" />}
+                            {msg.proposedAdjustment.actionType === "custom" && <Sliders className="w-3.5 h-3.5 text-amber-700" />}
+                            <span>Infrastructure Spatial Adjustment</span>
+                          </div>
+                          <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300 font-semibold">
+                            {msg.proposedAdjustment.actionType.replace(/_/g, " ")}
+                          </span>
+                        </div>
+
+                        <p className="text-xs text-stone-800 font-medium mb-2 leading-relaxed">
+                          {msg.proposedAdjustment.summary}
+                        </p>
+
+                        {/* Metric diff comparison */}
+                        <div className="grid grid-cols-2 gap-1.5 text-[11px] mb-2.5 bg-white/90 p-2 rounded-lg border border-amber-100">
+                          {msg.proposedAdjustment.lat !== undefined && (
+                            <div className="col-span-2">
+                              <span className="text-stone-400 block text-[10px] uppercase font-semibold">Center Coordinates</span>
+                              <span className="font-mono text-stone-700">
+                                {context.placement?.lat?.toFixed(4) || "20.3506"}, {context.placement?.lng?.toFixed(4) || "74.3626"}
+                                {" → "}
+                                <span className="text-emerald-700 font-bold">
+                                  {msg.proposedAdjustment.lat.toFixed(4)}, {msg.proposedAdjustment.lng?.toFixed(4)}
+                                </span>
+                              </span>
+                            </div>
+                          )}
+                          {(msg.proposedAdjustment.lengthM !== undefined || msg.proposedAdjustment.widthM !== undefined) && (
+                            <div>
+                              <span className="text-stone-400 block text-[10px] uppercase font-semibold">Dimensions</span>
+                              <span className="font-mono text-stone-700">
+                                {context.placement?.lengthM || 100}m × {context.placement?.widthM || 50}m
+                                {" → "}
+                                <span className="text-emerald-700 font-bold">
+                                  {msg.proposedAdjustment.lengthM ?? context.placement?.lengthM ?? 100}m × {msg.proposedAdjustment.widthM ?? context.placement?.widthM ?? 50}m
+                                </span>
+                              </span>
+                            </div>
+                          )}
+                          {msg.proposedAdjustment.bearingDeg !== undefined && (
+                            <div>
+                              <span className="text-stone-400 block text-[10px] uppercase font-semibold">Orientation / Bearing</span>
+                              <span className="font-mono text-stone-700">
+                                {context.placement?.bearingDeg ?? 0}°
+                                {" → "}
+                                <span className="text-emerald-700 font-bold">{msg.proposedAdjustment.bearingDeg}°</span>
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Status & Action Buttons */}
+                        {msg.applied ? (
+                          <div className="flex items-center justify-between gap-2 pt-2 border-t border-amber-200/60">
+                            <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>Applied to Infrastructure Map</span>
+                            </span>
+                            {onUndoAdjustment && (
+                              <button
+                                type="button"
+                                onClick={() => handleManualUndoAdjustment(idx)}
+                                className="flex items-center gap-1 text-[11px] text-stone-600 hover:text-stone-900 bg-white hover:bg-stone-100 border border-stone-300 rounded px-2 py-0.5 font-medium transition-colors cursor-pointer"
+                              >
+                                <Undo2 className="w-3 h-3 text-stone-500" />
+                                <span>Undo</span>
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-between gap-2 pt-2 border-t border-amber-200/60">
+                            <button
+                              type="button"
+                              onClick={() => handleManualApplyAdjustment(idx, msg.proposedAdjustment!)}
+                              className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 active:scale-[0.99] rounded-lg shadow-2xs transition-all cursor-pointer"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span>Apply Adjustment to Map</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

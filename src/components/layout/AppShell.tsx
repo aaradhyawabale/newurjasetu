@@ -19,7 +19,7 @@ import { ValidationResult } from "@/server/analysis-engine/validation";
 import { AnalysisReportResult } from "@/server/analysis-engine/engine";
 import { exportPlacementsToGeoJson, downloadJsonFile } from "@/lib/geojson-export";
 import { calculateDistanceMeters } from "@/server/gis/geometry";
-import type { CopilotChatContext } from "@/server/ai/gemini-advisor";
+import type { CopilotChatContext, CopilotAdjustment } from "@/server/ai/gemini-advisor";
 import { Sparkles, Loader2, Route, Eye, X } from "lucide-react";
 import { NearbyBridgeCrossingCandidate } from "@/server/analysis-engine/bridge-planner";
 
@@ -399,6 +399,112 @@ export const AppShell: React.FC<AppShellProps> = ({
     } else {
       handleBridgePlanApproaches();
     }
+  };
+
+  // State snapshot for 1-click Copilot adjustment undo
+  const lastPlacementBeforeCopilotRef = useRef<any | null>(null);
+
+  // Apply conversational Copilot spatial adjustment (move, rotate, resize, align, bridge crossing)
+  const handleApplyCopilotAdjustment = async (adjustment: CopilotAdjustment) => {
+    if (!activePlacement) {
+      showToast("Place an infrastructure project on the map before requesting adjustments", "info");
+      return;
+    }
+
+    // Save snapshot for 1-click Undo
+    lastPlacementBeforeCopilotRef.current = { ...activePlacement };
+
+    if (adjustment.actionType === "snap_to_road") {
+      await handleSmartFit();
+      return;
+    }
+
+    if (adjustment.actionType === "relocate_to_crossing") {
+      await handleBridgeRelocateToCrossing();
+      return;
+    }
+
+    const updatedLat = adjustment.lat !== undefined ? adjustment.lat : activePlacement.lat;
+    const updatedLng = adjustment.lng !== undefined ? adjustment.lng : activePlacement.lng;
+    const updatedLength = adjustment.lengthM !== undefined ? adjustment.lengthM : activePlacement.lengthM;
+    const updatedWidth = adjustment.widthM !== undefined ? adjustment.widthM : activePlacement.widthM;
+    const updatedBearing = adjustment.bearingDeg !== undefined ? adjustment.bearingDeg : activePlacement.bearingDeg;
+
+    const nextPlacement = {
+      ...activePlacement,
+      lat: updatedLat,
+      lng: updatedLng,
+      lengthM: updatedLength,
+      widthM: updatedWidth,
+      bearingDeg: updatedBearing,
+    };
+
+    setActivePlacement(nextPlacement);
+    setValidationResult(null);
+
+    if (adjustment.lat !== undefined && adjustment.lng !== undefined) {
+      setMapCenter({ lat: updatedLat, lng: updatedLng });
+    }
+
+    if (activePlacement.id) {
+      try {
+        const res = await fetch(`/api/placements/${activePlacement.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            lat: updatedLat,
+            lng: updatedLng,
+            lengthM: updatedLength,
+            widthM: updatedWidth,
+            bearingDeg: updatedBearing,
+          }),
+        });
+
+        if (res.ok) {
+          showToast(`Copilot applied: ${adjustment.summary}`, "success");
+          await handleValidateFootprint(activePlacement.id, true);
+        } else {
+          showToast("Failed to save adjusted coordinates", "error");
+        }
+      } catch {
+        showToast("Error updating placement geometry", "error");
+      }
+    }
+  };
+
+  // Undo conversational Copilot adjustment
+  const handleUndoCopilotAdjustment = async () => {
+    if (!lastPlacementBeforeCopilotRef.current || !activePlacement) {
+      showToast("No previous placement state to revert to", "info");
+      return;
+    }
+
+    const prev = lastPlacementBeforeCopilotRef.current;
+    setActivePlacement(prev);
+    if (prev.lat && prev.lng) {
+      setMapCenter({ lat: prev.lat, lng: prev.lng });
+    }
+
+    if (activePlacement.id) {
+      try {
+        await fetch(`/api/placements/${activePlacement.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            lat: prev.lat,
+            lng: prev.lng,
+            lengthM: prev.lengthM,
+            widthM: prev.widthM,
+            bearingDeg: prev.bearingDeg,
+          }),
+        });
+        await handleValidateFootprint(activePlacement.id, true);
+        showToast("Reverted infrastructure adjustment", "info");
+      } catch {
+        showToast("Failed to revert placement", "error");
+      }
+    }
+    lastPlacementBeforeCopilotRef.current = null;
   };
 
   // Handle Map Click: Place or Move Pin, or Draw Study Area Box
@@ -1285,6 +1391,9 @@ export const AppShell: React.FC<AppShellProps> = ({
         isOpen={isCopilotOpen}
         onClose={() => setIsCopilotOpen(false)}
         context={copilotContext}
+        onApplyAdjustment={handleApplyCopilotAdjustment}
+        onUndoAdjustment={handleUndoCopilotAdjustment}
+        activePlacement={activePlacement}
       />
     </div>
   );

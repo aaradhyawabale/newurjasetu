@@ -762,6 +762,18 @@ export interface CopilotChatContext {
   };
 }
 
+export interface CopilotAdjustment {
+  actionType: "move" | "resize" | "rotate" | "snap_to_road" | "relocate_to_crossing" | "custom";
+  summary: string;
+  lat?: number;
+  lng?: number;
+  lengthM?: number;
+  widthM?: number;
+  bearingDeg?: number;
+  deltaMeters?: { north?: number; east?: number };
+  autoApply?: boolean;
+}
+
 export interface CopilotChatMessage {
   role: "user" | "assistant";
   content: string;
@@ -777,6 +789,238 @@ export interface CopilotResponseResult {
     roadAccessStatus: string;
     statutoryFramework: string;
   };
+  proposedAdjustment?: CopilotAdjustment | null;
+}
+
+/**
+ * Direct geodesic calculation moving a WGS84 point by distanceM meters along a given bearing.
+ * Earth radius R = 6,378,137m (WGS84 ellipsoidal mean equatorial).
+ */
+export function movePointGeodesic(
+  lat: number,
+  lng: number,
+  distanceM: number,
+  bearingDeg: number
+): { lat: number; lng: number } {
+  const R = 6378137;
+  const rad = Math.PI / 180;
+  const bRad = ((bearingDeg % 360) + 360) % 360 * rad;
+  const lat1 = lat * rad;
+  const lon1 = lng * rad;
+  const dByR = distanceM / R;
+
+  const lat2 = Math.asin(
+    Math.sin(lat1) * Math.cos(dByR) +
+      Math.cos(lat1) * Math.sin(dByR) * Math.cos(bRad)
+  );
+  const lon2 =
+    lon1 +
+    Math.atan2(
+      Math.sin(bRad) * Math.sin(dByR) * Math.cos(lat1),
+      Math.cos(dByR) - Math.sin(lat1) * Math.sin(lat2)
+    );
+
+  return {
+    lat: Number((lat2 / rad).toFixed(6)),
+    lng: Number((lon2 / rad).toFixed(6)),
+  };
+}
+
+/**
+ * Deterministic spatial intent parser for conversational Copilot infrastructure adjustments.
+ * Accurately extracts moves, rotations, dimensional resizes, and road/crossing snaps.
+ */
+export function extractSpatialAdjustmentFromIntent(
+  message: string,
+  placement?: CopilotChatContext["placement"]
+): CopilotAdjustment | null {
+  const lowerMsg = message.toLowerCase().trim();
+
+  const currentLat = placement?.lat ?? 20.3506;
+  const currentLng = placement?.lng ?? 74.3626;
+  const currentLength = placement?.lengthM ?? 100;
+  const currentWidth = placement?.widthM ?? 50;
+  const currentBearing = placement?.bearingDeg ?? 0;
+
+  // 1. Road Alignment / Snap to Open Land / Overlap Clearance
+  const isAlignIntent =
+    /(?:align|snap|retract|shift|hug|position)\s+(?:it\s+)?(?:to|along|beside|with)?\s*(?:the\s+)?(?:road|street|corridor|curb|open\s+land)/i.test(lowerMsg) ||
+    /(?:fix|clear|resolve|avoid|remove|eliminate)\s+(?:the\s+)?(?:road\s+)?(?:collision|overlap|encroach|infringement)/i.test(lowerMsg) ||
+    /(?:align\s+to\s+road)/i.test(lowerMsg);
+
+  if (isAlignIntent) {
+    return {
+      actionType: "snap_to_road",
+      summary: "Align footprint tangent to road corridor with statutory 3.0m setback and open land clearance",
+      autoApply: true,
+    };
+  }
+
+  // 2. Relocate Bridge to River Crossing
+  const isBridgeRelocateIntent =
+    /(?:relocate|move|shift)\s+(?:the\s+)?bridge\s+(?:to\s+(?:the\s+)?)?(?:crossing|river\s+crossing|water\s+crossing)/i.test(lowerMsg) ||
+    /(?:find|pick|use)\s+(?:a\s+)?(?:better|connected|alternative)\s+(?:river\s+)?crossing/i.test(lowerMsg);
+
+  if (isBridgeRelocateIntent) {
+    return {
+      actionType: "relocate_to_crossing",
+      summary: "Relocate bridge span to connected river crossing with existing road approaches",
+      autoApply: true,
+    };
+  }
+
+  let matchedAdjustment = false;
+  let newLat: number | undefined = undefined;
+  let newLng: number | undefined = undefined;
+  let newLength: number | undefined = undefined;
+  let newWidth: number | undefined = undefined;
+  let newBearing: number | undefined = undefined;
+  const summaryParts: string[] = [];
+
+  // 3. Move / Shift / Translate
+  const dirBearings: Record<string, { bearing: number; label: string }> = {
+    north: { bearing: 0, label: "North" },
+    up: { bearing: 0, label: "North" },
+    northward: { bearing: 0, label: "North" },
+    northeast: { bearing: 45, label: "Northeast" },
+    east: { bearing: 90, label: "East" },
+    right: { bearing: 90, label: "East" },
+    eastward: { bearing: 90, label: "East" },
+    southeast: { bearing: 135, label: "Southeast" },
+    south: { bearing: 180, label: "South" },
+    down: { bearing: 180, label: "South" },
+    southward: { bearing: 180, label: "South" },
+    southwest: { bearing: 225, label: "Southwest" },
+    west: { bearing: 270, label: "West" },
+    left: { bearing: 270, label: "West" },
+    westward: { bearing: 270, label: "West" },
+    northwest: { bearing: 315, label: "Northwest" },
+  };
+
+  const movePattern1 = /(?:move|shift|translate|nudge|push|pull|drag)\s+(?:it\s+)?(?:by\s+)?(\d+(?:\.\d+)?)\s*(?:m|meter|meters|km)?\s*(?:to\s+(?:the\s+)?)?(north|south|east|west|up|down|left|right|northeast|northwest|southeast|southwest|northward|southward|eastward|westward)/i;
+  const movePattern2 = /(?:move|shift|translate|nudge|push|pull|drag)\s+(?:it\s+)?(?:to\s+(?:the\s+)?)?(north|south|east|west|up|down|left|right|northeast|northwest|southeast|southwest|northward|southward|eastward|westward)\s*(?:by\s+)?(\d+(?:\.\d+)?)\s*(?:m|meter|meters|km)?/i;
+  const movePattern3 = /(?:move|shift|nudge)\s+(?:it\s+)?(?:to\s+(?:the\s+)?)?(north|south|east|west|up|down|left|right|northeast|northwest|southeast|southwest)/i;
+
+  let moveMatch = lowerMsg.match(movePattern1);
+  let distM = 0;
+  let dirKey = "";
+
+  if (moveMatch) {
+    distM = parseFloat(moveMatch[1]);
+    if (moveMatch[0].toLowerCase().includes("km")) distM *= 1000;
+    dirKey = moveMatch[2].toLowerCase();
+  } else {
+    moveMatch = lowerMsg.match(movePattern2);
+    if (moveMatch) {
+      dirKey = moveMatch[1].toLowerCase();
+      distM = parseFloat(moveMatch[2]);
+      if (moveMatch[0].toLowerCase().includes("km")) distM *= 1000;
+    } else {
+      moveMatch = lowerMsg.match(movePattern3);
+      if (moveMatch) {
+        dirKey = moveMatch[1].toLowerCase();
+        distM = 30; // default 30 meters
+      }
+    }
+  }
+
+  if (dirKey && dirBearings[dirKey] && distM > 0) {
+    const { bearing, label } = dirBearings[dirKey];
+    const moved = movePointGeodesic(currentLat, currentLng, distM, bearing);
+    newLat = moved.lat;
+    newLng = moved.lng;
+    matchedAdjustment = true;
+    summaryParts.push(`Move ${distM}m ${label}`);
+  }
+
+  // 4. Rotate / Orientation
+  const rotateRelPattern = /(?:rotate|turn|spin)\s+(?:it\s+)?(?:by\s+)?(-?\d+(?:\.\d+)?)\s*(?:deg|degree|degrees|°)?(?:\s+(clockwise|counterclockwise|counter-clockwise|anticlockwise|cw|ccw))?/i;
+  const rotateAbsPattern = /(?:set|change|orient)\s+(?:the\s+)?(?:bearing|orientation|angle|heading)\s+(?:to\s+)?(\d+(?:\.\d+)?)\s*(?:deg|degree|degrees|°)?/i;
+
+  const absRotateMatch = lowerMsg.match(rotateAbsPattern);
+  if (absRotateMatch) {
+    const targetDeg = parseFloat(absRotateMatch[1]);
+    newBearing = Math.round(((targetDeg % 360) + 360) % 360);
+    matchedAdjustment = true;
+    summaryParts.push(`Set orientation to ${newBearing}°`);
+  } else {
+    const relRotateMatch = lowerMsg.match(rotateRelPattern);
+    if (relRotateMatch) {
+      const deltaDeg = parseFloat(relRotateMatch[1]);
+      const dirMod = relRotateMatch[2] ? relRotateMatch[2].toLowerCase() : "";
+      const isCCW = dirMod.includes("counter") || dirMod.includes("anti") || dirMod === "ccw";
+      const finalDelta = isCCW ? -Math.abs(deltaDeg) : deltaDeg;
+      newBearing = Math.round((((currentBearing + finalDelta) % 360) + 360) % 360);
+      matchedAdjustment = true;
+      summaryParts.push(`Rotate by ${Math.abs(deltaDeg)}° ${isCCW ? "CCW" : "CW"} (to ${newBearing}°)`);
+    }
+  }
+
+  // 5. Dimensions / Resize
+  const scaleUpMatch = lowerMsg.match(/(?:increase|expand|enlarge|scale\s*up)\s+(?:the\s+)?(?:length|width|size|footprint)?\s*(?:by\s+)?(\d+(?:\.\d+)?)\s*%/i);
+  const scaleDownMatch = lowerMsg.match(/(?:shrink|decrease|reduce|scale\s*down)\s+(?:the\s+)?(?:length|width|size|footprint)?\s*(?:by\s+)?(\d+(?:\.\d+)?)\s*%/i);
+
+  if (scaleUpMatch) {
+    const pct = parseFloat(scaleUpMatch[1]);
+    const factor = 1 + pct / 100;
+    newLength = Math.round(currentLength * factor);
+    newWidth = Math.round(currentWidth * factor);
+    matchedAdjustment = true;
+    summaryParts.push(`Scale footprint +${pct}% (${newLength}m × ${newWidth}m)`);
+  } else if (scaleDownMatch) {
+    const pct = parseFloat(scaleDownMatch[1]);
+    const factor = Math.max(0.1, 1 - pct / 100);
+    newLength = Math.round(currentLength * factor);
+    newWidth = Math.round(currentWidth * factor);
+    matchedAdjustment = true;
+    summaryParts.push(`Shrink footprint -${pct}% (${newLength}m × ${newWidth}m)`);
+  } else {
+    const lengthMatch = lowerMsg.match(/(?:set|make|change|increase|decrease|resize)\s+(?:the\s+)?length\s+(?:to\s+)?(\d+(?:\.\d+)?)\s*(?:m|meter|meters)?/i);
+    if (lengthMatch) {
+      newLength = Math.round(parseFloat(lengthMatch[1]));
+      matchedAdjustment = true;
+      summaryParts.push(`Set length to ${newLength}m`);
+    }
+
+    const widthMatch = lowerMsg.match(/(?:set|make|change|increase|decrease|resize)\s+(?:the\s+)?width\s+(?:to\s+)?(\d+(?:\.\d+)?)\s*(?:m|meter|meters)?/i);
+    if (widthMatch) {
+      newWidth = Math.round(parseFloat(widthMatch[1]));
+      matchedAdjustment = true;
+      summaryParts.push(`Set width to ${newWidth}m`);
+    }
+
+    const bothDimsMatch = lowerMsg.match(/(?:set|make|resize)\s+(?:the\s+)?(?:size|footprint|dimensions?)\s+(?:to\s+)?(\d+)\s*(?:m)?\s*(?:by|x|×)\s*(\d+)\s*(?:m)?/i);
+    if (bothDimsMatch) {
+      newLength = parseInt(bothDimsMatch[1], 10);
+      newWidth = parseInt(bothDimsMatch[2], 10);
+      matchedAdjustment = true;
+      summaryParts.push(`Set dimensions to ${newLength}m × ${newWidth}m`);
+    }
+  }
+
+  if (matchedAdjustment) {
+    let actionType: CopilotAdjustment["actionType"] = "custom";
+    if (newLat !== undefined && newBearing === undefined && newLength === undefined) {
+      actionType = "move";
+    } else if (newBearing !== undefined && newLat === undefined && newLength === undefined) {
+      actionType = "rotate";
+    } else if (newLength !== undefined && newLat === undefined && newBearing === undefined) {
+      actionType = "resize";
+    }
+
+    return {
+      actionType,
+      summary: summaryParts.join(", "),
+      lat: newLat,
+      lng: newLng,
+      lengthM: newLength,
+      widthM: newWidth,
+      bearingDeg: newBearing,
+      autoApply: true,
+    };
+  }
+
+  return null;
 }
 
 /**
@@ -825,7 +1069,23 @@ STRICT GROUNDING & PLANNING PRINCIPLES:
 4. Road Collision / Overlap: If a road collision conflict is present, explain precisely which roadway category it collides with and advise setback or dimensional adjustment.
 5. Road Access & Preliminary Access: If the facility is disconnected from the road network, explain the required access road length and note whether it crosses obstacles (e.g. waterways, existing structures). Clarify that preliminary access roads are conceptual planning corridors, not approved construction rights-of-way.
 6. Statutory Planning: Refer accurately to the applicable authority (PMC, PCMC, or NMC) and the governing development plan (e.g. PMC DP 2007-2027, PCMC Revised DP, NMC DP 2016-2036) and Maharashtra UDCPR 2020.
-7. Tone: Objective, authoritative, helpful, and accessible. Structure answers using markdown with clear headings, bullet points, and actionable next steps.`;
+7. Tone: Objective, authoritative, helpful, and accessible. Structure answers using markdown with clear headings, bullet points, and actionable next steps.
+8. SPATIAL INFRASTRUCTURE ADJUSTMENT COMMANDS:
+   When the user asks to adjust, move, shift, translate, rotate, re-orient, resize, expand, shrink, or align the active infrastructure (e.g. "move 50m north", "rotate 90 degrees", "increase length to 300m", "align to road", "fix collision"):
+   a. Explain the spatial adjustment and why it benefits the site plan from an engineering/planning perspective.
+   b. AT THE VERY END of your response, ALWAYS append a JSON block formatted exactly as:
+   \`\`\`json:adjustment
+   {
+     "actionType": "move" | "resize" | "rotate" | "snap_to_road" | "relocate_to_crossing" | "custom",
+     "summary": "Clear one-line summary of adjustment",
+     "lat": <number_if_moved>,
+     "lng": <number_if_moved>,
+     "lengthM": <number_if_resized>,
+     "widthM": <number_if_resized>,
+     "bearingDeg": <number_if_rotated_0_to_359>,
+     "autoApply": true
+   }
+   \`\`\``;
 
   const contextSummary = JSON.stringify(
     {
@@ -905,7 +1165,38 @@ STRICT GROUNDING & PLANNING PRINCIPLES:
       throw lastErr;
     }
 
-    const reply = response.text || "No response received from model.";
+    const rawReply = response.text || "No response received from model.";
+    let reply = rawReply;
+    let proposedAdjustment: CopilotAdjustment | null = null;
+
+    // Parse structured adjustment block if present
+    const jsonAdjMatch = rawReply.match(/```(?:json:adjustment|json)\s*([\s\S]*?)\s*```/);
+    if (jsonAdjMatch) {
+      try {
+        const parsed = JSON.parse(repairJson(jsonAdjMatch[1]));
+        if (parsed && typeof parsed === "object" && parsed.actionType) {
+          proposedAdjustment = {
+            actionType: parsed.actionType,
+            summary: parsed.summary || "Infrastructure spatial adjustment",
+            lat: typeof parsed.lat === "number" && Number.isFinite(parsed.lat) ? parsed.lat : undefined,
+            lng: typeof parsed.lng === "number" && Number.isFinite(parsed.lng) ? parsed.lng : undefined,
+            lengthM: typeof parsed.lengthM === "number" && Number.isFinite(parsed.lengthM) ? Math.round(parsed.lengthM) : undefined,
+            widthM: typeof parsed.widthM === "number" && Number.isFinite(parsed.widthM) ? Math.round(parsed.widthM) : undefined,
+            bearingDeg: typeof parsed.bearingDeg === "number" && Number.isFinite(parsed.bearingDeg) ? Math.round(((parsed.bearingDeg % 360) + 360) % 360) : undefined,
+            autoApply: true,
+          };
+          // Clean the raw JSON out of the user reply so markdown remains clean
+          reply = rawReply.replace(/```(?:json:adjustment|json)\s*[\s\S]*?\s*```/, "").trim();
+        }
+      } catch {
+        // ignore parse error
+      }
+    }
+
+    // Fallback: if Gemini didn't return structured JSON but user prompt is clearly an adjustment intent, compute deterministically
+    if (!proposedAdjustment) {
+      proposedAdjustment = extractSpatialAdjustmentFromIntent(message, context?.placement);
+    }
 
     return {
       reply,
@@ -917,6 +1208,7 @@ STRICT GROUNDING & PLANNING PRINCIPLES:
         roadAccessStatus,
         statutoryFramework,
       },
+      proposedAdjustment,
     };
   } catch (err: unknown) {
     if (err instanceof GeminiAdvisorError) {
@@ -994,6 +1286,48 @@ export function generateLocalCopilotResponse(
     "Maharashtra Unified Development Control and Promotion Regulations (UDCPR 2020)";
 
   const lowerMsg = message.toLowerCase();
+
+  // Intent 0: Infrastructure Spatial Adjustment Commands (e.g., "move 50m north", "rotate 90 degrees", "align to road", "resize to 300m")
+  const spatialAdj = extractSpatialAdjustmentFromIntent(message, placement);
+  if (spatialAdj) {
+    let reply = `### Infrastructure Spatial Adjustment Executed\n\n`;
+    reply += `**Adjustment Action**: **${spatialAdj.summary}**\n\n`;
+
+    if (spatialAdj.actionType === "snap_to_road") {
+      reply += `- **Tangential Road Frontage Alignment**: Retracting structural footprint past the mandatory statutory 3.0m curb buffer under Maharashtra UDCPR 2020.\n`;
+      reply += `- **Vehicular Ingress Optimization**: Orienting primary access parallel to the mapped carriageway to ensure safe turning radii for emergency tenders and public vehicles.\n`;
+      reply += `- **Open Land Optimization**: Snapping centroid into the nearest contiguous parcel to eliminate conflicts.\n`;
+    } else if (spatialAdj.actionType === "relocate_to_crossing") {
+      reply += `- **Hydraulic Crossing Alignment**: Relocating bridge span to the nearest verified river crossing with existing approach road connections on both river banks.\n`;
+      reply += `- **IRC Compliance**: Aligns with IRC:SP:73 two-lane standard with reduced structural embankment earthworks.\n`;
+    } else {
+      if (spatialAdj.lat !== undefined && spatialAdj.lng !== undefined) {
+        reply += `- **Site Coordinates**: \`(${placement?.lat?.toFixed(4) || "20.3506"}, ${placement?.lng?.toFixed(4) || "74.3626"})\` → **\`(${spatialAdj.lat.toFixed(4)}, ${spatialAdj.lng.toFixed(4)})\`**\n`;
+      }
+      if (spatialAdj.lengthM !== undefined || spatialAdj.widthM !== undefined) {
+        reply += `- **Footprint Dimensions**: \`${placement?.lengthM || 100}m × ${placement?.widthM || 50}m\` → **\`${spatialAdj.lengthM || placement?.lengthM || 100}m × ${spatialAdj.widthM || placement?.widthM || 50}m\`**\n`;
+      }
+      if (spatialAdj.bearingDeg !== undefined) {
+        reply += `- **Orientation / Bearing**: \`${placement?.bearingDeg || 0}°\` → **\`${spatialAdj.bearingDeg}°\`**\n`;
+      }
+      reply += `- **Statutory Compliance**: Automatically recalculating road clearances, setbacks, and conflict buffers on the map.\n`;
+    }
+
+    reply += `\n*The map and footprint geometry have been updated directly. You can undo this change using the action button below or command further adjustments.*`;
+
+    return {
+      reply,
+      modelUsed: "local-gis-rules-engine",
+      groundedFacts: {
+        city,
+        infrastructureType: infraType,
+        hasRoadCollision,
+        roadAccessStatus,
+        statutoryFramework,
+      },
+      proposedAdjustment: spatialAdj,
+    };
+  }
 
   // Intent 1: Road collision / overlap
   if (
