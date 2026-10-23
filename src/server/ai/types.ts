@@ -33,10 +33,21 @@ export const AiAdvantageSchema = z.object({
 });
 export type AiAdvantage = z.infer<typeof AiAdvantageSchema>;
 
+export const ConstraintSeveritySchema = z.preprocess((val) => {
+  if (typeof val !== "string") return val;
+  const s = val.toUpperCase().trim();
+  if (s === "CRITICAL" || s === "FATAL" || s === "BLOCKER") return "CRITICAL";
+  if (s === "HIGH" || s === "SUBOPTIMAL" || s === "SEVERE") return "HIGH";
+  if (s === "LOW" || s === "MINOR" || s === "NEGLIGIBLE") return "LOW";
+  if (s === "MODERATE" || s === "WARNING" || s === "MEDIUM" || s === "CAUTION") return "MODERATE";
+  return val;
+}, z.enum(["CRITICAL", "HIGH", "MODERATE", "LOW"]));
+export type ConstraintSeverity = z.infer<typeof ConstraintSeveritySchema>;
+
 export const AiConstraintSchema = z.object({
   title: z.string().describe("Concise heading for the spatial or regulatory constraint"),
   description: z.string().describe("Explanation of the constraint and its impact"),
-  severity: z.enum(["CRITICAL", "HIGH", "MODERATE", "LOW"]),
+  severity: ConstraintSeveritySchema,
   provenance: ProvenanceCategorySchema,
   sourceReference: z.string().describe("ID or name of evidence source (e.g., buffer:railway, slope_gradient, flood_risk)"),
 });
@@ -97,7 +108,25 @@ export const AiPlanningInsightsSchema = z.object({
     completenessPercent: z.number().min(0).max(100),
     disclaimer: z.string().describe("Note distinguishing data completeness from model certainty"),
   }),
-  assumptionsAndLimitations: z.array(z.string()).describe("Explicit planning assumptions and model boundary conditions"),
+  assumptionsAndLimitations: z.array(
+    z.preprocess((val) => {
+      if (typeof val === "string") return val;
+      if (typeof val === "object" && val !== null) {
+        const item = val as Record<string, any>;
+        return (
+          item.description ||
+          item.text ||
+          item.assumption ||
+          item.limitation ||
+          item.detail ||
+          item.title ||
+          Object.values(item).filter((v) => typeof v === "string").join(": ") ||
+          JSON.stringify(val)
+        );
+      }
+      return String(val ?? "");
+    }, z.string())
+  ).describe("Explicit planning assumptions and model boundary conditions"),
   meta: z.object({
     modelUsed: z.string(),
     generatedAt: z.string(),

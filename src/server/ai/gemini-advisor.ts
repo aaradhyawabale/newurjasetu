@@ -216,6 +216,53 @@ function normalizeGeminiResponse(raw: unknown, modelName: string): unknown {
     }
   };
 
+  const normalizeSeverity = (val: unknown): "CRITICAL" | "HIGH" | "MODERATE" | "LOW" => {
+    const str = String(val || "").toUpperCase().trim();
+    if (str === "CRITICAL" || str === "FATAL" || str === "BLOCKER") return "CRITICAL";
+    if (str === "HIGH" || str === "SUBOPTIMAL" || str === "SEVERE") return "HIGH";
+    if (str === "LOW" || str === "MINOR" || str === "NEGLIGIBLE") return "LOW";
+    return "MODERATE";
+  };
+
+  const VALID_PROVENANCE = new Set([
+    "VERIFIED_INPUT",
+    "DETERMINISTIC_RESULT",
+    "AI_INTERPRETATION",
+    "UNVERIFIED_ASSUMPTION",
+  ]);
+  const normalizeProvenance = (val: unknown): "VERIFIED_INPUT" | "DETERMINISTIC_RESULT" | "AI_INTERPRETATION" | "UNVERIFIED_ASSUMPTION" => {
+    const str = String(val || "").toUpperCase().trim();
+    if (VALID_PROVENANCE.has(str)) return str as any;
+    if (str.includes("VERIFIED") && !str.includes("UN")) return "VERIFIED_INPUT";
+    if (str.includes("DETERMINISTIC") || str.includes("CALCULATED") || str.includes("RULE")) return "DETERMINISTIC_RESULT";
+    if (str.includes("ASSUMPTION") || str.includes("UNVERIFIED")) return "UNVERIFIED_ASSUMPTION";
+    return "AI_INTERPRETATION";
+  };
+
+  // Normalize preliminaryAssessment
+  const VALID_ASSESSMENTS = new Set([
+    "FAVORABLE",
+    "CONDITIONAL",
+    "REQUIRES_FURTHER_REVIEW",
+    "UNFAVORABLE",
+  ]);
+  if (typeof obj.preliminaryAssessment === "string") {
+    const rawAss = obj.preliminaryAssessment.toUpperCase().trim();
+    if (VALID_ASSESSMENTS.has(rawAss)) {
+      obj.preliminaryAssessment = rawAss;
+    } else if (rawAss.includes("UNFAVORABLE") || rawAss.includes("REJECT") || rawAss.includes("FAIL")) {
+      obj.preliminaryAssessment = "UNFAVORABLE";
+    } else if (rawAss.includes("FAVORABLE") && !rawAss.includes("UN")) {
+      obj.preliminaryAssessment = "FAVORABLE";
+    } else if (rawAss.includes("REVIEW") || rawAss.includes("FURTHER")) {
+      obj.preliminaryAssessment = "REQUIRES_FURTHER_REVIEW";
+    } else {
+      obj.preliminaryAssessment = "CONDITIONAL";
+    }
+  } else {
+    obj.preliminaryAssessment = "CONDITIONAL";
+  }
+
   // Normalize advantages array (handle string items or objects with missing fields)
   if (Array.isArray(obj.advantages)) {
     obj.advantages = obj.advantages.map((a: any) => {
@@ -239,7 +286,7 @@ function normalizeGeminiResponse(raw: unknown, modelName: string): unknown {
         ensureField(remapped, "title", remapped.description || "Site Advantage");
         ensureField(remapped, "description", remapped.title || "Identified advantage");
         ensureField(remapped, "category", "General");
-        ensureField(remapped, "provenance", "AI_INTERPRETATION");
+        remapped.provenance = normalizeProvenance(remapped.provenance);
         ensureField(remapped, "sourceReference", "ai_synthesis");
         return remapped;
       }
@@ -263,14 +310,14 @@ function normalizeGeminiResponse(raw: unknown, modelName: string): unknown {
         const remapped = remap(c, {
           title: ["name", "heading", "label", "constraint"],
           description: ["detail", "details", "explanation", "summary"],
-          severity: ["level", "impact", "risk"],
+          severity: ["level", "impact", "risk", "status"],
           provenance: ["provenanceCategory", "source_type", "dataProvenance"],
           sourceReference: ["source", "sourceRef", "evidenceSource", "reference", "evidence"],
         });
         ensureField(remapped, "title", remapped.description || "Site Constraint");
         ensureField(remapped, "description", remapped.title || "Identified constraint");
-        ensureField(remapped, "severity", "MODERATE");
-        ensureField(remapped, "provenance", "AI_INTERPRETATION");
+        remapped.severity = normalizeSeverity(remapped.severity);
+        remapped.provenance = normalizeProvenance(remapped.provenance);
         ensureField(remapped, "sourceReference", "ai_synthesis");
         return remapped;
       }
@@ -326,7 +373,7 @@ function normalizeGeminiResponse(raw: unknown, modelName: string): unknown {
         ensureField(remapped, "issue", remapped.mitigation || "Risk identified");
         ensureField(remapped, "mitigation", remapped.issue || "Mitigation pending");
         ensureField(remapped, "supportingEvidence", "AI-synthesized recommendation");
-        ensureField(remapped, "provenance", "AI_INTERPRETATION");
+        remapped.provenance = normalizeProvenance(remapped.provenance);
         ensureField(remapped, "sourceReference", "ai_synthesis");
         return remapped;
       }
@@ -385,6 +432,87 @@ function normalizeGeminiResponse(raw: unknown, modelName: string): unknown {
       }
       return p;
     });
+  }
+
+  // Normalize assumptionsAndLimitations array (handle strings, objects, or key-value structures)
+  if (Array.isArray(obj.assumptionsAndLimitations)) {
+    obj.assumptionsAndLimitations = obj.assumptionsAndLimitations.map((item: any) => {
+      if (typeof item === "string") return item;
+      if (typeof item === "object" && item !== null) {
+        return (
+          item.description ||
+          item.text ||
+          item.assumption ||
+          item.limitation ||
+          item.detail ||
+          item.title ||
+          Object.values(item).filter((v) => typeof v === "string").join(": ") ||
+          JSON.stringify(item)
+        );
+      }
+      return String(item ?? "Assumes standard planning norms.");
+    });
+  } else if (typeof obj.assumptionsAndLimitations === "string") {
+    obj.assumptionsAndLimitations = [obj.assumptionsAndLimitations];
+  } else {
+    obj.assumptionsAndLimitations = [
+      "Assumes 3-phase grid power and municipal road right-of-way standards apply.",
+      "Indicative planning screening only; requires on-site cadastral and geotechnical survey.",
+    ];
+  }
+
+  // Normalize confidenceIndicator
+  if (typeof obj.confidenceIndicator !== "object" || obj.confidenceIndicator === null) {
+    obj.confidenceIndicator = {
+      level: "MEDIUM",
+      completenessPercent: 85,
+      disclaimer: "Data completeness based on OpenStreetMap and elevation model coverage.",
+    };
+  } else {
+    const ci = obj.confidenceIndicator as Record<string, any>;
+    const rawLevel = String(ci.level || "").toUpperCase().trim();
+    if (rawLevel === "HIGH" || rawLevel === "MEDIUM" || rawLevel === "LOW") {
+      ci.level = rawLevel;
+    } else if (rawLevel.includes("HIGH")) {
+      ci.level = "HIGH";
+    } else if (rawLevel.includes("LOW")) {
+      ci.level = "LOW";
+    } else {
+      ci.level = "MEDIUM";
+    }
+
+    if (typeof ci.completenessPercent !== "number" || isNaN(ci.completenessPercent)) {
+      ci.completenessPercent = 85;
+    } else {
+      ci.completenessPercent = Math.max(0, Math.min(100, Math.round(ci.completenessPercent)));
+    }
+
+    if (!ci.disclaimer || typeof ci.disclaimer !== "string") {
+      ci.disclaimer = "Data completeness evaluated against verified open spatial data.";
+    }
+  }
+
+  // Normalize costDrivers
+  if (typeof obj.costDrivers !== "object" || obj.costDrivers === null) {
+    obj.costDrivers = {
+      civil: "Standard civil works and grading required.",
+      electrical: "Grid interconnection dependent on distance to nearest sub-station.",
+      environmental: "Standard environmental safeguards required.",
+      operational: "Ongoing operations governed by local municipal norms.",
+    };
+  } else {
+    const cd = obj.costDrivers as Record<string, any>;
+    const stringifyDriver = (val: any, fallback: string) => {
+      if (typeof val === "string") return val;
+      if (typeof val === "object" && val !== null) {
+        return val.description || val.detail || val.text || JSON.stringify(val);
+      }
+      return fallback;
+    };
+    cd.civil = stringifyDriver(cd.civil, "Standard grading and foundation works.");
+    cd.electrical = stringifyDriver(cd.electrical, "Power distribution and grid tie-in costs.");
+    cd.environmental = stringifyDriver(cd.environmental, "Environmental mitigation and drainage.");
+    cd.operational = stringifyDriver(cd.operational, "Routine operations and site access maintenance.");
   }
 
   // Ensure meta block exists

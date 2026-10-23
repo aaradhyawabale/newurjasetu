@@ -130,6 +130,52 @@ describe("Gemini AI Advisor — Schema Validation & Provenance", () => {
     const { executiveSummary, ...missingSummary } = validMockInsights;
     expect(AiPlanningInsightsSchema.safeParse(missingSummary).success).toBe(false);
   });
+
+  it("accepts model severity variants like warning and suboptimal gracefully", () => {
+    const withVariants = {
+      ...validMockInsights,
+      constraints: [
+        {
+          title: "Road Access Buffer",
+          description: "Minor encroachment on road buffer",
+          severity: "warning" as any,
+          provenance: "AI_INTERPRETATION" as const,
+          sourceReference: "buffer:road",
+        },
+        {
+          title: "Suboptimal Orientation",
+          description: "Orientation requires minor panel azimuth adjustment",
+          severity: "suboptimal" as any,
+          provenance: "AI_INTERPRETATION" as const,
+          sourceReference: "solar:orientation",
+        },
+      ],
+    };
+    const result = AiPlanningInsightsSchema.safeParse(withVariants);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.constraints[0].severity).toBe("MODERATE");
+      expect(result.data.constraints[1].severity).toBe("HIGH");
+    }
+  });
+
+  it("accepts assumptionsAndLimitations as objects and flattens to strings", () => {
+    const withObjects = {
+      ...validMockInsights,
+      assumptionsAndLimitations: [
+        { assumption: "Soil test required", limitation: "Subsurface data unavailable" } as any,
+        { text: "Assumes standard municipal road access" } as any,
+      ],
+    };
+    const result = AiPlanningInsightsSchema.safeParse(withObjects);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(typeof result.data.assumptionsAndLimitations[0]).toBe("string");
+      expect(typeof result.data.assumptionsAndLimitations[1]).toBe("string");
+      expect(result.data.assumptionsAndLimitations[0]).toContain("Soil test required");
+      expect(result.data.assumptionsAndLimitations[1]).toContain("Assumes standard municipal road access");
+    }
+  });
 });
 
 describe("Gemini AI Advisor — Configuration & Environment Handling", () => {
