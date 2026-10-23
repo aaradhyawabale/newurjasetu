@@ -25,6 +25,7 @@ import {
   Route,
   Loader2,
   Sparkles,
+  Eye,
 } from "lucide-react";
 import { Drawer } from "../ui/Drawer";
 import { ScoreBar } from "../ui/ScoreBar";
@@ -33,6 +34,7 @@ import { EvidenceChip } from "../ui/EvidenceChip";
 import { AnalysisReportResult } from "@/server/analysis-engine/engine";
 import { GeminiInsightsCard } from "./GeminiInsightsCard";
 import { AiPlanningInsights } from "@/server/ai/types";
+import { NearbyBridgeCrossingCandidate } from "@/server/analysis-engine/bridge-planner";
 import { CriterionResult } from "@/server/analysis-engine/engine";
 
 interface ReportDrawerProps {
@@ -41,8 +43,12 @@ interface ReportDrawerProps {
   report: AnalysisReportResult | null;
   onDownloadPdf: () => void;
   isDownloadingPdf?: boolean;
-  onBridgeRelocateToCrossing?: () => void;
+  onBridgeRelocateToCrossing?: (candidate?: NearbyBridgeCrossingCandidate) => void;
   isBridgeRelocating?: boolean;
+  onBridgePreviewCandidate?: (candidate: NearbyBridgeCrossingCandidate) => void;
+  onBridgeHighlightApproaches?: (appraisal: any) => void;
+  activeBridgePreviewCandidate?: NearbyBridgeCrossingCandidate | null;
+  isBridgeApproachHighlighted?: boolean;
   onInsightsUpdated?: (insights: AiPlanningInsights) => void;
 }
 
@@ -120,6 +126,10 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
   isDownloadingPdf = false,
   onBridgeRelocateToCrossing,
   isBridgeRelocating = false,
+  onBridgePreviewCandidate,
+  onBridgeHighlightApproaches,
+  activeBridgePreviewCandidate = null,
+  isBridgeApproachHighlighted = false,
   onInsightsUpdated,
 }) => {
   const [activeTab, setActiveTab] = useState<"visual" | "detail">("visual");
@@ -382,59 +392,174 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                 {/* The Two Township Planner Directives */}
                 <div className="flex flex-col gap-2.5 pt-1">
                   {/* Option 1: Relocate Bridge to Connected Crossing */}
-                  <div className="p-3 bg-white/90 rounded border border-cyan-300 flex flex-col gap-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-cyan-950 flex items-center gap-1.5">
-                        <Sparkles className="w-3.5 h-3.5 text-cyan-700" />
-                        <span>Option 1: Relocate to Nearby Dual-Road River Crossing</span>
-                      </span>
-                      <span className="text-[10px] font-mono px-1.5 py-0.2 bg-cyan-100 text-cyan-800 rounded font-semibold">
-                        Recommended
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-stone-700 leading-snug">
-                      {report.bridgeAppraisal?.recommendedActions.suggestion1_relocate.description ||
-                        "Relocate bridge ~320m upstream to the natural road-to-road corridor linking Ram Nagar Road and the Eastern Bank Collector. Both riverbanks provide direct street frontage, eliminating dead-ends and avoiding expensive approach road construction."}
-                    </p>
-                    {onBridgeRelocateToCrossing && (
-                      <button
-                        type="button"
-                        onClick={onBridgeRelocateToCrossing}
-                        disabled={isBridgeRelocating}
-                        className="w-full py-1.5 px-3 rounded-btn bg-cyan-800 hover:bg-cyan-900 disabled:bg-stone-300 text-white text-xs font-semibold flex items-center justify-center gap-1.5 shadow-xs transition-colors"
+                  {(() => {
+                    const candidate = report.bridgeAppraisal?.recommendedActions.suggestion1_relocate.candidate;
+                    const isPreviewingCandidate = Boolean(
+                      activeBridgePreviewCandidate &&
+                        candidate &&
+                        activeBridgePreviewCandidate.centerLat === candidate.centerLat &&
+                        activeBridgePreviewCandidate.centerLng === candidate.centerLng
+                    );
+
+                    return (
+                      <div
+                        onClick={() => {
+                          if (candidate && onBridgePreviewCandidate) {
+                            onBridgePreviewCandidate(candidate);
+                          }
+                        }}
+                        className={`p-3.5 bg-white/95 rounded-lg border transition-all duration-200 flex flex-col gap-2 cursor-pointer shadow-xs ${
+                          isPreviewingCandidate
+                            ? "border-cyan-500 ring-2 ring-cyan-200 bg-cyan-50/40"
+                            : "border-cyan-300 hover:border-cyan-500 hover:shadow-sm"
+                        }`}
                       >
-                        {isBridgeRelocating ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <Sparkles className="w-3.5 h-3.5 text-cyan-200" />
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-cyan-950 flex items-center gap-1.5">
+                            <Sparkles className="w-3.5 h-3.5 text-cyan-700" />
+                            <span>Option 1: Relocate to Nearby Dual-Road River Crossing</span>
+                          </span>
+                          <div className="flex items-center gap-1.5">
+                            {isPreviewingCandidate && (
+                              <span className="text-[10px] font-mono px-1.5 py-0.2 bg-cyan-600 text-white rounded font-medium animate-pulse">
+                                Previewing on Map
+                              </span>
+                            )}
+                            <span className="text-[10px] font-mono px-1.5 py-0.2 bg-cyan-100 text-cyan-800 rounded font-semibold">
+                              Recommended
+                            </span>
+                          </div>
+                        </div>
+
+                        <p className="text-[11px] text-stone-700 leading-snug">
+                          {report.bridgeAppraisal?.recommendedActions.suggestion1_relocate.description ||
+                            "Relocate bridge ~205m upstream to the natural road-to-road corridor linking Fergusson College Road and Connecting Access Road. Both riverbanks provide direct street frontage, eliminating dead-ends."}
+                        </p>
+
+                        {/* Candidate metric summary */}
+                        {candidate && (
+                          <div className="flex items-center flex-wrap gap-2 text-[10px] font-mono text-cyan-900 bg-cyan-50/80 px-2 py-1 rounded border border-cyan-200">
+                            <span>Span: <strong>{Math.round(candidate.spanM)}m</strong></span>
+                            <span>•</span>
+                            <span>Offset: <strong>~{Math.round(candidate.distanceFromCurrentM)}m {candidate.direction}</strong></span>
+                            <span>•</span>
+                            <span>Linking: <strong>{candidate.bank1RoadName} ↔ {candidate.bank2RoadName}</strong></span>
+                          </div>
                         )}
-                        <span>{isBridgeRelocating ? "Relocating Bridge..." : "Snap Bridge to Connected River Crossing"}</span>
-                      </button>
-                    )}
-                  </div>
+
+                        {/* Action buttons */}
+                        <div className="grid grid-cols-2 gap-2 pt-1">
+                          {candidate && onBridgePreviewCandidate && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onBridgePreviewCandidate(candidate);
+                              }}
+                              className={`py-1.5 px-2.5 rounded-btn text-xs font-semibold flex items-center justify-center gap-1.5 border transition-all ${
+                                isPreviewingCandidate
+                                  ? "bg-cyan-700 text-white border-cyan-700 shadow-xs"
+                                  : "bg-cyan-50 text-cyan-800 border-cyan-300 hover:bg-cyan-100"
+                              }`}
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                              <span>{isPreviewingCandidate ? "Preview Active" : "Highlight on Map"}</span>
+                            </button>
+                          )}
+
+                          {onBridgeRelocateToCrossing && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onBridgeRelocateToCrossing(candidate);
+                              }}
+                              disabled={isBridgeRelocating}
+                              className={`${
+                                candidate && onBridgePreviewCandidate ? "" : "col-span-2"
+                              } py-1.5 px-3 rounded-btn bg-cyan-800 hover:bg-cyan-900 disabled:bg-stone-300 text-white text-xs font-semibold flex items-center justify-center gap-1.5 shadow-xs transition-colors`}
+                            >
+                              {isBridgeRelocating ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <Sparkles className="w-3.5 h-3.5 text-cyan-200" />
+                              )}
+                              <span>{isBridgeRelocating ? "Relocating Bridge..." : "Relocate Bridge Here"}</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {/* Option 2: Construct Approach Road Corridors */}
-                  <div className="p-3 bg-white/90 rounded border border-cyan-200 flex flex-col gap-2">
-                    <span className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
-                      <Route className="w-3.5 h-3.5 text-stone-700" />
-                      <span>Option 2: Construct Dual-Bank Approach Road Corridors</span>
-                    </span>
-                    <p className="text-[11px] text-stone-700 leading-snug">
-                      {report.bridgeAppraisal?.recommendedActions.suggestion2_approachRoads.description ||
-                        `Maintain this crossing by acquiring and constructing dedicated approach roads: Bank A (${Math.round(
-                          report.bridgeAppraisal?.abutmentA.approachRoadRequired.extensionLengthM ?? 85
-                        )}m) and Bank B (${Math.round(
-                          report.bridgeAppraisal?.abutmentB.approachRoadRequired.extensionLengthM ?? 110
-                        )}m) with ${report.bridgeAppraisal?.recommendedActions.suggestion2_approachRoads.requiredRightOfWayM ?? 15}m Right-of-Way matching IRC cross-section norms.`}
-                    </p>
-                    <div className="flex items-center gap-3 text-[10px] font-mono text-stone-500 pt-0.5">
-                      <span>Total Approach Length: <strong>{report.bridgeAppraisal?.recommendedActions.suggestion2_approachRoads.totalApproachLengthM ?? 195}m</strong></span>
-                      <span>•</span>
-                      <span>Right-of-Way: <strong>{report.bridgeAppraisal?.recommendedActions.suggestion2_approachRoads.requiredRightOfWayM ?? 15}m</strong></span>
-                      <span>•</span>
-                      <span>Acquisition Area: <strong>{((report.bridgeAppraisal?.recommendedActions.suggestion2_approachRoads.totalLandAreaM2 ?? 2925)).toLocaleString()} m²</strong></span>
-                    </div>
-                  </div>
+                  {(() => {
+                    const approachRoads = report.bridgeAppraisal?.recommendedActions.suggestion2_approachRoads;
+                    return (
+                      <div
+                        onClick={() => {
+                          if (onBridgeHighlightApproaches) {
+                            onBridgeHighlightApproaches(report.bridgeAppraisal);
+                          }
+                        }}
+                        className={`p-3.5 bg-white/95 rounded-lg border transition-all duration-200 flex flex-col gap-2 cursor-pointer shadow-xs ${
+                          isBridgeApproachHighlighted
+                            ? "border-amber-500 ring-2 ring-amber-200 bg-amber-50/40"
+                            : "border-cyan-200 hover:border-amber-400 hover:shadow-sm"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
+                            <Route className="w-3.5 h-3.5 text-stone-700" />
+                            <span>Option 2: Construct Dual-Bank Approach Road Corridors</span>
+                          </span>
+                          {isBridgeApproachHighlighted && (
+                            <span className="text-[10px] font-mono px-1.5 py-0.2 bg-amber-600 text-white rounded font-medium animate-pulse">
+                              Corridors Active on Map
+                            </span>
+                          )}
+                        </div>
+
+                        <p className="text-[11px] text-stone-700 leading-snug">
+                          {approachRoads?.description ||
+                            `Maintain this river crossing position by constructing dedicated approach roads: Bank A (${Math.round(
+                              report.bridgeAppraisal?.abutmentA.approachRoadRequired.extensionLengthM ?? 29
+                            )}m) and Bank B (${Math.round(
+                              report.bridgeAppraisal?.abutmentB.approachRoadRequired.extensionLengthM ?? 0
+                            )}m) with ${approachRoads?.requiredRightOfWayM ?? 24}m Right-of-Way matching IRC width norms.`}
+                        </p>
+
+                        <div className="flex items-center gap-3 text-[10px] font-mono text-stone-500 pt-0.5">
+                          <span>Total Approach Length: <strong>{approachRoads?.totalApproachLengthM ?? 29}m</strong></span>
+                          <span>•</span>
+                          <span>Right-of-Way: <strong>{approachRoads?.requiredRightOfWayM ?? 24}m</strong></span>
+                          <span>•</span>
+                          <span>Acquisition Area: <strong>{((approachRoads?.totalLandAreaM2 ?? 696)).toLocaleString()} m²</strong></span>
+                        </div>
+
+                        {/* Highlight Corridors Button */}
+                        {onBridgeHighlightApproaches && (
+                          <div className="pt-1">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onBridgeHighlightApproaches(report.bridgeAppraisal);
+                              }}
+                              className={`w-full py-1.5 px-3 rounded-btn text-xs font-semibold flex items-center justify-center gap-1.5 border transition-all ${
+                                isBridgeApproachHighlighted
+                                  ? "bg-amber-600 text-white border-amber-600 shadow-xs"
+                                  : "bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100"
+                              }`}
+                            >
+                              <Route className="w-3.5 h-3.5" />
+                              <span>{isBridgeApproachHighlighted ? "Approach Corridors Highlighted on Map (Click to Toggle)" : "Highlight Corridors on Map for Evaluation"}</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             )}

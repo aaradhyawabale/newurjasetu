@@ -20,6 +20,8 @@ import { AnalysisReportResult } from "@/server/analysis-engine/engine";
 import { exportPlacementsToGeoJson, downloadJsonFile } from "@/lib/geojson-export";
 import { calculateDistanceMeters } from "@/server/gis/geometry";
 import type { CopilotChatContext } from "@/server/ai/gemini-advisor";
+import { Sparkles, Loader2, Route, Eye, X } from "lucide-react";
+import { NearbyBridgeCrossingCandidate } from "@/server/analysis-engine/bridge-planner";
 
 const LINEAR_TOOLS: string[] = ["Road", "Bridge", "Water Canal", "Drainage"];
 
@@ -242,6 +244,7 @@ export const AppShell: React.FC<AppShellProps> = ({
   const [isBridgeRelocating, setIsBridgeRelocating] = useState(false);
   const [isBridgePlanningApproaches, setIsBridgePlanningApproaches] = useState(false);
   const [bridgeApproachData, setBridgeApproachData] = useState<any | null>(null);
+  const [bridgeCandidatePreview, setBridgeCandidatePreview] = useState<NearbyBridgeCrossingCandidate | null>(null);
 
   // Smart Fit to Road & Open Land (Township Planner Auto-Fit)
   const handleSmartFit = async () => {
@@ -281,24 +284,44 @@ export const AppShell: React.FC<AppShellProps> = ({
   };
 
   // Bridge Township Planning: Relocate to Connected River Crossing
-  const handleBridgeRelocateToCrossing = async () => {
+  const handleBridgeRelocateToCrossing = async (candidate?: NearbyBridgeCrossingCandidate) => {
     if (!activePlacement || !activePlacement.id) return;
     setIsBridgeRelocating(true);
     try {
       const res = await fetch(`/api/placements/${activePlacement.id}/bridge-actions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "relocate_to_crossing" }),
+        body: JSON.stringify({
+          action: "relocate_to_crossing",
+          ...(candidate ? { candidate } : {}),
+        }),
       });
       if (res.ok) {
         const data = await res.json();
         setActivePlacement(data.placement);
         setValidationResult(data.validation);
         setBridgeApproachData(null);
+        setBridgeCandidatePreview(null);
+        setMapCenter({ lat: data.placement.lat, lng: data.placement.lng });
         showToast(
           data.message || "Relocated bridge to connected river crossing",
           "success"
         );
+
+        // Automatically re-run analysis so the report refreshes with the new bridge location!
+        try {
+          const analysisRes = await fetch("/api/analyses", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ placementId: data.placement.id }),
+          });
+          if (analysisRes.ok) {
+            const aData = await analysisRes.json();
+            setCurrentReport(aData.report);
+          }
+        } catch {
+          // non-blocking
+        }
       } else {
         const err = await res.json().catch(() => ({}));
         showToast(err.error || "Could not relocate bridge to nearby crossing", "error");
@@ -308,6 +331,25 @@ export const AppShell: React.FC<AppShellProps> = ({
     } finally {
       setIsBridgeRelocating(false);
     }
+  };
+
+  // Bridge Township Planning: Preview / Highlight Candidate River Crossing on Map
+  const handleBridgePreviewCandidate = (candidate: NearbyBridgeCrossingCandidate) => {
+    if (
+      bridgeCandidatePreview &&
+      bridgeCandidatePreview.centerLat === candidate.centerLat &&
+      bridgeCandidatePreview.centerLng === candidate.centerLng
+    ) {
+      setBridgeCandidatePreview(null);
+      showToast("Bridge crossing preview dismissed", "info");
+      return;
+    }
+
+    setBridgeCandidatePreview(candidate);
+    showToast(
+      `Highlighting proposed river crossing (${candidate.direction} ~${Math.round(candidate.distanceFromCurrentM)}m) linking ${candidate.bank1RoadName} ↔ ${candidate.bank2RoadName}`,
+      "info"
+    );
   };
 
   // Bridge Township Planning: Plan & Trace Approach Road Corridors
@@ -335,6 +377,27 @@ export const AppShell: React.FC<AppShellProps> = ({
       showToast("Approach calculation failed", "error");
     } finally {
       setIsBridgePlanningApproaches(false);
+    }
+  };
+
+  // Bridge Township Planning: Toggle / Highlight Approach Corridors on Map
+  const handleBridgeHighlightApproaches = (appraisal?: any) => {
+    if (bridgeApproachData) {
+      setBridgeApproachData(null);
+      showToast("Approach corridors highlight cleared", "info");
+      return;
+    }
+
+    const targetAppraisal = appraisal || currentReport?.bridgeAppraisal;
+    if (targetAppraisal?.recommendedActions?.suggestion2_approachRoads) {
+      setBridgeApproachData(targetAppraisal);
+      const sugg = targetAppraisal.recommendedActions.suggestion2_approachRoads;
+      showToast(
+        `Approach corridors highlighted on map: ${Math.round(sugg?.totalApproachLengthM ?? 29)}m total (${sugg?.requiredRightOfWayM ?? 24}m RoW per IRC standards).`,
+        "success"
+      );
+    } else {
+      handleBridgePlanApproaches();
     }
   };
 
@@ -996,6 +1059,8 @@ export const AppShell: React.FC<AppShellProps> = ({
             analyzedFeatures={currentReport?.analyzedFeatures || []}
             searchRings={currentReport?.searchRings || null}
             solarShadingData={solarShadingOverlay}
+            bridgeApproachData={bridgeApproachData}
+            bridgeCandidatePreview={bridgeCandidatePreview}
             onMapClick={handleMapClick}
             onPlacementChange={handlePlacementChangeFromMap}
             onStudyAreaChange={handleStudyAreaChange}
@@ -1003,6 +1068,67 @@ export const AppShell: React.FC<AppShellProps> = ({
               mapCanvasExportRef.current = exportFn;
             }}
           />
+
+          {/* Bridge Recommended Crossing Preview Floating Banner */}
+          {bridgeCandidatePreview && (
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 bg-stone-900/95 text-white border-2 border-cyan-400 rounded-panel px-4 py-2.5 shadow-2xl flex items-center gap-3 backdrop-blur-md animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping" />
+                <div className="flex flex-col">
+                  <span className="text-xs font-bold text-cyan-200 flex items-center gap-1.5">
+                    <span>⚡ Recommended Crossing (~{Math.round(bridgeCandidatePreview.distanceFromCurrentM)}m {bridgeCandidatePreview.direction})</span>
+                  </span>
+                  <span className="text-[11px] text-stone-200 font-mono">
+                    {bridgeCandidatePreview.bank1RoadName} ↔ {bridgeCandidatePreview.bank2RoadName} • Span: {Math.round(bridgeCandidatePreview.spanM)}m
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 pl-3 border-l border-stone-700">
+                <button
+                  type="button"
+                  onClick={() => handleBridgeRelocateToCrossing(bridgeCandidatePreview)}
+                  disabled={isBridgeRelocating}
+                  className="px-3 py-1 bg-cyan-500 hover:bg-cyan-400 disabled:bg-stone-600 text-stone-950 text-xs font-bold rounded shadow-xs transition-colors flex items-center gap-1.5"
+                >
+                  {isBridgeRelocating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                  <span>Relocate Bridge Here</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBridgeCandidatePreview(null)}
+                  className="px-2 py-1 bg-stone-800 hover:bg-stone-700 text-stone-300 text-xs rounded transition-colors"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Bridge Dual-Bank Approach Corridors Active Floating Banner */}
+          {bridgeApproachData && (
+            <div className="absolute top-16 left-1/2 -translate-x-1/2 z-30 bg-stone-900/95 text-white border-2 border-amber-500 rounded-panel px-4 py-2.5 shadow-2xl flex items-center gap-3 backdrop-blur-md animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="flex items-center gap-2">
+                <Route className="w-4 h-4 text-amber-400" />
+                <div className="flex flex-col">
+                  <span className="text-xs font-bold text-amber-200">
+                    Dual-Bank Approach Road Corridors Highlighted
+                  </span>
+                  <span className="text-[11px] text-stone-300 font-mono">
+                    Total: {Math.round(bridgeApproachData?.recommendedActions?.suggestion2_approachRoads?.totalApproachLengthM ?? 29)}m • 24m Right-of-Way (IRC Norms)
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 pl-3 border-l border-stone-700">
+                <button
+                  type="button"
+                  onClick={() => setBridgeApproachData(null)}
+                  className="px-2.5 py-1 bg-stone-800 hover:bg-stone-700 text-amber-200 text-xs font-medium rounded transition-colors"
+                >
+                  Clear Corridors
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Linear / Bridge 2-Click Status Banner */}
           {(linearStartPoint || isTwoClickDrawMode) && (
@@ -1090,6 +1216,12 @@ export const AppShell: React.FC<AppShellProps> = ({
         report={currentReport}
         onDownloadPdf={handleDownloadPdf}
         isDownloadingPdf={isDownloadingPdf}
+        onBridgeRelocateToCrossing={handleBridgeRelocateToCrossing}
+        isBridgeRelocating={isBridgeRelocating}
+        onBridgePreviewCandidate={handleBridgePreviewCandidate}
+        onBridgeHighlightApproaches={handleBridgeHighlightApproaches}
+        activeBridgePreviewCandidate={bridgeCandidatePreview}
+        isBridgeApproachHighlighted={Boolean(bridgeApproachData)}
       />
 
       {/* History Drawer */}

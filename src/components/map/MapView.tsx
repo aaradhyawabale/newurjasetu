@@ -7,6 +7,7 @@ import * as turf from "@turf/turf";
 import { createFootprintPolygon, calculateDistanceMeters } from "@/server/gis/geometry";
 import { ConflictingFeature } from "@/server/analysis-engine/validation";
 import { StandardizedGeoFeature } from "@/server/providers/types";
+import { NearbyBridgeCrossingCandidate } from "@/server/analysis-engine/bridge-planner";
 
 export interface StudyAreaBounds {
   swLat: number;
@@ -58,6 +59,7 @@ interface MapViewProps {
   className?: string;
   activeCity?: "pune" | "pcmc" | "nashik";
   bridgeApproachData?: any | null;
+  bridgeCandidatePreview?: NearbyBridgeCrossingCandidate | null;
 }
 
 export const MapView: React.FC<MapViewProps> = ({
@@ -73,6 +75,7 @@ export const MapView: React.FC<MapViewProps> = ({
   searchRings = null,
   solarShadingData = null,
   bridgeApproachData = null,
+  bridgeCandidatePreview = null,
   proposedAccessRoad = null,
   onMapClick,
   onPlacementChange,
@@ -91,6 +94,7 @@ export const MapView: React.FC<MapViewProps> = ({
   const linearStartPointRef = useRef(linearStartPoint);
   const linearStartMarkerRef = useRef<maplibregl.Marker | null>(null);
   const dragTooltipRef = useRef<HTMLDivElement>(null);
+  const candidateMarkerRef = useRef<maplibregl.Marker | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [showAnalyzedOverlay, setShowAnalyzedOverlay] = useState(true);
 
@@ -644,12 +648,61 @@ export const MapView: React.FC<MapViewProps> = ({
       });
 
       map.addLayer({
+        id: "bridge-approaches-casing",
+        type: "line",
+        source: "bridge-approaches-source",
+        paint: {
+          "line-color": "#ffffff",
+          "line-width": 7,
+          "line-opacity": 0.85,
+        },
+      });
+
+      map.addLayer({
         id: "bridge-approaches-line",
         type: "line",
         source: "bridge-approaches-source",
         paint: {
           "line-color": "#ea580c",
-          "line-width": 4,
+          "line-width": 4.5,
+          "line-dasharray": [3, 2],
+        },
+      });
+
+      // Add Bridge Candidate Crossing preview source and layers
+      map.addSource("bridge-candidate-source", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+
+      map.addLayer({
+        id: "bridge-candidate-layer",
+        type: "fill",
+        source: "bridge-candidate-source",
+        paint: {
+          "fill-color": "#06b6d4",
+          "fill-opacity": 0.45,
+        },
+      });
+
+      map.addLayer({
+        id: "bridge-candidate-casing",
+        type: "line",
+        source: "bridge-candidate-source",
+        paint: {
+          "line-color": "#ffffff",
+          "line-width": 7,
+          "line-opacity": 0.85,
+        },
+      });
+
+      map.addLayer({
+        id: "bridge-candidate-outline",
+        type: "line",
+        source: "bridge-candidate-source",
+        paint: {
+          "line-color": "#0891b2",
+          "line-width": 3.5,
           "line-dasharray": [3, 2],
         },
       });
@@ -1921,10 +1974,76 @@ export const MapView: React.FC<MapViewProps> = ({
 
     if (corridors && Array.isArray(corridors.features) && corridors.features.length > 0) {
       src.setData(corridors);
+      try {
+        const bbox = turf.bbox(corridors);
+        mapRef.current.fitBounds(bbox as [number, number, number, number], {
+          padding: { top: 120, bottom: 120, left: 140, right: 140 },
+          maxZoom: 17.5,
+          duration: 1000,
+        });
+      } catch (e) {
+        console.warn("[Bridge Approach FitBounds Error]", e);
+      }
     } else {
       src.setData({ type: "FeatureCollection", features: [] });
     }
   }, [bridgeApproachData, isLoaded]);
+
+  // Update Bridge Candidate Crossing preview on Map
+  useEffect(() => {
+    if (!mapRef.current || !isLoaded) return;
+    const src = mapRef.current.getSource("bridge-candidate-source") as maplibregl.GeoJSONSource;
+    if (!src) return;
+
+    if (!bridgeCandidatePreview) {
+      src.setData({ type: "FeatureCollection", features: [] });
+      if (candidateMarkerRef.current) {
+        candidateMarkerRef.current.remove();
+        candidateMarkerRef.current = null;
+      }
+      return;
+    }
+
+    try {
+      const poly = createFootprintPolygon(
+        bridgeCandidatePreview.centerLat,
+        bridgeCandidatePreview.centerLng,
+        bridgeCandidatePreview.spanM,
+        placement?.widthM || 22,
+        bridgeCandidatePreview.bearingDeg
+      );
+      src.setData({
+        type: "FeatureCollection",
+        features: [poly as any],
+      });
+
+      if (candidateMarkerRef.current) {
+        candidateMarkerRef.current.remove();
+      }
+
+      const el = document.createElement("div");
+      el.className = "bridge-candidate-marker";
+      el.innerHTML = `
+        <div style="cursor: pointer;" class="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-900/95 text-cyan-100 font-sans text-xs rounded-full shadow-xl border-2 border-cyan-400 font-bold backdrop-blur-xs hover:scale-105 transition-transform">
+          <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping"></span>
+          <span>⚡ Proposed Crossing (~${Math.round(bridgeCandidatePreview.distanceFromCurrentM)}m)</span>
+        </div>
+      `;
+
+      candidateMarkerRef.current = new maplibregl.Marker({ element: el })
+        .setLngLat([bridgeCandidatePreview.centerLng, bridgeCandidatePreview.centerLat])
+        .addTo(mapRef.current);
+
+      mapRef.current.flyTo({
+        center: [bridgeCandidatePreview.centerLng, bridgeCandidatePreview.centerLat],
+        zoom: Math.max(mapRef.current.getZoom(), 16.5),
+        essential: true,
+        duration: 1200,
+      });
+    } catch (err) {
+      console.warn("[Bridge Candidate Preview Error]", err);
+    }
+  }, [bridgeCandidatePreview, isLoaded, placement?.widthM]);
 
   const mappedConflictCount = (conflicts || []).filter((c) => Boolean(c.geometry)).length;
   const analyzedCount = (analyzedFeatures || []).length;
