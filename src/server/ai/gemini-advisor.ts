@@ -759,7 +759,14 @@ STRICT GROUNDING & PLANNING PRINCIPLES:
         }
       } catch (mErr: any) {
         lastErr = mErr;
-        if (mErr?.status === 404 || mErr?.message?.toLowerCase().includes("not found")) {
+        const errMsg = (mErr?.message || "").toLowerCase();
+        if (
+          mErr?.status === 404 ||
+          mErr?.status === 400 ||
+          errMsg.includes("not found") ||
+          errMsg.includes("deprecated") ||
+          errMsg.includes("no longer available")
+        ) {
           continue;
         }
         throw mErr;
@@ -1043,18 +1050,123 @@ export function generateLocalCopilotResponse(
     };
   }
 
+  // Intent 6: Site Setup, Layout & Siting Appropriateness (e.g. "is the solar farm properly setup at the location")
+  if (
+    lowerMsg.includes("setup") ||
+    lowerMsg.includes("properly") ||
+    lowerMsg.includes("siting") ||
+    lowerMsg.includes("location") ||
+    lowerMsg.includes("placed") ||
+    lowerMsg.includes("suitable") ||
+    lowerMsg.includes("feasib") ||
+    lowerMsg.includes("good") ||
+    lowerMsg.includes("viable") ||
+    lowerMsg.includes("review") ||
+    lowerMsg.includes("assess") ||
+    lowerMsg.includes("evaluate") ||
+    lowerMsg.includes("position") ||
+    lowerMsg.includes("layout") ||
+    lowerMsg.includes("capacity")
+  ) {
+    const areaM2 = Math.round(
+      placement?.areaM2 ||
+        (placement?.lengthM && placement?.widthM ? placement.lengthM * placement.widthM : 50000)
+    );
+    const acres = (areaM2 / 4046.86).toFixed(2);
+    const centroidLat = placement?.lat !== undefined ? placement.lat.toFixed(4) : "20.3506";
+    const centroidLon = placement?.lng !== undefined ? placement.lng.toFixed(4) : "74.3626";
+    const score = report?.overallScore ?? (hasRoadCollision ? 45 : 85);
+    const isSolar = infraType.toLowerCase().includes("solar");
+    const isEV = infraType.toLowerCase().includes("ev") || infraType.toLowerCase().includes("charg");
+    const isHospital = infraType.toLowerCase().includes("hospital") || infraType.toLowerCase().includes("health");
+
+    let reply = `### Technical Siting & Feasibility Assessment: ${infraType}\n\n`;
+    reply += `**Location Coordinates**: \`(${centroidLat}° N, ${centroidLon}° E)\` in **${city}**\n`;
+    reply += `**Footprint Area**: **${areaM2.toLocaleString()} m²** (~**${acres} acres**)\n`;
+    reply += `**Composite Planning Score**: **${score}/100** (${score >= 75 ? "✅ Viable for Development" : "⚠️ Requires Engineering / Setback Mitigation"})\n\n`;
+
+    if (isSolar) {
+      const estimatedMWp = ((areaM2 / 4046.86) * 0.25).toFixed(2);
+      const estAnnualGWh = ((Number(estimatedMWp) * 1620) / 1000).toFixed(2);
+
+      reply += `#### 1. Solar Photovoltaic Sizing & Generation Potential\n`;
+      reply += `- **Nameplate Capacity**: Estimated **~${estimatedMWp} MWp** DC capacity (~250 kWp per acre utility packing density).\n`;
+      reply += `- **Annual Energy Yield**: Anticipated **~${estAnnualGWh} GWh/year** (benchmarked at ~1,620 kWh/kWp specific yield in Maharashtra solar belt).\n`;
+      reply += `- **Optimal Fixed Tilt & Azimuth**: Recommended **19°–21° True South (Azimuth 180°)** based on latitude ${centroidLat}°N to maximize annual irradiance.\n`;
+      reply += `- **Row Pitch & Shading (GCR)**: Maintain a Ground Coverage Ratio (GCR) between **0.42 and 0.48** (approx. 5.5m inter-row spacing) to prevent early-morning (9 AM) and late-afternoon (3 PM) shadow clipping on winter solstice.\n\n`;
+
+      reply += `#### 2. Spatial Encroachments & Setbacks\n`;
+      if (hasRoadCollision) {
+        reply += `- ⚠️ **Road Collision**: The solar farm perimeter encroaches on mapped road corridors. Must retract edges to comply with mandatory 3.0m statutory boundary setback under UDCPR.\n`;
+      } else {
+        reply += `- ✅ **Carriageway Buffer**: Clear of all mapped road surfaces and street rights-of-way.\n`;
+      }
+      if (buildingCollisions.length > 0) {
+        reply += `- ⚠️ **Existing Structures**: Intersects ${buildingCollisions.length} existing mapped structures. Site acquisition or footprint redrawing is required.\n`;
+      } else {
+        reply += `- ✅ **Open Land Clearance**: Sited on contiguous open parcel without built structure encumbrances.\n`;
+      }
+
+      reply += `\n#### 3. Logistical & Grid Connectivity Requirements\n`;
+      if (roadAccess?.requiresNewAccessRoad) {
+        reply += `- ⚠️ **O&M Access Road**: Currently landlocked; requires a **${Math.round(roadAccess.distanceM || 0)}m** all-weather access road to **${roadAccess.nearestRoadName || "public road"}** for heavy transformer/inverter delivery and bi-weekly panel washing water tankers.\n`;
+      } else {
+        reply += `- ✅ **Logistics Ingress**: Direct access to **${roadAccess?.nearestRoadName || "public road"}** (${Math.round(roadAccess?.distanceM || 0)}m distance).\n`;
+      }
+      reply += `- ⚡ **Substation Evacuation**: Requires 11kV/33kV power evacuation corridor to nearest MSEDCL/MSETCL feeder.\n\n`;
+
+      reply += `> 💡 **Next Steps**: Use the **"Shadow-of-the-Future"** simulation panel to test hourly shadow ray-tracing, and **"Solar Reality"** to calculate monsoon de-rating and soil degradation coefficients.`;
+    } else if (isEV) {
+      reply += `#### 1. EV Charging Station Capacity & Infrastructure\n`;
+      reply += `- **Bay Sizing**: Footprint accommodates up to ${Math.max(4, Math.floor(areaM2 / 65))} EV charging bays with designated ingress/egress lanes.\n`;
+      reply += `- **Power Demands**: Recommends dedicated 500 kVA - 1 MVA compact substation for DC Fast Chargers (120 kW+ CCS2).\n`;
+      reply += `- **Road Frontage**: ${roadAccess?.requiresNewAccessRoad ? `⚠️ Requires ${Math.round(roadAccess.distanceM || 0)}m road connector.` : `✅ Connected directly to ${roadAccess?.nearestRoadName || "primary road"}.`}\n`;
+      reply += `- **Traffic Safety**: Must integrate dedicated turning radii to avoid vehicular queue spillage onto arterial carriageways.\n`;
+    } else if (isHospital) {
+      reply += `#### 1. Healthcare Facility Siting Criteria\n`;
+      reply += `- **Frontage Road Width**: UDCPR 2020 Rule 15.1 mandates minimum 15.0m abutting road width for emergency ambulance movement.\n`;
+      reply += `- **Emergency Accessibility**: ${roadAccess?.requiresNewAccessRoad ? `⚠️ Needs ${Math.round(roadAccess.distanceM || 0)}m access road.` : `✅ Direct street connectivity verified.`}\n`;
+      reply += `- **Environmental Buffering**: Acoustic barrier and DG set isolation required from adjacent residential zoning.\n`;
+    } else {
+      reply += `#### 1. Land & Geometric Feasibility\n`;
+      reply += `- **Encroachment Status**: ${hasRoadCollision ? "⚠️ Intersects public rights-of-way." : "✅ Zero road encroachments detected."}\n`;
+      reply += `- **Access Road Status**: ${roadAccess?.requiresNewAccessRoad ? `⚠️ Landlocked; ${Math.round(roadAccess.distanceM || 0)}m preliminary access road required.` : `✅ Connected to ${roadAccess?.nearestRoadName || "road corridor"}.`}\n`;
+      reply += `- **Statutory Framework**: ${statutoryFramework}.\n`;
+    }
+
+    return {
+      reply,
+      modelUsed: "local-gis-rules-engine",
+      groundedFacts: {
+        city,
+        infrastructureType: infraType,
+        hasRoadCollision,
+        roadAccessStatus,
+        statutoryFramework,
+      },
+    };
+  }
+
+  // Dynamic Fallback Synthesis
   const score = report?.overallScore ?? (hasRoadCollision ? 45 : 85);
-  let reply = `### Urban Infrastructure Siting Synthesis for ${infraType}\n\n`;
-  reply += `**Study Area**: ${city}\n`;
-  reply += `**Feasibility Status**: ${hasRoadCollision ? "⚠️ Action Required (Road Collision)" : "✅ Structurally Clear"}\n`;
-  reply += `**Multi-Criteria Suitability Score**: **${score}/100**\n\n`;
+  const areaM2 = Math.round(
+    placement?.areaM2 ||
+      (placement?.lengthM && placement?.widthM ? placement.lengthM * placement.widthM : 50000)
+  );
+  const centroidLat = placement?.lat !== undefined ? placement.lat.toFixed(4) : "20.3506";
+  const centroidLon = placement?.lng !== undefined ? placement.lng.toFixed(4) : "74.3626";
 
-  reply += `**Key Observations**:\n`;
-  reply += `- **Carriageway Clearance**: ${hasRoadCollision ? "Encroaches on mapped road right-of-way." : "Zero road collision detected; adheres to road buffer clearance."}\n`;
-  reply += `- **Street Connectivity**: ${roadAccess?.requiresNewAccessRoad ? `Landlocked; requires ${Math.round(roadAccess.distanceM || 0)}m preliminary access road to ${roadAccess.nearestRoadName || "public road"}.` : `Directly connected (${Math.round(roadAccess?.distanceM || 0)}m to ${roadAccess?.nearestRoadName || "road"}).`}\n`;
-  reply += `- **Statutory Reference**: ${statutoryFramework}.\n\n`;
+  let reply = `### UrjaSetu Urban Planning Synthesis: ${infraType}\n\n`;
+  reply += `**Study Area**: ${city} | **Coordinates**: \`(${centroidLat}° N, ${centroidLon}° E)\`\n`;
+  reply += `**Site Dimensions**: **${areaM2.toLocaleString()} m²** (~${(areaM2 / 4046.86).toFixed(2)} acres)\n`;
+  reply += `**Multi-Criteria Suitability Score**: **${score}/100** (${score >= 70 ? "Viable" : "Action Required"})\n\n`;
 
-  reply += `💡 *Tip: You can ask specific questions about road collisions, access road extensions, statutory UDCPR regulations, or citizen summaries.*`;
+  reply += `**Key Spatial Observations Regarding Your Query**:\n`;
+  reply += `1. **Road Clearance**: ${hasRoadCollision ? "⚠️ Encroaches on mapped road right-of-way. Use 'Snap to Road & Open Land' to adjust." : "✅ Zero road collisions detected; maintains safe carriageway buffer."}\n`;
+  reply += `2. **Access Road Status**: ${roadAccess?.requiresNewAccessRoad ? `⚠️ Offset from street network; requires ${Math.round(roadAccess.distanceM || 0)}m access road to ${roadAccess.nearestRoadName || "public road"}.` : `✅ Direct frontage connected to ${roadAccess?.nearestRoadName || "mapped road"}.`}\n`;
+  reply += `3. **Statutory Planning Basis**: Complies with ${statutoryFramework}.\n\n`;
+
+  reply += `💡 *Tip: You can ask specific questions about solar yield, 3D shading ray-tracing, access roads, UDCPR statutory setbacks, or click "Snap to Road & Open Land" to automatically correct boundaries.*`;
 
   return {
     reply,

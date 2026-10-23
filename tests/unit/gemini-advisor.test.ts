@@ -401,5 +401,39 @@ describe("Gemini Copilot — Grounded Planning Assistant", () => {
     expect(result.reply).toContain("UDCPR 2020");
     expect(result.reply).toContain("Nashik Municipal Corporation");
   });
+
+  it("generateLocalCopilotResponse evaluates solar farm setup, sizing, and yield properly", () => {
+    const mockContext: CopilotChatContext = {
+      studyArea: "Malegaon Siting Zone",
+      infrastructureType: "Solar Farm",
+      placement: {
+        lat: 20.3506,
+        lng: 74.3626,
+        lengthM: 250,
+        widthM: 200,
+        areaM2: 50000,
+      },
+      validation: {
+        status: "pass",
+        conflicts: [],
+        roadAccess: {
+          requiresNewAccessRoad: false,
+          distanceM: 0,
+          nearestRoadName: "SH-17 State Highway",
+        },
+      },
+    };
+
+    const result = generateLocalCopilotResponse(
+      "is the solar farm properly setup at the location",
+      mockContext
+    );
+    expect(result.modelUsed).toBe("local-gis-rules-engine");
+    expect(result.reply).toContain("Technical Siting & Feasibility Assessment: Solar Farm");
+    expect(result.reply).toContain("50,000 m²");
+    expect(result.reply).toContain("MWp");
+    expect(result.reply).toContain("Optimal Fixed Tilt & Azimuth");
+    expect(result.reply).toContain("Carriageway Buffer");
+  });
 });
 

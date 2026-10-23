@@ -62,10 +62,16 @@ export async function POST(req: NextRequest) {
       const result = await generateCopilotResponse(message.trim(), context, history);
       return successResponse(result);
     } catch (err: unknown) {
+      console.warn("[Copilot] Cloud Gemini API call failed:", err);
       if (fallbackToLocal) {
-        console.warn("[Copilot] Cloud Gemini API failed, falling back to local GIS engine:", err);
         const localResult = generateLocalCopilotResponse(message.trim(), context, history);
-        return successResponse(localResult);
+        const errDetail = err instanceof Error ? err.message : String(err);
+        return successResponse({
+          ...localResult,
+          cloudUnavailable: true,
+          cloudError: errDetail,
+          reply: `> ℹ️ *UrjaSetu Copilot Notice: Gemini Cloud AI unreachable (${errDetail}). Sited via UrjaSetu Local GIS Rules Engine:*\n\n` + localResult.reply,
+        });
       }
       throw err;
     }
