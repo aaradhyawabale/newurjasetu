@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "manifestId": "urjasetu-pune-satellite-heat-inventory",
+  "createdAt": "2026-11-01T07:16:48Z",
+  "provenancePolicy": "All raster products generated via deterministic, reproducible range requests from authoritative Landsat Collection 2 Level-2 and Sentinel-2 Level-2A COG archives.",
+  "coordinateReferenceSystem": "EPSG:32643",
+  "targetGrid": {
+    "resolution": 30.0,
+    "affineTransform": [
+      366105.0,
+      30.0,
+      0.0,
+      2059365.0,
+      0.0,
+      -30.0
+    ],
+    "dimensions": {
+      "width": 1012,
+      "height": 871
+    }
+  },
+  "products": [
+    {
+      "filename": "pune_lst_raw_dn_30m.tif",
+      "format": "GeoTIFF (LZW)",
+      "dataType": "UInt16",
+      "bands": 1,
+      "nodata": 0,
+      "unit": "Digital Number (DN)",
+      "description": "Original raw Landsat 9 Band 10 digital numbers, unscaled.",
+      "provenance": "DETERMINISTIC_RESULT"
+    },
+    {
+      "filename": "pune_lst_30m.tif",
+      "format": "GeoTIFF (LZW)",
+      "dataType": "Float32",
+      "bands": 1,
+      "nodata": -9999.0,
+      "unit": "Degrees Celsius (\u00b0C)",
+      "description": "Calibrated Land Surface Temperature. (DN * 0.00341802 - 124.15).",
+      "provenance": "DETERMINISTIC_RESULT"
+    },
+    {
+      "filename": "pune_lst_statistical_mask_30m.tif",
+      "format": "GeoTIFF (LZW)",
+      "dataType": "UInt8",
+      "bands": 1,
+      "nodata": 0,
+      "unit": "Categorical Mask",
+      "description": "Diagnostic flag: 0=Fill/NoData, 1=DN 1-292 anomaly range, 2=Nominal valid range.",
+      "provenance": "DETERMINISTIC_RESULT"
+    },
+    {
+      "filename": "pune_st_qa_30m.tif",
+      "format": "GeoTIFF (LZW)",
+      "dataType": "Int16",
+      "bands": 1,
+      "nodata": -9999,
+      "unit": "Centikelvin (0.01 K)",
+      "description": "USGS thermal uncertainty surface assessment raster.",
+      "provenance": "DETERMINISTIC_RESULT"
+    },
+    {
+      "filename": "pune_ndvi_10m.tif",
+      "format": "GeoTIFF (LZW)",
+      "dataType": "Float32",
+      "bands": 1,
+      "nodata": -9999.0,
+      "unit": "NDVI [-1.0, 1.0]",
+      "description": "Native 10m Sentinel-2 valid terrestrial NDVI.",
+      "provenance": "DETERMINISTIC_RESULT"
+    },
+    {
+      "filename": "pune_ndvi_30m.tif",
+      "format": "GeoTIFF (LZW)",
+      "dataType": "Float32",
+      "bands": 1,
+      "nodata": -9999.0,
+      "unit": "NDVI [-1.0, 1.0]",
+      "description": "Exact area-weighted aggregated NDVI on Landsat 30m grid.",
+      "provenance": "DETERMINISTIC_RESULT"
+    },
+    {
+      "filename": "pune_ndvi_valid_fraction_30m.tif",
+      "format": "GeoTIFF (LZW)",
+      "dataType": "Float32",
+      "bands": 3,
+      "nodata": -9999.0,
+      "unit": "Fractions [0.0, 1.0]",
+      "description": "Three-band coverage: Band 1=source_coverage_fraction, Band 2=validity_within_source_coverage, Band 3=valid_footprint_fraction.",
+      "provenance": "DETERMINISTIC_RESULT"
+    },
+    {
+      "filename": "pune_scl_30m.tif",
+      "format": "GeoTIFF (LZW)",
+      "dataType": "UInt8",
+      "bands": 1,
+      "nodata": 0,
+      "unit": "Scene Classification Classes (0-11)",
+      "description": "Nearest-neighbour categorical SCL transferred from 20m SCL grid.",
+      "provenance": "DETERMINISTIC_RESULT"
+    }
+  ]
+}

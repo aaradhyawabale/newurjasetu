@@ -13,6 +13,8 @@ import { ShadowSimulatorModal } from "../solar/ShadowSimulatorModal";
 import { SolarRealityModal } from "../solar/SolarRealityModal";
 import { ScenarioComparisonModal } from "../scenarios/ScenarioComparisonModal";
 import { CopilotDrawer } from "../copilot/CopilotDrawer";
+import { HeatIntelligenceDashboard } from "../heat/HeatIntelligenceDashboard";
+import { InterventionPlanningWorkspace } from "../interventions/InterventionPlanningWorkspace";
 import { useToast } from "../ui/Toast";
 import { InfrastructureTypeId, INFRASTRUCTURE_TYPES } from "@/config/infra-types";
 import { ValidationResult } from "@/server/analysis-engine/validation";
@@ -119,6 +121,12 @@ export const AppShell: React.FC<AppShellProps> = ({
   // State: Scenario Comparison Simulator
   const [isComparisonOpen, setIsComparisonOpen] = useState<boolean>(false);
   const [comparisonPlacementIds, setComparisonPlacementIds] = useState<string[] | undefined>(undefined);
+
+  // State: Heat Intelligence Dashboard
+  const [isHeatDashboardOpen, setIsHeatDashboardOpen] = useState<boolean>(false);
+
+  // State: Urban Intervention Planning Workspace (Phase 5)
+  const [isInterventionsOpen, setIsInterventionsOpen] = useState<boolean>(false);
 
   // State: History
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
@@ -1125,6 +1133,8 @@ export const AppShell: React.FC<AppShellProps> = ({
           setComparisonPlacementIds(undefined);
           setIsComparisonOpen(true);
         }}
+        onHeatDashboardClick={() => setIsHeatDashboardOpen(true)}
+        onInterventionsClick={() => setIsInterventionsOpen(true)}
         onCopilotClick={() => setIsCopilotOpen(true)}
         userName={user.name || user.email}
         historyCount={historyItems.length}
@@ -1167,6 +1177,7 @@ export const AppShell: React.FC<AppShellProps> = ({
             solarShadingData={solarShadingOverlay}
             bridgeApproachData={bridgeApproachData}
             bridgeCandidatePreview={bridgeCandidatePreview}
+            onOpenHeatDashboard={() => setIsHeatDashboardOpen(true)}
             onMapClick={handleMapClick}
             onPlacementChange={handlePlacementChangeFromMap}
             onStudyAreaChange={handleStudyAreaChange}
@@ -1394,6 +1405,23 @@ export const AppShell: React.FC<AppShellProps> = ({
         onApplyAdjustment={handleApplyCopilotAdjustment}
         onUndoAdjustment={handleUndoCopilotAdjustment}
         activePlacement={activePlacement}
+      />
+
+      {/* Urban Heat & Vegetation Intelligence Modal Dashboard */}
+      <HeatIntelligenceDashboard
+        isOpen={isHeatDashboardOpen}
+        onClose={() => setIsHeatDashboardOpen(false)}
+      />
+
+      {/* Urban Intervention Planning & Infrastructure Co-Planning Workspace (Phase 5) */}
+      <InterventionPlanningWorkspace
+        isOpen={isInterventionsOpen}
+        onClose={() => setIsInterventionsOpen(false)}
+        onLocateCandidate={(lat, lng, name) => {
+          setIsInterventionsOpen(false);
+          setMapCenter({ lat, lng });
+          showToast(`Centered map on candidate: ${name}`, "info");
+        }}
       />
     </div>
   );

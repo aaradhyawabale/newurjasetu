@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "manifestId": "urjasetu-satellite-reconciliation-manifest-v6-2",
+  "version": "6.2.0",
+  "publishedAt": "2026-11-01T10:45:00Z",
+  "auditSummary": "Reconciled authoritative satellite scenes, acquisition timestamps, and uncertainty statistics for UrjaSetu Pune heat intelligence.",
+  "geographicCoverage": {
+    "targetRegion": "Pune Metropolitan Area, Maharashtra, India",
+    "studyAreaDelineation": "PMC Candidate Boundary (synthesized from 23 Prabhag wards, non-statutory)",
+    "crs": "EPSG:32643",
+    "crsDescription": "WGS 84 / UTM Zone 43N",
+    "grid": {
+      "pixelSizeMeters": 30.0,
+      "widthPixels": 1012,
+      "heightPixels": 871,
+      "totalPixels": 881452,
+      "candidateBoundaryPixels": 577304,
+      "candidateAreaKm2": 519.574,
+      "affineTransform": [366105.0, 30.0, 0.0, 2059365.0, 0.0, -30.0]
+    }
+  },
+  "datasets": {
+    "landsat9": {
+      "sceneId": "LC09_L2SP_147047_20230422_02_T1",
+      "platform": "Landsat 9",
+      "sensor": "TIRS-2 (Thermal Infrared Sensor 2)",
+      "band": "ST_B10 (Surface Temperature)",
+      "collection": "Landsat Collection 2 Level-2 Surface Temperature Science Product",
+      "issuingAuthority": "USGS / NASA",
+      "acquisitionTimestamp": "2023-04-22T05:27:39.760219Z",
+      "localSolarTime": "10:57 AM IST (UTC+5:30)",
+      "reconciliationNote": "Reconciled against conflicting 2024-05-18 citations. The physically verified raster archive in UrjaSetu corresponds to the April 22, 2023 pre-monsoon scene.",
+      "resolution": {
+        "nativeThermalMeters": 100.0,
+        "deliveredResampledMeters": 30.0,
+        "resamplingAlgorithm": "Cubic convolution by USGS EROS"
+      },
+      "calibration": {
+        "formula": "LST_Celsius = DN * 0.00341802 - 124.15",
+        "scaleFactor": 0.00341802,
+        "offsetCelsius": -124.15,
+        "offsetKelvin": 149.0
+      },
+      "observedStatistics": {
+        "unit": "Degrees Celsius (°C)",
+        "min": 25.76,
+        "max": 61.41,
+        "mean": 46.28,
+        "median": 45.86,
+        "stdDev": 4.35,
+        "p10": 41.30,
+        "p90": 52.38
+      },
+      "uncertaintySTQA": {
+        "unit": "Kelvin (K)",
+        "description": "USGS per-pixel uncertainty estimate from Surface Temperature Quality Assessment band (ST_QA, scale factor 0.01 K).",
+        "meanUncertaintyK": 2.16,
+        "medianUncertaintyK": 2.10,
+        "minUncertaintyK": 1.51,
+        "maxUncertaintyK": 62.75,
+        "errorCorrectionNote": "The uniform ±0.81 K claim found in legacy notes misattributes global sensor-level laboratory validation to field retrievals. Actual field uncertainty varies per-pixel with mean 2.16 K."
+      },
+      "dataQuality": {
+        "clearSkyPixels": 577208,
+        "clearSkyPercentage": 99.98,
+        "cloudPixels": 11,
+        "cloudShadowPixels": 96,
+        "cirrusPixels": 0,
+        "waterPixels": 4145
+      },
+      "phenomenologicalScope": "Radiometric land surface skin temperature (T_skin) at instantaneous sensor overpass. It does NOT represent 2-meter ambient air temperature (T_air) or Wet-Bulb Globe Temperature (WBGT)."
+    },
+    "sentinel2b": {
+      "sceneId": "S2B_MSIL2A_20230424T052649_N0510_R105_T43QCA_20240831T130916",
+      "platform": "Sentinel-2B",
+      "sensor": "MSI (MultiSpectral Instrument)",
+      "processingLevel": "Level-2A Bottom-Of-Atmosphere (BOA) Surface Reflectance",
+      "issuingAuthority": "ESA / European Union Copernicus Programme",
+      "acquisitionTimestamp": "2023-04-24T05:26:49.024Z",
+      "localSolarTime": "10:56 AM IST (UTC+5:30)",
+      "temporalBaselineNote": "Acquired approximately 48 hours after Landsat 9 overpass, providing a synchronized pre-monsoon dry-season baseline.",
+      "bandsUsed": {
+        "red": "B04 (central wavelength 665 nm, native 10m)",
+        "nir": "B08 (central wavelength 842 nm, native 10m)",
+        "sceneClassification": "SCL (native 20m)"
+      },
+      "calibration": {
+        "formula": "Reflectance = (DN - 1000) / 10000",
+        "ndviFormula": "NDVI = (B08 - B04) / (B08 + B04)"
+      },
+      "aggregationToTargetGrid": {
+        "targetResolutionMeters": 30.0,
+        "method": "Exact area-weighted polygon intersection of native 10m pixels onto 30m Landsat grid cells"
+      },
+      "observedStatistics": {
+        "unit": "Unitless [-1.0, 1.0]",
+        "validPixels": 518651,
+        "validPercentage": 89.84,
+        "min": -0.7316,
+        "max": 1.0,
+        "mean": 0.5144,
+        "median": 0.5070,
+        "stdDev": 0.2302
+      },
+      "phenomenologicalScope": "Normalized Difference Vegetation Index (NDVI) indicates photosynthetic activity and chlorophyll vigor. It does NOT establish canopy height, volumetric tree shade, structural species composition, or total green cover percentage."
+    }
+  }
+}

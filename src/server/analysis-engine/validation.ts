@@ -105,7 +105,7 @@ export function resolveOfficialPlanningContext(lat: number, lng: number): Offici
     statutoryRules,
     zoningStatus: "UNVERIFIED",
     verifiedSources: [
-      "OpenStreetMap (OSM) Road Network & Infrastructure Geometry",
+      "OpenStreetMap (OSM) 1D Road Centerlines & Infrastructure Geometry",
       "Copernicus / Open-Meteo 30m Global DEM Terrain Data",
       "NASA POWER Climatological Solar & Meteorological Archive",
       `${jurisdiction} Administrative Geographic Extent`,
@@ -113,13 +113,14 @@ export function resolveOfficialPlanningContext(lat: number, lng: number): Offici
     unverifiedAttributes: [
       "Cadastral Revenue Survey / CTS Number and Title Ownership (7/12 Extract)",
       "Official Municipal Development Plan (DP) Reservation Color Code & Land Use Zone",
+      "Statutory Road Right-of-Way (ROW) Width & Exact Carriageway Curb Buffers",
       "Non-Agricultural (NA) Permission & Encumbrance Certificate",
       "Site-Specific Tree Preservation & Environmental NOC Status",
     ],
     complianceDisclaimer:
-      "Statutory Notice: While spatial feasibility (footprint fit, road access, and physical buffers) has been computed against available georeferenced GIS data, statutory development rights require formal verification with the Town Planning Department of " +
+      "Statutory Notice: While spatial feasibility (footprint fit, distance to mapped OSM 1D centerlines, and physical hazard buffers) has been computed against available georeferenced GIS data, statutory development rights and road setbacks require formal verification with the Town Planning Department of " +
       jurisdiction +
-      ". UrjaSetu does not certify title clearance or official zoning conformity without revenue records.",
+      ". OpenStreetMap data represents 1D road centerlines rather than statutory ROW boundaries; UrjaSetu does not certify statutory UDCPR 2020 road setback compliance or title clearance without revenue and DP records.",
   };
 }
 
@@ -641,7 +642,7 @@ export async function validateFootprint(
             distanceM: Math.round(minRoadDistM),
             requiresNewAccessRoad: false,
             crossesObstacle: false,
-            preliminaryNotice: "Direct road frontage available. Site perimeter is directly adjacent (<= 15m) to public road network.",
+            preliminaryNotice: `Site perimeter is within ~${Math.round(minRoadDistM)}m of mapped OpenStreetMap road centerline (${roadName}). Note: OSM records 1D centerlines; statutory carriageway clearance and right-of-way buffers under UDCPR 2020 require municipal cadastre verification.`,
           };
         } else {
           // Generate preliminary access road alignment

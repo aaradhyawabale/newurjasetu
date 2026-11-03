@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import * as turf from "@turf/turf";
@@ -8,6 +8,7 @@ import { createFootprintPolygon, calculateDistanceMeters } from "@/server/gis/ge
 import { ConflictingFeature } from "@/server/analysis-engine/validation";
 import { StandardizedGeoFeature } from "@/server/providers/types";
 import { NearbyBridgeCrossingCandidate } from "@/server/analysis-engine/bridge-planner";
+import { HeatLayerControl } from "@/components/map/HeatLayerControl";
 
 export interface StudyAreaBounds {
   swLat: number;
@@ -60,6 +61,7 @@ interface MapViewProps {
   activeCity?: "pune" | "pcmc" | "nashik";
   bridgeApproachData?: any | null;
   bridgeCandidatePreview?: NearbyBridgeCrossingCandidate | null;
+  onOpenHeatDashboard?: () => void;
 }
 
 export const MapView: React.FC<MapViewProps> = ({
@@ -83,6 +85,7 @@ export const MapView: React.FC<MapViewProps> = ({
   onMapLoaded,
   className = "",
   activeCity,
+  onOpenHeatDashboard,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -97,6 +100,13 @@ export const MapView: React.FC<MapViewProps> = ({
   const candidateMarkerRef = useRef<maplibregl.Marker | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [showAnalyzedOverlay, setShowAnalyzedOverlay] = useState(true);
+  const [clickedCoords, setClickedCoords] = useState<{ lat: number; lng: number } | null>(null);
+
+  // Satellite Heat & Vegetation layer controls
+  const [showLstLayer, setShowLstLayer] = useState(false);
+  const [showNdviLayer, setShowNdviLayer] = useState(false);
+  const [lstOpacity, setLstOpacity] = useState(0.85);
+  const [ndviOpacity, setNdviOpacity] = useState(0.85);
 
   // Interactive perimeter resize/rotate control handles
   const handlesRef = useRef<{
@@ -257,6 +267,61 @@ export const MapView: React.FC<MapViewProps> = ({
     map.on("load", () => {
       mapRef.current = map;
       setIsLoaded(true);
+
+      // Add Satellite Heat & Vegetation Image Sources and Layers
+      try {
+        if (!map.getSource("pune-heat-lst-source")) {
+          map.addSource("pune-heat-lst-source", {
+            type: "image",
+            url: "/data/heat/pune_lst_overlay.png",
+            coordinates: [
+              [73.730767, 18.620987], // Top-Left
+              [74.018523, 18.622708], // Top-Right
+              [74.019868, 18.386576], // Bottom-Right
+              [73.732505, 18.384878], // Bottom-Left
+            ],
+          });
+        }
+        if (!map.getLayer("pune-heat-lst-layer")) {
+          map.addLayer({
+            id: "pune-heat-lst-layer",
+            type: "raster",
+            source: "pune-heat-lst-source",
+            layout: { visibility: "none" },
+            paint: {
+              "raster-opacity": 0.85,
+              "raster-fade-duration": 200,
+            },
+          });
+        }
+
+        if (!map.getSource("pune-heat-ndvi-source")) {
+          map.addSource("pune-heat-ndvi-source", {
+            type: "image",
+            url: "/data/heat/pune_ndvi_overlay.png",
+            coordinates: [
+              [73.730767, 18.620987], // Top-Left
+              [74.018523, 18.622708], // Top-Right
+              [74.019868, 18.386576], // Bottom-Right
+              [73.732505, 18.384878], // Bottom-Left
+            ],
+          });
+        }
+        if (!map.getLayer("pune-heat-ndvi-layer")) {
+          map.addLayer({
+            id: "pune-heat-ndvi-layer",
+            type: "raster",
+            source: "pune-heat-ndvi-source",
+            layout: { visibility: "none" },
+            paint: {
+              "raster-opacity": 0.85,
+              "raster-fade-duration": 200,
+            },
+          });
+        }
+      } catch (err) {
+        console.warn("Could not register heat raster sources on map load:", err);
+      }
 
       // Add study-area geojson source and layers
       map.addSource("study-area-source", {
@@ -707,6 +772,92 @@ export const MapView: React.FC<MapViewProps> = ({
         },
       });
 
+      // Phase 5: Urban Intervention Planning Candidates Source & Layers
+      map.addSource("intervention-candidates-source", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+
+      map.addLayer({
+        id: "intervention-candidates-glow",
+        type: "circle",
+        source: "intervention-candidates-source",
+        paint: {
+          "circle-radius": 14,
+          "circle-color": [
+            "match",
+            ["get", "categoryId"],
+            "URBAN_GREENING_CORRIDOR", "#10b981",
+            "COOL_ROOF_FEASIBILITY", "#06b6d4",
+            "SOLAR_CANOPY_EV_COLOCATION", "#f59e0b",
+            "GREEN_SPACE_ENHANCEMENT", "#059669",
+            "INTEGRATED_FACILITY_UPGRADE", "#8b5cf6",
+            "#10b981"
+          ],
+          "circle-opacity": 0.3,
+          "circle-blur": 0.6,
+        },
+      });
+
+      map.addLayer({
+        id: "intervention-candidates-circle",
+        type: "circle",
+        source: "intervention-candidates-source",
+        paint: {
+          "circle-radius": 7,
+          "circle-color": [
+            "match",
+            ["get", "categoryId"],
+            "URBAN_GREENING_CORRIDOR", "#10b981",
+            "COOL_ROOF_FEASIBILITY", "#06b6d4",
+            "SOLAR_CANOPY_EV_COLOCATION", "#f59e0b",
+            "GREEN_SPACE_ENHANCEMENT", "#059669",
+            "INTEGRATED_FACILITY_UPGRADE", "#8b5cf6",
+            "#10b981"
+          ],
+          "circle-stroke-width": 2.5,
+          "circle-stroke-color": "#ffffff",
+        },
+      });
+
+      map.on("click", "intervention-candidates-circle", (e) => {
+        if (!e.features || !e.features[0]) return;
+        const feat = e.features[0];
+        const props = feat.properties as any;
+        const coordinates = (feat.geometry as any).coordinates.slice();
+
+        new maplibregl.Popup({ offset: 12 })
+          .setLngLat(coordinates)
+          .setHTML(`
+            <div style="font-family: sans-serif; padding: 4px; font-size: 12px; max-width: 260px;">
+              <div style="font-size: 9px; font-weight: 700; text-transform: uppercase; color: #047857; margin-bottom: 2px;">
+                ${props.categoryId ? props.categoryId.replace(/_/g, " ") : "INTERVENTION"}
+              </div>
+              <div style="font-weight: 700; color: #111827; font-size: 13px; line-height: 1.2;">
+                ${props.name || "Intervention Site"}
+              </div>
+              <div style="color: #6b7280; font-size: 11px; margin-top: 2px;">
+                ${props.wardOrPrabhag || ""}
+              </div>
+              <div style="display: flex; gap: 8px; margin-top: 8px; padding-top: 6px; border-top: 1px solid #e5e7eb; font-size: 11px;">
+                <div><strong>LST:</strong> ${props.surfaceTemperatureCelsius != null ? props.surfaceTemperatureCelsius + "°C" : "N/A"}</div>
+                <div><strong>NDVI:</strong> ${props.ndvi30m != null ? props.ndvi30m : "N/A"}</div>
+              </div>
+              <div style="font-size: 10px; color: #4b5563; margin-top: 4px;">
+                Status: <strong>${props.status ? props.status.replace(/_/g, " ") : "ELIGIBLE"}</strong>
+              </div>
+            </div>
+          `)
+          .addTo(map);
+      });
+
+      map.on("mouseenter", "intervention-candidates-circle", () => {
+        map.getCanvas().style.cursor = "pointer";
+      });
+      map.on("mouseleave", "intervention-candidates-circle", () => {
+        map.getCanvas().style.cursor = "";
+      });
+
       if (onMapLoaded) {
         onMapLoaded(() => {
           if (!mapRef.current) return null;
@@ -892,6 +1043,7 @@ export const MapView: React.FC<MapViewProps> = ({
       const { lng, lat } = e.lngLat;
       previewTooltipEl.style.display = "none";
       featureTooltipEl.style.display = "none";
+      setClickedCoords({ lat, lng });
       onMapClickRef.current(lat, lng);
     });
 
@@ -911,6 +1063,37 @@ export const MapView: React.FC<MapViewProps> = ({
       map.remove();
       mapRef.current = null;
     };
+  }, []);
+
+  // Synchronize Satellite Heat (LST) layer visibility and opacity
+  useEffect(() => {
+    if (!mapRef.current || !isLoaded) return;
+    const map = mapRef.current;
+    if (map.getLayer("pune-heat-lst-layer")) {
+      map.setLayoutProperty("pune-heat-lst-layer", "visibility", showLstLayer ? "visible" : "none");
+      map.setPaintProperty("pune-heat-lst-layer", "raster-opacity", lstOpacity);
+    }
+  }, [showLstLayer, lstOpacity, isLoaded]);
+
+  // Synchronize Satellite Vegetation (NDVI) layer visibility and opacity
+  useEffect(() => {
+    if (!mapRef.current || !isLoaded) return;
+    const map = mapRef.current;
+    if (map.getLayer("pune-heat-ndvi-layer")) {
+      map.setLayoutProperty("pune-heat-ndvi-layer", "visibility", showNdviLayer ? "visible" : "none");
+      map.setPaintProperty("pune-heat-ndvi-layer", "raster-opacity", ndviOpacity);
+    }
+  }, [showNdviLayer, ndviOpacity, isLoaded]);
+
+  const handleZoomToHeatExtent = useCallback(() => {
+    if (!mapRef.current) return;
+    mapRef.current.fitBounds(
+      [
+        [73.730767, 18.384878], // SW (bottom-left)
+        [74.019868, 18.622708], // NE (top-right)
+      ],
+      { padding: 40, duration: 1200 }
+    );
   }, []);
 
   // Update camera center when centerLat/centerLng props change (e.g. from Geocoder search or scenario switch)
@@ -1169,6 +1352,43 @@ export const MapView: React.FC<MapViewProps> = ({
     } else {
       // Clear PMC boundary when viewing other cities (PCMC or Nashik)
       boundarySource.setData({ type: "FeatureCollection", features: [] });
+    }
+  }, [centerLat, centerLng, activeCity, isLoaded]);
+
+  // Update Phase 5 Urban Intervention Planning Candidates on Map
+  useEffect(() => {
+    if (!mapRef.current || !isLoaded) return;
+    const candidatesSource = mapRef.current.getSource(
+      "intervention-candidates-source"
+    ) as maplibregl.GeoJSONSource;
+    if (!candidatesSource) return;
+
+    const isPune =
+      activeCity === "pune" ||
+      (!activeCity &&
+        centerLat >= 18.35 &&
+        centerLat <= 18.63 &&
+        centerLng >= 73.65 &&
+        centerLng <= 74.05);
+
+    if (isPune) {
+      fetch("/api/interventions/candidates?format=geojson")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data?.type === "FeatureCollection" && mapRef.current) {
+            const currentSource = mapRef.current.getSource(
+              "intervention-candidates-source"
+            ) as maplibregl.GeoJSONSource;
+            if (currentSource) {
+              currentSource.setData(data);
+            }
+          }
+        })
+        .catch((err) => {
+          console.warn("Could not load intervention candidates GeoJSON:", err);
+        });
+    } else {
+      candidatesSource.setData({ type: "FeatureCollection", features: [] });
     }
   }, [centerLat, centerLng, activeCity, isLoaded]);
 
@@ -2056,6 +2276,21 @@ export const MapView: React.FC<MapViewProps> = ({
       <div
         ref={dragTooltipRef}
         className="pointer-events-none fixed z-50 hidden px-3 py-1.5 bg-stone-900/95 text-white font-mono text-xs rounded-panel shadow-xl border border-stone-700 font-semibold backdrop-blur-xs tracking-tight"
+      />
+
+      {/* Satellite Heat & Vegetation Layer Control Widget */}
+      <HeatLayerControl
+        selectedPoint={clickedCoords}
+        showLst={showLstLayer}
+        showNdvi={showNdviLayer}
+        lstOpacity={lstOpacity}
+        ndviOpacity={ndviOpacity}
+        onToggleLst={setShowLstLayer}
+        onToggleNdvi={setShowNdviLayer}
+        onLstOpacityChange={setLstOpacity}
+        onNdviOpacityChange={setNdviOpacity}
+        onZoomToStudyArea={handleZoomToHeatExtent}
+        onOpenDashboard={onOpenHeatDashboard}
       />
 
       {/* Solar Shading Floating Indicator Badge */}

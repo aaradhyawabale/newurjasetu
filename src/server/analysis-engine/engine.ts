@@ -33,6 +33,7 @@ import {
   analyzeBridgeConnectivity,
   BridgeSuitabilityAppraisal,
 } from "./bridge-planner";
+import { evaluateHeatInfrastructureContext } from "./heat-integration";
 
 export type AnalysisErrorCode =
   | "INVALID_INPUT"
@@ -160,6 +161,7 @@ export interface AnalysisReportResult {
   sensitivity?: import("./sensitivity").SensitivityAnalysisResult;
   bridgeAppraisal?: BridgeSuitabilityAppraisal;
   aiInsights?: import("../ai/types").AiPlanningInsights;
+  heatIntelligence?: import("./heat-integration").HeatInfrastructureContext;
 }
 
 const overpassProvider = new OverpassProvider();
@@ -2002,5 +2004,6 @@ export async function runAnalysisEngine(params: {
     },
     sensitivity,
     ...(bridgeAppraisal ? { bridgeAppraisal } : {}),
+    heatIntelligence: evaluateHeatInfrastructureContext(type, lat, lng),
   };
 }

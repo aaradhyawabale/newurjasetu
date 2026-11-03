@@ -6,12 +6,20 @@ import {
   generateLocalCopilotResponse,
   isGeminiConfigured,
   getGeminiModel,
+  sanitizeErrorMessage,
   GeminiAdvisorError,
   CopilotChatContext,
   CopilotChatMessage,
 } from "@/server/ai/gemini-advisor";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const isDiagnostic = req.nextUrl?.searchParams?.get("diagnostic") === "true";
+  if (isDiagnostic) {
+    const { runGeminiConnectionDiagnostic } = await import("@/server/ai/gemini-diagnostic");
+    const diagnostic = await runGeminiConnectionDiagnostic();
+    return successResponse(diagnostic);
+  }
+
   return successResponse({
     configured: isGeminiConfigured(),
     model: getGeminiModel(),
@@ -46,7 +54,12 @@ export async function POST(req: NextRequest) {
     if (!isGeminiConfigured()) {
       if (fallbackToLocal) {
         const localResult = generateLocalCopilotResponse(message.trim(), context, history);
-        return successResponse(localResult);
+        return successResponse({
+          ...localResult,
+          engineSource: "local_gis_engine",
+          cloudUnavailable: true,
+          cloudError: "Gemini API key is not configured on the server.",
+        });
       }
 
       return errorResponse(
@@ -60,17 +73,23 @@ export async function POST(req: NextRequest) {
     // When Gemini API key is present, invoke Google Gemini Live AI with local fallback resilience
     try {
       const result = await generateCopilotResponse(message.trim(), context, history);
-      return successResponse(result);
+      return successResponse({
+        ...result,
+        engineSource: "gemini_cloud",
+      });
     } catch (err: unknown) {
-      console.warn("[Copilot] Cloud Gemini API call failed:", err);
+      const sanitizedErr = sanitizeErrorMessage(err);
+      console.warn("[Copilot] Cloud Gemini API call failed:", sanitizedErr);
       if (fallbackToLocal) {
         const localResult = generateLocalCopilotResponse(message.trim(), context, history);
-        const errDetail = err instanceof Error ? err.message : String(err);
         return successResponse({
           ...localResult,
+          engineSource: "local_gis_engine",
           cloudUnavailable: true,
-          cloudError: errDetail,
-          reply: `> ℹ️ *UrjaSetu Copilot Notice: Gemini Cloud AI unreachable (${errDetail}). Sited via UrjaSetu Local GIS Rules Engine:*\n\n` + localResult.reply,
+          cloudError: sanitizedErr,
+          reply:
+            `> ℹ️ **UrjaSetu Copilot Notice: Gemini Cloud AI unreachable** (${sanitizedErr}). Analyzed via **UrjaSetu Local GIS Rules Engine (Deterministic)**:\n\n` +
+            localResult.reply,
         });
       }
       throw err;

@@ -33,6 +33,10 @@ import {
 
 interface ExtendedChatMessage extends CopilotChatMessage {
   modelUsed?: string;
+  engineSource?: "gemini_cloud" | "local_gis_engine";
+  cloudUnavailable?: boolean;
+  cloudError?: string;
+  statutoryStatus?: string;
   proposedAdjustment?: CopilotAdjustment | null;
   applied?: boolean;
   reverted?: boolean;
@@ -60,9 +64,12 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Gemini configuration state
+  // Gemini configuration & connection diagnostic state
   const [isConfigured, setIsConfigured] = useState<boolean | null>(null);
-  const [configuredModel, setConfiguredModel] = useState<string>("gemini-2.5-flash");
+  const [configuredModel, setConfiguredModel] = useState<string>("gemini-3.5-flash");
+  const [connectionStatus, setConnectionStatus] = useState<string | null>(null);
+  const [isCheckingConnection, setIsCheckingConnection] = useState(false);
+  const [diagnosticResult, setDiagnosticResult] = useState<any | null>(null);
   const [showKeyConfig, setShowKeyConfig] = useState(false);
   const [apiKeyInput, setApiKeyInput] = useState("");
   const [isSavingKey, setIsSavingKey] = useState(false);
@@ -72,13 +79,33 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const city = context.studyArea || "Pune Urban Study Area (PMC)";
+  const rawCity = context.studyArea || "Pune Urban Study Area (PMC)";
+  const city = rawCity.replace(/\b(\w+(?:\s+\w+){1,4})\s+\1\b/gi, "$1").trim();
   const infraType = context.infrastructureType || "Civic Infrastructure";
   const roadCollision = context.validation?.conflicts?.find(
     (c) => c.category === "road_collision" || c.category === "major_road"
   );
   const roadAccess = context.validation?.roadAccess;
   const officialContext = context.validation?.officialPlanningContext;
+
+  const checkConnection = async () => {
+    setIsCheckingConnection(true);
+    try {
+      const res = await fetch("/api/copilot/health");
+      const data = await res.json();
+      if (data && data.success && data.data) {
+        setConnectionStatus(data.data.status);
+        setDiagnosticResult(data.data);
+        if (data.data.configuredModel) {
+          setConfiguredModel(data.data.configuredModel);
+        }
+      }
+    } catch {
+      setConnectionStatus("NETWORK_UNREACHABLE");
+    } finally {
+      setIsCheckingConnection(false);
+    }
+  };
 
   // Check Gemini status when drawer opens
   useEffect(() => {
@@ -231,6 +258,10 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
           role: "assistant",
           content: data.reply,
           modelUsed: data.modelUsed,
+          engineSource: data.engineSource,
+          cloudUnavailable: data.cloudUnavailable,
+          cloudError: data.cloudError,
+          statutoryStatus: data.statutoryStatus,
           proposedAdjustment: adjustment || null,
           applied,
         },
@@ -369,11 +400,36 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
               )}
               <button
                 type="button"
+                onClick={checkConnection}
+                disabled={isCheckingConnection}
+                className="px-2 py-0.5 rounded text-[10px] font-mono bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-300 flex items-center gap-1 transition-colors"
+                title="Verify live DNS, HTTPS, and Gemini generation connectivity"
+              >
+                {isCheckingConnection ? (
+                  <Loader2 className="w-2.5 h-2.5 animate-spin text-purple-600" />
+                ) : (
+                  <Sparkles className="w-2.5 h-2.5 text-purple-600" />
+                )}
+                <span>{isCheckingConnection ? "Checking..." : "Test Connection"}</span>
+              </button>
+              {connectionStatus && (
+                <span
+                  className={`px-1.5 py-0.5 rounded text-[9px] font-mono border font-semibold ${
+                    connectionStatus === "CONNECTED"
+                      ? "bg-emerald-50 text-emerald-800 border-emerald-300"
+                      : "bg-amber-50 text-amber-900 border-amber-300"
+                  }`}
+                >
+                  {connectionStatus === "CONNECTED" ? "CONNECTED" : connectionStatus}
+                </span>
+              )}
+              <button
+                type="button"
                 onClick={() => setShowKeyConfig(!showKeyConfig)}
-                className="text-[10px] font-medium text-purple-700 hover:text-purple-900 underline flex items-center gap-0.5"
+                className="text-[10px] font-medium text-purple-700 hover:text-purple-900 underline flex items-center gap-0.5 ml-1"
               >
                 <Key className="w-2.5 h-2.5" />
-                <span>{isConfigured ? "API Key" : "Add Gemini Key"}</span>
+                <span>{isConfigured ? "Config" : "Add Key"}</span>
                 {showKeyConfig ? (
                   <ChevronUp className="w-2.5 h-2.5" />
                 ) : (
@@ -382,6 +438,27 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
               </button>
             </div>
           </div>
+
+          {/* Diagnostic Details Banner when available */}
+          {diagnosticResult && (
+            <div className="p-2 bg-stone-100/90 rounded border border-stone-300 text-[10px] font-mono flex flex-col gap-1">
+              <div className="flex items-center justify-between text-stone-700 font-bold">
+                <span>Gemini API Runtime Diagnostic:</span>
+                <span className={diagnosticResult.status === "CONNECTED" ? "text-emerald-700" : "text-amber-700"}>
+                  {diagnosticResult.status}
+                </span>
+              </div>
+              <div className="text-stone-600 text-[9px] space-y-0.5">
+                <div>• DNS: {diagnosticResult.dns?.resolved ? "Resolved (Google Cloud Anycast)" : "Failed"}</div>
+                <div>• HTTPS (Port 443): {diagnosticResult.https?.reachable ? `Reachable (HTTP ${diagnosticResult.https.statusCode})` : "Blocked / Unreachable"}</div>
+                <div>• Key Auth: {diagnosticResult.auth?.valid ? "Authorized" : diagnosticResult.auth?.error || "Pending"}</div>
+                <div>• Effective Model: {diagnosticResult.effectiveModel || configuredModel}</div>
+                {diagnosticResult.generation?.latencyMs && (
+                  <div>• Generation Latency: {diagnosticResult.generation.latencyMs}ms</div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Collapsible Key Configuration Card */}
           {showKeyConfig && (
@@ -560,12 +637,45 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
                   <p className="leading-relaxed whitespace-pre-wrap">{msg.content}</p>
                 ) : (
                   <div>
-                    {msg.modelUsed === "local-gis-rules-engine" && (
-                      <div className="mb-2 pb-1.5 border-b border-stone-100 flex items-center gap-1 text-[10px] font-mono text-amber-700">
-                        <Info className="w-2.5 h-2.5 text-amber-600" />
-                        <span>Synthesized by UrjaSetu Local GIS Rules Engine</span>
+                    {/* Engine Attribution Badge */}
+                    {msg.engineSource === "gemini_cloud" || (msg.modelUsed && msg.modelUsed.startsWith("gemini")) ? (
+                      <div className="mb-2 pb-1.5 border-b border-purple-100 flex items-center justify-between text-[10px] font-mono text-purple-700">
+                        <div className="flex items-center gap-1">
+                          <Sparkles className="w-3 h-3 text-purple-600" />
+                          <span className="font-semibold">Google Gemini Live Cloud AI</span>
+                        </div>
+                        <span className="bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.5 rounded text-[9px] font-mono font-medium">
+                          {msg.modelUsed || "gemini-3.5-flash"}
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="mb-2 pb-1.5 border-b border-stone-100 flex items-center justify-between text-[10px] font-mono text-amber-800">
+                        <div className="flex items-center gap-1">
+                          <Info className="w-3 h-3 text-amber-600" />
+                          <span className="font-semibold">UrjaSetu Local GIS Rules Engine</span>
+                        </div>
+                        <span className="bg-amber-50 text-amber-900 border border-amber-200 px-1.5 py-0.5 rounded text-[9px] font-mono font-medium">
+                          Deterministic Mode
+                        </span>
                       </div>
                     )}
+
+                    {/* Cloud AI Unreachable Connection Notice (Displayed only once per conversation) */}
+                    {msg.cloudUnavailable && idx === messages.findIndex((m) => m.cloudUnavailable) && (
+                      <div className="mb-2.5 p-2 rounded-lg bg-amber-50/90 border border-amber-200 text-amber-900 text-[11px] flex items-start gap-1.5 shadow-2xs">
+                        <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                        <div className="leading-tight">
+                          <span className="font-semibold">Gemini Cloud AI Unreachable: </span>
+                          <span className="font-mono text-[10px] text-amber-800">
+                            {msg.cloudError || "Connection failed"}
+                          </span>
+                          <p className="mt-0.5 text-[10px] text-stone-600">
+                            Answers synthesized autonomously via UrjaSetu&apos;s local deterministic GIS rules engine.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
                     {renderFormattedReply(msg.content)}
 
                     {/* Proposed Infrastructure Adjustment Card */}

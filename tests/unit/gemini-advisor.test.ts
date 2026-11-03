@@ -13,6 +13,8 @@ import {
   generateLocalCopilotResponse,
   movePointGeodesic,
   extractSpatialAdjustmentFromIntent,
+  sanitizeErrorMessage,
+  cleanStudyAreaName,
   CopilotAdjustment,
   CopilotChatContext,
   GeminiAdvisorError,
@@ -205,9 +207,9 @@ describe("Gemini AI Advisor — Configuration & Environment Handling", () => {
     expect(isGeminiConfigured()).toBe(true);
   });
 
-  it("respects GEMINI_MODEL or defaults to gemini-3.5-flash-lite", () => {
+  it("respects GEMINI_MODEL or defaults to gemini-3.5-flash", () => {
     delete process.env.GEMINI_MODEL;
-    expect(getGeminiModel()).toBe("gemini-3.5-flash-lite");
+    expect(getGeminiModel()).toBe("gemini-3.5-flash");
 
     process.env.GEMINI_MODEL = "gemini-1.5-pro";
     expect(getGeminiModel()).toBe("gemini-1.5-pro");
@@ -604,6 +606,61 @@ describe("Gemini Copilot — Grounded Planning Assistant", () => {
       expect(result.reply).toContain("Infrastructure Spatial Adjustment Executed");
       expect(result.reply).toContain("Site Coordinates");
       expect(result.reply).toContain("Orientation / Bearing");
+    });
+
+    it("sanitizeErrorMessage redacts GEMINI_API_KEY and query parameters safely", () => {
+      process.env.GEMINI_API_KEY = "SECRET_GEMINI_KEY_999";
+      const err = new Error("Failed connecting to https://generativelanguage.googleapis.com/v1beta/models?key=SECRET_GEMINI_KEY_999");
+      const sanitized = sanitizeErrorMessage(err);
+      expect(sanitized).not.toContain("SECRET_GEMINI_KEY_999");
+      expect(sanitized).toContain("[REDACTED");
+    });
+
+    it("cleanStudyAreaName removes duplicate repeated location phrases", () => {
+      const repeated = "Pune Urban Study Area (PMC) Pune Urban Study Area (PMC)";
+      const cleaned = cleanStudyAreaName(repeated);
+      expect(cleaned).toBe("Pune Urban Study Area (PMC)");
+
+      const single = "Nashik Urban Study Area (NMC)";
+      expect(cleanStudyAreaName(single)).toBe("Nashik Urban Study Area (NMC)");
+    });
+
+    it("generateLocalCopilotResponse grounds road clearance in 1D OSM centerline and avoids unsupported statutory claims", () => {
+      const mockContext: CopilotChatContext = {
+        studyArea: "Pune Urban Study Area (PMC)",
+        infrastructureType: "Hospital",
+        placement: {
+          lat: 18.5204,
+          lng: 73.8567,
+          lengthM: 60,
+          widthM: 40,
+          areaM2: 2400,
+        },
+        validation: {
+          status: "pass",
+          conflicts: [],
+          roadAccess: {
+            nearestRoadName: "Ganeshkhind Road",
+            nearestRoadClass: "primary",
+            distanceM: 18,
+            requiresNewAccessRoad: true,
+          },
+        },
+      };
+
+      const result = generateLocalCopilotResponse("Check road collision", mockContext);
+      expect(result.modelUsed).toBe("local-gis-rules-engine");
+      expect(result.engineSource).toBe("local_gis_engine");
+      expect(result.statutoryStatus).toBe("PARTIAL_OSM_CENTERLINE_CLEARANCE");
+      expect(result.deterministicMetrics?.nearestRoadDistanceM).toBe(18);
+      expect(result.deterministicMetrics?.roadGeometryType).toContain("1D LineString (Centerline)");
+
+      // Must NOT claim statutory curb buffer clearance or unconditional zero road collision
+      expect(result.reply).not.toContain("Verified against OpenStreetMap road corridor polygons with statutory curb buffers");
+      expect(result.reply).toContain("OpenStreetMap data represents 1D centerlines");
+      expect(result.reply).toContain("PARTIAL_OSM_CENTERLINE_CLEARANCE");
+      expect(result.reply).toContain("UNVERIFIED_STATUTORY_ROW");
+      expect(result.reply).toContain("Analysis Provenance & Evidence Classification");
     });
   });
 });

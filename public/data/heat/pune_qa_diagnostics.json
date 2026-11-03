@@ -1,0 +1,109 @@
+{
+  "metadata": {
+    "title": "UrjaSetu Urban Heat & Vegetation Diagnostics",
+    "studyArea": "Pune Municipal Corporation Candidate Boundary (PMC Candidate)",
+    "boundaryDisclaimer": "PMC Candidate Boundary derived from PMC Prabhag ward polygons (non-authoritative; not official boundary).",
+    "generatedAt": "2026-11-01T07:16:48Z",
+    "processingDurationSeconds": 263.48,
+    "crs": "EPSG:32643",
+    "affineTransform": [
+      366105.0,
+      30.0,
+      0.0,
+      2059365.0,
+      0.0,
+      -30.0
+    ],
+    "targetGridResolutionMeters": 30.0,
+    "rasterDimensions": {
+      "width": 1012,
+      "height": 871,
+      "totalPixels": 881452
+    },
+    "candidateBoundaryPixels": 577304,
+    "candidateBoundaryAreaKm2": 519.574
+  },
+  "landsat9": {
+    "sceneId": "LC09_L2SP_147047_20230422_02_T1",
+    "acquisitionTimestamp": "2023-04-22T05:27:39.760219Z",
+    "collection": "Landsat Collection 2 Level-2",
+    "nativeThermalResolutionMeters": 100.0,
+    "deliveredResolutionMeters": 30.0,
+    "calibrationFormula": "LST_Celsius = DN * 0.00341802 - 124.15",
+    "rawDigitalNumbers": {
+      "dnZeroFillCount": 0,
+      "dn1To292AnomalyCount": 0,
+      "dnNominalValidCount": 577304,
+      "minDN": 43860,
+      "maxDN": 54288
+    },
+    "calibratedLSTCelsius": {
+      "unit": "Celsius (\u00b0C)",
+      "min": 25.76,
+      "max": 61.41,
+      "mean": 46.28,
+      "median": 45.86,
+      "std": 4.35,
+      "p10": 41.3,
+      "p90": 52.38
+    },
+    "surfaceTemperatureQA": {
+      "unit": "Kelvin (K)",
+      "description": "Reported separately as USGS uncertainty estimate (0.01 K scale factor); not a confidence interval.",
+      "meanUncertaintyK": 2.16,
+      "medianUncertaintyK": 2.1,
+      "minUncertaintyK": 1.51,
+      "maxUncertaintyK": 62.75
+    },
+    "qaPixelBreakdown": {
+      "totalValid": 577304,
+      "clearPixels": 577208,
+      "clearPercentage": 99.98,
+      "cloudPixels": 11,
+      "cloudPercentage": 0.0,
+      "cloudShadowPixels": 96,
+      "cirrusPixels": 0,
+      "waterPixels": 4145
+    },
+    "qaRadsatTerrainOcclusion": {
+      "flaggedPixels": 0,
+      "note": "Bit 11 represents terrain occlusion under official USGS specification."
+    }
+  },
+  "sentinel2b": {
+    "sceneId": "S2B_MSIL2A_20230424T052649_N0510_R105_T43QCA_20240831T130916",
+    "acquisitionTimestamp": "2023-04-24T05:26:49.024Z",
+    "temporalBaselineNote": "Acquired 2023-04-24T05:26:49Z (~48 hours after Landsat-9); pre-monsoon seasonal baseline.",
+    "calibrationFormula": "Reflectance = (DN - 1000) / 10000",
+    "reflectanceDiagnostics": {
+      "b04NegativeReflectancePixels": 2362281,
+      "b08NegativeReflectancePixels": 129770,
+      "note": "Preserved negative reflectance in diagnostics without synthetic zero-clipping."
+    },
+    "sclCategoricalDistribution": {
+      "2": 236,
+      "4": 66918,
+      "5": 504811,
+      "6": 4218,
+      "7": 1088,
+      "8": 1,
+      "10": 32
+    },
+    "ndvi30mDistribution": {
+      "unit": "Unitless [-1.0, 1.0]",
+      "note": "Represents normalized difference vegetation index; not vegetation cover percentage or tree canopy cover.",
+      "validPixelCount": 518651,
+      "validPercentage": 89.84,
+      "min": -0.7316,
+      "max": 1.0,
+      "mean": 0.5144,
+      "median": 0.507,
+      "std": 0.2302
+    },
+    "coverageFractions30m": {
+      "meanSourceCoverageFraction": 1.0,
+      "meanValidityWithinSourceCoverage": 0.702,
+      "meanValidFootprintFraction": 0.702
+    }
+  }
+}

@@ -26,6 +26,9 @@ import {
   Loader2,
   Sparkles,
   Eye,
+  Flame,
+  Trees,
+  BookOpen,
 } from "lucide-react";
 import { Drawer } from "../ui/Drawer";
 import { ScoreBar } from "../ui/ScoreBar";
@@ -560,6 +563,156 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                       </div>
                     );
                   })()}
+                </div>
+              </div>
+            )}
+
+            {/* Satellite Thermal & Microclimate Intelligence Card */}
+            {report.heatIntelligence?.available && (
+              <div className="p-4 rounded-panel border border-rose-200 bg-rose-50/40 flex flex-col gap-3 shadow-2xs">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-rose-200/80 pb-2.5">
+                  <div className="flex items-center gap-2">
+                    <Flame className="w-4 h-4 text-rose-700 shrink-0" />
+                    <span className="text-xs font-mono uppercase tracking-wider font-bold text-rose-950">
+                      Satellite Thermal & Microclimate Appraisal
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded font-bold border bg-rose-100 text-rose-900 border-rose-300">
+                    Landsat 9 + Sentinel-2
+                  </span>
+                </div>
+
+                {/* Metrics Grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 font-mono text-[11px]">
+                  <div className="p-2.5 rounded bg-white border border-rose-200 flex flex-col">
+                    <span className="text-[9.5px] text-stone-400">Site Surface Temp (LST)</span>
+                    <span className="text-sm font-bold text-rose-900">
+                      {report.heatIntelligence.siteObservations.lstCelsius !== null
+                        ? `${report.heatIntelligence.siteObservations.lstCelsius}°C`
+                        : "NoData / Masked"}
+                    </span>
+                    {report.heatIntelligence.siteObservations.stQaUncertaintyK && (
+                      <span className="text-[9px] text-stone-500">
+                        Uncertainty: ±{report.heatIntelligence.siteObservations.stQaUncertaintyK} K
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="p-2.5 rounded bg-white border border-rose-200 flex flex-col">
+                    <span className="text-[9.5px] text-stone-400">Site Vegetation (NDVI)</span>
+                    <span className="text-sm font-bold text-emerald-900">
+                      {report.heatIntelligence.siteObservations.ndvi30m !== null
+                        ? report.heatIntelligence.siteObservations.ndvi30m
+                        : "NoData"}
+                    </span>
+                    <span className="text-[9px] text-stone-500">
+                      30m area-weighted
+                    </span>
+                  </div>
+
+                  <div className="p-2.5 rounded bg-white border border-rose-200 flex flex-col">
+                    <span className="text-[9.5px] text-stone-400">Study Area Baseline</span>
+                    <span className="text-sm font-bold text-stone-800">
+                      {report.heatIntelligence.citywideBaselines.meanLSTCelsius}°C Mean
+                    </span>
+                    <span className="text-[9px] text-stone-500">
+                      Δ {report.heatIntelligence.citywideBaselines.thermalDeltaCelsius !== null
+                        ? (report.heatIntelligence.citywideBaselines.thermalDeltaCelsius > 0
+                            ? `+${report.heatIntelligence.citywideBaselines.thermalDeltaCelsius}°C`
+                            : `${report.heatIntelligence.citywideBaselines.thermalDeltaCelsius}°C`)
+                        : "N/A"}
+                    </span>
+                  </div>
+
+                  <div className="p-2.5 rounded bg-white border border-rose-200 flex flex-col">
+                    <span className="text-[9.5px] text-stone-400">Surface Class (SCL)</span>
+                    <span className="text-xs font-bold text-stone-800 truncate" title={report.heatIntelligence.siteObservations.sclClassName}>
+                      {report.heatIntelligence.siteObservations.sclClassName}
+                    </span>
+                    <span className="text-[9px] text-stone-500">
+                      Sentinel-2 L2A
+                    </span>
+                  </div>
+                </div>
+
+                {/* Discipline Insights */}
+                <div className="p-3 bg-white rounded border border-rose-200 space-y-2 text-xs">
+                  <div className="font-bold text-rose-950 flex items-center gap-1.5">
+                    <Activity className="w-3.5 h-3.5 text-rose-600" />
+                    <span>{report.heatIntelligence.disciplineInsights.headline}</span>
+                  </div>
+
+                  {report.heatIntelligence.disciplineInsights.observations.map((obs, idx) => (
+                    <p key={idx} className="text-[11px] text-stone-700 leading-snug">
+                      • {obs}
+                    </p>
+                  ))}
+
+                  {report.heatIntelligence.disciplineInsights.engineeringConsiderations.length > 0 && (
+                    <div className="pt-1 border-t border-stone-100 text-[11px] text-stone-700 space-y-1">
+                      <span className="font-semibold text-stone-900">Engineering Considerations:</span>
+                      {report.heatIntelligence.disciplineInsights.engineeringConsiderations.map((eng, idx) => (
+                        <p key={idx} className="text-stone-600 leading-snug">
+                          {eng}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+
+                  {report.heatIntelligence.disciplineInsights.planningRecommendations.length > 0 && (
+                    <div className="pt-1 border-t border-stone-100 text-[11px] text-stone-700 space-y-1">
+                      <span className="font-semibold text-stone-900">Planning Directives:</span>
+                      {report.heatIntelligence.disciplineInsights.planningRecommendations.map((rec, idx) => (
+                        <p key={idx} className="text-emerald-900 font-medium leading-snug">
+                          ✓ {rec}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+
+                  {report.heatIntelligence.disciplineInsights.evidenceLedger && report.heatIntelligence.disciplineInsights.evidenceLedger.length > 0 && (
+                    <div className="pt-2 border-t border-stone-100 text-[10.5px] space-y-1.5">
+                      <span className="font-semibold text-stone-900 flex items-center gap-1">
+                        <BookOpen className="w-3 h-3 text-indigo-600" />
+                        <span>Evidence Classification & Technical Standards:</span>
+                      </span>
+                      <div className="space-y-1">
+                        {report.heatIntelligence.disciplineInsights.evidenceLedger.map((item, idx) => (
+                          <div key={idx} className="p-1.5 rounded bg-stone-50 border border-stone-200 flex flex-col gap-0.5">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                              <span className="font-medium text-stone-800 text-[10px]">{item.claim}</span>
+                              <span className={`text-[8.5px] font-mono font-bold px-1.5 py-0.2 rounded border shrink-0 ${
+                                item.category === 'VERIFIED_TECHNICAL_REFERENCE'
+                                  ? 'bg-indigo-50 text-indigo-800 border-indigo-200'
+                                  : item.category === 'SATELLITE_OBSERVATION'
+                                  ? 'bg-rose-50 text-rose-800 border-rose-200'
+                                  : item.category === 'GENERAL_ENGINEERING_GUIDANCE'
+                                  ? 'bg-amber-50 text-amber-800 border-amber-200'
+                                  : item.category === 'DETERMINISTIC_CALCULATION'
+                                  ? 'bg-blue-50 text-blue-800 border-blue-200'
+                                  : 'bg-stone-100 text-stone-700 border-stone-200'
+                              }`}>
+                                {item.category.replace(/_/g, ' ')}
+                              </span>
+                            </div>
+                            {item.sourceOrStandard && (
+                              <span className="text-[9px] text-stone-500 font-mono">
+                                Standard: {item.sourceOrStandard}
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Scientific Disclosure */}
+                <div className="text-[9.5px] text-stone-500 flex items-start gap-1 bg-rose-100/50 p-2 rounded border border-rose-200">
+                  <Info className="w-3.5 h-3.5 text-rose-600 shrink-0 mt-0.5" />
+                  <span>
+                    <strong>Scientific Notice:</strong> Land Surface Temperature (LST) measures radiometric skin temperature from Landsat 9 TIRS-2 Band 10 (100m native resolution resampled to 30m). It does NOT equate to 2m ambient air temperature or human physiological thermal stress.
+                  </span>
                 </div>
               </div>
             )}

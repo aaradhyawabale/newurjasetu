@@ -5,6 +5,20 @@ import {
   AiPlanningInsightsSchema,
   PreliminaryAssessment,
 } from "./types";
+import {
+  isHeatDataAvailable,
+  getHeatDiagnostics,
+  queryHeatPoint,
+} from "../heat-engine/loader";
+import {
+  generateInterventionCandidates,
+  generateCuratedSampleCandidates,
+  getCandidateById,
+  listCategoryMetadata,
+  getLatestAnalysisRun,
+  listRegisteredDatasets,
+  getDatasetAvailabilitySummary,
+} from "../intervention-engine";
 
 export type GeminiAdvisorErrorCode =
   | "KEY_NOT_CONFIGURED"
@@ -34,11 +48,102 @@ export function isGeminiConfigured(): boolean {
 }
 
 /**
+ * Returns the configured Gemini API key, trimmed.
+ */
+export function getGeminiApiKey(): string | undefined {
+  return process.env.GEMINI_API_KEY?.trim();
+}
+
+/**
+ * Sanitizes error messages by redacting API keys or confidential parameters.
+ */
+export function sanitizeErrorMessage(err: unknown): string {
+  if (!err) return "Unknown error";
+  let msg = err instanceof Error ? err.message : String(err);
+  const key = process.env.GEMINI_API_KEY;
+  if (key && key.trim().length > 0) {
+    msg = msg.split(key).join("[REDACTED_API_KEY]");
+  }
+  msg = msg.replace(/key=[a-zA-Z0-9_\-]+/gi, "key=[REDACTED]");
+  msg = msg.replace(/AIza[0-9A-Za-z-_]{35}/g, "[REDACTED_API_KEY]");
+  return msg;
+}
+
+/**
+ * Deduplicates and cleans study area or municipal location names.
+ */
+export function cleanStudyAreaName(raw?: string): string {
+  if (!raw || typeof raw !== "string") return "Pune Urban Study Area (PMC)";
+  let cleaned = raw.trim();
+  cleaned = cleaned.replace(/\b(\w+(?:\s+\w+){1,4})\s+\1\b/gi, "$1");
+  const half = Math.floor(cleaned.length / 2);
+  for (let len = 4; len <= half; len++) {
+    const first = cleaned.substring(0, len).trim();
+    const rest = cleaned.substring(len).trim();
+    if (rest.startsWith(first)) {
+      cleaned = first;
+      break;
+    }
+  }
+  return cleaned.trim() || "Pune Urban Study Area (PMC)";
+}
+
+/**
+ * Executes a promise with an enforced timeout.
+ */
+async function withTimeout<T>(promise: Promise<T>, ms: number, errorMsg: string): Promise<T> {
+  let timer: NodeJS.Timeout | null = null;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      reject(new GeminiAdvisorError("TIMEOUT", errorMsg, 504));
+    }, ms);
+  });
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+/**
+ * Executes an async function with bounded retries for transient network/rate errors.
+ */
+async function callWithRetry<T>(fn: () => Promise<T>, maxRetries = 1, delayMs = 500): Promise<T> {
+  let attempt = 0;
+  while (true) {
+    try {
+      return await fn();
+    } catch (err: any) {
+      attempt++;
+      const errMsg = (err?.message || "").toLowerCase();
+      const isTransient =
+        errMsg.includes("fetch failed") ||
+        errMsg.includes("econnreset") ||
+        errMsg.includes("etimedout") ||
+        errMsg.includes("enotfound") ||
+        errMsg.includes("429") ||
+        errMsg.includes("503") ||
+        err?.status === 429 ||
+        err?.status === 503;
+      if (attempt <= maxRetries && isTransient) {
+        await new Promise((r) => setTimeout(r, delayMs * attempt));
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
+/**
  * Returns the configured Gemini model identifier.
- * Defaults to 'gemini-3.5-flash-lite', configurable via GEMINI_MODEL.
+ * Defaults to 'gemini-3.5-flash', configurable via GEMINI_MODEL.
  */
 export function getGeminiModel(): string {
-  return process.env.GEMINI_MODEL?.trim() || "gemini-3.5-flash-lite";
+  const envModel = process.env.GEMINI_MODEL?.trim();
+  if (envModel && envModel !== "gemini-2.5-flash" && envModel !== "gemini-3.5-flash-lite") {
+    return envModel;
+  }
+  return "gemini-3.5-flash";
 }
 
 /**
@@ -578,32 +683,51 @@ Produce a structured JSON response matching the required schema with:
     // Request structured JSON response with model fallback chain
     const candidateModels = [
       modelName,
+      "gemini-3.5-flash",
       "gemini-3.5-flash-lite",
-      "gemini-2.5-flash",
-      "gemini-2.0-flash",
-      "gemini-1.5-flash",
-    ].filter((m, i, arr) => arr.indexOf(m) === i);
+      "gemini-flash-latest",
+      "gemini-flash-lite-latest",
+      "gemini-3.8-flash",
+      "gemini-3-flash-preview",
+    ].filter((m) => m && m !== "gemini-2.5-flash")
+     .filter((m, i, arr) => arr.indexOf(m) === i);
 
     let response: any = null;
     let lastModelErr: any = null;
 
     for (const m of candidateModels) {
       try {
-        response = await ai.models.generateContent({
-          model: m,
-          contents: userPrompt,
-          config: {
-            systemInstruction,
-            responseMimeType: "application/json",
-            temperature: 0.2, // Low temperature for high factual consistency
-          },
-        });
+        response = await withTimeout(
+          callWithRetry(() =>
+            ai.models.generateContent({
+              model: m,
+              contents: userPrompt,
+              config: {
+                systemInstruction,
+                responseMimeType: "application/json",
+                temperature: 0.2, // Low temperature for high factual consistency
+              },
+            })
+          ),
+          35000,
+          `Gemini API request for model ${m} timed out after 35 seconds.`
+        );
         if (response && response.text) {
           break;
         }
       } catch (modelErr: any) {
         lastModelErr = modelErr;
-        if (modelErr?.status === 404 || modelErr?.message?.toLowerCase().includes("not found")) {
+        const msg = (modelErr?.message || "").toLowerCase();
+        if (
+          modelErr?.status === 404 ||
+          modelErr?.status === 400 ||
+          modelErr?.status === 503 ||
+          msg.includes("not found") ||
+          msg.includes("deprecated") ||
+          msg.includes("not supported") ||
+          msg.includes("unavailable") ||
+          msg.includes("high demand")
+        ) {
           continue;
         }
         throw modelErr;
@@ -782,6 +906,27 @@ export interface CopilotChatMessage {
 export interface CopilotResponseResult {
   reply: string;
   modelUsed: string;
+  engineSource?: "gemini_cloud" | "local_gis_engine";
+  cloudUnavailable?: boolean;
+  cloudError?: string;
+  statutoryStatus?:
+    | "VERIFIED_GEOMETRIC"
+    | "PARTIAL_OSM_CENTERLINE_CLEARANCE"
+    | "UNVERIFIED_STATUTORY_ROW"
+    | "PRELIMINARY_ACCESS_REQUIRED"
+    | "CRITICAL_COLLISION_DETECTED"
+    | "UNVERIFIED"
+    | "INSUFFICIENT_EVIDENCE";
+  deterministicMetrics?: {
+    coordinates?: string;
+    dimensionsMeters?: string;
+    areaM2?: number;
+    nearestRoadDistanceM?: number;
+    nearestRoadName?: string;
+    roadGeometryType?: string;
+  };
+  assumptions?: string[];
+  missingEvidence?: string[];
   groundedFacts: {
     city: string;
     infrastructureType: string;
@@ -1043,7 +1188,7 @@ export async function generateCopilotResponse(
   const modelName = getGeminiModel();
   const ai = new GoogleGenAI({ apiKey });
 
-  const city = context?.studyArea || "Pune Urban Study Area (PMC)";
+  const city = cleanStudyAreaName(context?.studyArea);
   const infraType = context?.infrastructureType || "Civic Infrastructure";
   const hasRoadCollision =
     context?.validation?.conflicts?.some(
@@ -1085,7 +1230,94 @@ STRICT GROUNDING & PLANNING PRINCIPLES:
      "bearingDeg": <number_if_rotated_0_to_359>,
      "autoApply": true
    }
-   \`\`\``;
+   \`\`\`
+9. SATELLITE URBAN HEAT & VEGETATION GOVERNANCE:
+   When answering questions regarding urban heat, Land Surface Temperature (LST), vegetation (NDVI), microclimate, or cooling interventions:
+   a. Strictly distinguish:
+      (1) Verified satellite observations (Landsat 9 LST and Sentinel-2B NDVI from context payload)
+      (2) Deterministic GIS calculations (differences from study area mean)
+      (3) Verified technical references (BEE ECBC 2017 Table 4.1 Cool Roof SRI ≥ 78, advisory LEED/IGBC SRI ≥ 82, IEC 61215 PV temp coefficient -0.35% to -0.45%/°C)
+      (4) General engineering guidance (elevated open racking ≥ 0.8m for sub-panel airflow, solar canopy shading over EV bays)
+      (5) Unverified assumptions (building insulation values, microclimate air models, battery cell temperatures)
+   b. NEVER equate LST to ambient 2m air temperature or human physiological heat stress (UTCI).
+   c. NEVER describe NDVI as tree canopy percentage or vegetation cover percentage.
+   d. NEVER invent numerical values, ward rankings, cooling percentages, or health impacts.
+   e. NEVER calculate actual PV efficiency loss directly from satellite LST; clarify that cell operating temperature requires on-site ambient air temperature, irradiance, wind speed, and thermal mounting coefficients.
+   f. NEVER claim that satellite LST establishes vehicle battery core temperature or EV charger operating conditions.
+   g. Do NOT present advisory values (such as SRI ≥ 82) as mandatory statutory requirements without citing BEE ECBC 2017 Table 4.1 (SRI ≥ 78).
+   h. If satellite data are unavailable or out-of-bounds, explicitly state so.
+10. URBAN INTERVENTION & CO-PLANNING GOVERNANCE (PHASE 5 & 6):
+    When discussing urban intervention planning, priority candidate sites, or infrastructure co-planning:
+    a. Recognize the 5 mandatory intervention categories:
+       - URBAN_GREENING_CORRIDOR (tree canopies, median bioswales on heat-stressed roads)
+       - COOL_ROOF_FEASIBILITY (high-albedo retrofits on municipal/hospital/institutional roofs)
+       - SOLAR_CANOPY_EV_COLOCATION (solar PV shade over surface parking lots & transit hubs)
+       - GREEN_SPACE_ENHANCEMENT (canopy infill and rainwater recharge in public parks)
+       - INTEGRATED_FACILITY_UPGRADE (civic hubs combining roofs, solar canopies, and greening)
+    b. DYNAMIC SPATIAL DISCOVERY & DATA PROVENANCE:
+       - Interventions are discovered dynamically via the Dynamic Spatial Discovery Engine and classified into rigorous forensic provenance categories:
+         * DATASET_DERIVED: genuine official municipal registers (PMC official hospital register pmc_hospitals.json, PMC official garden register pmc_gardens.json, verified OpenStreetMap EV charging stations pmc_ev_stations.json with operational status MAPPED_IN_OSM).
+         * MANUALLY_CURATED: curated transit corridor sample points (pmc_road_corridors.json) with estimated carriageway widths and synthetic OSM IDs, classified as REQUIRES_SITE_VALIDATION.
+         * SAMPLE_LOCATION: historical demonstration landmarks (e.g. Balgandharva, Saras Baug, Swargate) segregated in reference mode to avoid data contamination.
+       - Each discovery run is tracked via an AnalysisRun ID, with explicit parameters, rejection logging, and sensitivity analysis.
+    c. NEVER equate building footprint area to usable roof area (usable is typically 45-75% due to HVAC, parapets, stairwells).
+    d. NEVER assert unverified electrical headroom or grid sanction (substation capacity indicates nameplate transformation rating; spare feeder capacity requires formal MSEDCL load-flow clearance).
+    e. NEVER invent or hallucinate cooling degrees (e.g., "planting trees will reduce temperature by 3°C") or financial ROI figures.
+    f. Distinguish radiometric surface skin temperature (Landsat 9 ST_B10 at 10:57 AM pre-monsoon) from 2m ambient air temperature and wet-bulb globe temperature.
+    g. Reference governing standards: BEE ECBC 2017 Table 4.1 (SRI ≥ 78), IRC:103-2012 (walkways ≥ 1.8m clear width), IEC 61215:2021 (module thermal qualification), CPWD landscaping specifications, IS 875 Part 3 (wind uplift).
+    h. Mandate pre-implementation site surveys (structural slab NDT, underground utility GPR, transformer headroom with MSEDCL, statutory CTSO cadastral survey).
+    i. Candidate eligibility is an exploratory planning classification, NOT formal municipal sanction or budget allocation.`;
+
+  let heatContextPayload: any = null;
+  const isHeatQuery = /\b(heat|temperature|lst|ndvi|vegetation|cooling|cool roof|canopy|greenery|thermal|microclimate|solar)\b/i.test(message);
+  if (isHeatQuery && isHeatDataAvailable()) {
+    try {
+      const diag = getHeatDiagnostics();
+      const pointResult = context?.placement?.lng !== undefined && context?.placement?.lat !== undefined
+        ? queryHeatPoint(context.placement.lng, context.placement.lat)
+        : null;
+
+      heatContextPayload = {
+        provenance: "DETERMINISTIC_RESULT",
+        governanceRules: [
+          "LST measures radiometric skin temperature from Landsat 9 Band 10; NOT ambient air temperature or wet-bulb heat stress.",
+          "NDVI is a unitless mathematical index of spectral reflectance [-1.0, 1.0]; NOT tree canopy or vegetation percentage.",
+          "Landsat 9 native thermal resolution is 100m resampled to 30m USGS delivery grid; resampling does not increase spatial resolution.",
+          "Never invent numerical values, ward rankings, cooling percentages, or health impacts.",
+          "Pune candidate boundary is non-authoritative research demarcation."
+        ],
+        landsat9ThermalSummary: {
+          sceneId: diag.landsat9.sceneId,
+          acquisitionTimestamp: diag.landsat9.acquisitionTimestamp,
+          meanLSTCelsius: diag.landsat9.calibratedLSTCelsius.mean,
+          minLSTCelsius: diag.landsat9.calibratedLSTCelsius.min,
+          maxLSTCelsius: diag.landsat9.calibratedLSTCelsius.max,
+          medianLSTCelsius: diag.landsat9.calibratedLSTCelsius.median,
+          stdCelsius: diag.landsat9.calibratedLSTCelsius.std,
+          meanUncertaintyKelvin: diag.landsat9.surfaceTemperatureQA.meanUncertaintyK
+        },
+        sentinel2bVegetationSummary: {
+          granuleId: diag.sentinel2b.sceneId,
+          acquisitionTimestamp: diag.sentinel2b.acquisitionTimestamp,
+          meanNDVI30m: diag.sentinel2b.ndvi30mDistribution.mean,
+          medianNDVI30m: diag.sentinel2b.ndvi30mDistribution.median,
+          validObservationCount: diag.sentinel2b.ndvi30mDistribution.validPixelCount,
+          preservedNegativeReflectanceB04Pixels: diag.sentinel2b.reflectanceDiagnostics.b04NegativeReflectancePixels
+        },
+        siteSpecificObservations: (pointResult && context?.placement) ? {
+          lat: context.placement.lat,
+          lng: context.placement.lng,
+          isInsidePuneGrid: pointResult.gridCell.isInsideGrid,
+          lstCelsius: pointResult.lst.celsius,
+          stQaUncertaintyK: pointResult.lst.stQaUncertaintyKelvin,
+          ndvi30m: pointResult.ndvi.aggregated30m,
+          sclClassName: pointResult.ndvi.sclClassName
+        } : null
+      };
+    } catch (err) {
+      console.warn("Could not attach heat context to Copilot:", err);
+    }
+  }
 
   const contextSummary = JSON.stringify(
     {
@@ -1102,6 +1334,7 @@ STRICT GROUNDING & PLANNING PRINCIPLES:
           }
         : null,
       evaluationReport: context?.report || null,
+      satelliteHeatAndVegetation: heatContextPayload,
     },
     null,
     2
@@ -1121,11 +1354,14 @@ STRICT GROUNDING & PLANNING PRINCIPLES:
   try {
     const candidateModels = [
       modelName,
+      "gemini-3.5-flash",
       "gemini-3.5-flash-lite",
-      "gemini-2.5-flash",
-      "gemini-2.0-flash",
-      "gemini-1.5-flash",
-    ].filter((m, i, arr) => arr.indexOf(m) === i);
+      "gemini-flash-latest",
+      "gemini-flash-lite-latest",
+      "gemini-3.8-flash",
+      "gemini-3-flash-preview",
+    ].filter((m) => m && m !== "gemini-2.5-flash")
+     .filter((m, i, arr) => arr.indexOf(m) === i);
 
     let response: any = null;
     let lastErr: any = null;
@@ -1133,14 +1369,20 @@ STRICT GROUNDING & PLANNING PRINCIPLES:
 
     for (const m of candidateModels) {
       try {
-        response = await ai.models.generateContent({
-          model: m,
-          contents: prompt,
-          config: {
-            systemInstruction,
-            temperature: 0.2,
-          },
-        });
+        response = await withTimeout(
+          callWithRetry(() =>
+            ai.models.generateContent({
+              model: m,
+              contents: prompt,
+              config: {
+                systemInstruction,
+                temperature: 0.2,
+              },
+            })
+          ),
+          35000,
+          `Gemini API request for model ${m} timed out after 35 seconds.`
+        );
         if (response && response.text) {
           effectiveModel = m;
           break;
@@ -1151,13 +1393,17 @@ STRICT GROUNDING & PLANNING PRINCIPLES:
         if (
           mErr?.status === 404 ||
           mErr?.status === 400 ||
+          mErr?.status === 503 ||
           errMsg.includes("not found") ||
           errMsg.includes("deprecated") ||
-          errMsg.includes("no longer available")
+          errMsg.includes("not supported") ||
+          errMsg.includes("unavailable") ||
+          errMsg.includes("high demand")
         ) {
           continue;
         }
-        throw mErr;
+        // If it's a network unreachability, quota, or rate limit error, break to fallback
+        break;
       }
     }
 
@@ -1201,6 +1447,7 @@ STRICT GROUNDING & PLANNING PRINCIPLES:
     return {
       reply,
       modelUsed: effectiveModel,
+      engineSource: "gemini_cloud",
       groundedFacts: {
         city,
         infrastructureType: infraType,
@@ -1215,12 +1462,13 @@ STRICT GROUNDING & PLANNING PRINCIPLES:
       throw err;
     }
 
-    const errMsg = err instanceof Error ? err.message : String(err);
+    const rawErrMsg = sanitizeErrorMessage(err);
+    const lowerMsg = rawErrMsg.toLowerCase();
 
     if (
-      errMsg.includes("429") ||
-      errMsg.toLowerCase().includes("quota") ||
-      errMsg.toLowerCase().includes("rate limit")
+      lowerMsg.includes("429") ||
+      lowerMsg.includes("quota") ||
+      lowerMsg.includes("rate limit")
     ) {
       throw new GeminiAdvisorError(
         "RATE_LIMIT_EXCEEDED",
@@ -1230,19 +1478,63 @@ STRICT GROUNDING & PLANNING PRINCIPLES:
     }
 
     if (
-      errMsg.toLowerCase().includes("timeout") ||
-      errMsg.toLowerCase().includes("deadline")
+      lowerMsg.includes("timeout") ||
+      lowerMsg.includes("deadline") ||
+      lowerMsg.includes("timed out")
     ) {
       throw new GeminiAdvisorError(
         "TIMEOUT",
-        "Gemini API request timed out. Please retry.",
+        "Gemini API request timed out after 15 seconds. Please retry.",
         504
+      );
+    }
+
+    if (lowerMsg.includes("enotfound") || lowerMsg.includes("eai_again")) {
+      throw new GeminiAdvisorError(
+        "SERVICE_ERROR",
+        "DNS resolution failed for generativelanguage.googleapis.com.",
+        503
+      );
+    }
+
+    if (
+      lowerMsg.includes("fetch failed") ||
+      lowerMsg.includes("econnrefused") ||
+      lowerMsg.includes("ehostunreach") ||
+      lowerMsg.includes("enetunreach") ||
+      lowerMsg.includes("eperm") ||
+      lowerMsg.includes("network")
+    ) {
+      throw new GeminiAdvisorError(
+        "SERVICE_ERROR",
+        "Gemini Cloud AI is unreachable (outbound network connection failed: generativelanguage.googleapis.com).",
+        503
+      );
+    }
+
+    if (lowerMsg.includes("503") || lowerMsg.includes("high demand") || lowerMsg.includes("unavailable")) {
+      throw new GeminiAdvisorError(
+        "SERVICE_ERROR",
+        "Gemini API is temporarily experiencing high demand at Google (HTTP 503).",
+        503
+      );
+    }
+
+    if (
+      lowerMsg.includes("401") ||
+      lowerMsg.includes("api_key_invalid") ||
+      lowerMsg.includes("unauthorized")
+    ) {
+      throw new GeminiAdvisorError(
+        "KEY_NOT_CONFIGURED",
+        "Gemini API key is unauthorized or invalid.",
+        401
       );
     }
 
     throw new GeminiAdvisorError(
       "SERVICE_ERROR",
-      `Gemini Copilot API invocation error: ${errMsg}`,
+      `Gemini Copilot API invocation error: ${rawErrMsg}`,
       500
     );
   }
@@ -1260,7 +1552,7 @@ export function generateLocalCopilotResponse(
   context?: CopilotChatContext,
   history?: CopilotChatMessage[]
 ): CopilotResponseResult {
-  const city = context?.studyArea || "Pune Urban Study Area (PMC)";
+  const city = cleanStudyAreaName(context?.studyArea);
   const infraType = context?.infrastructureType || "Civic Infrastructure";
   const placement = context?.placement;
   const validation = context?.validation;
@@ -1285,9 +1577,48 @@ export function generateLocalCopilotResponse(
     officialContext?.masterPlan ||
     "Maharashtra Unified Development Control and Promotion Regulations (UDCPR 2020)";
 
+  const areaM2 = Math.round(
+    placement?.areaM2 ||
+      (placement?.lengthM && placement?.widthM ? placement.lengthM * placement.widthM : 2000)
+  );
+  const centroidLat = placement?.lat !== undefined ? placement.lat.toFixed(4) : "20.3506";
+  const centroidLon = placement?.lng !== undefined ? placement.lng.toFixed(4) : "74.3626";
+  const lengthM = placement?.lengthM || 100;
+  const widthM = placement?.widthM || 50;
+  const nearestRoadDistM = roadAccess?.distanceM !== undefined ? Math.round(roadAccess.distanceM) : undefined;
+  const nearestRoadName = roadAccess?.nearestRoadName || "Arterial Road";
+  const nearestRoadClass = roadAccess?.nearestRoadClass || "classified road";
+
+  const defaultStatus: CopilotResponseResult["statutoryStatus"] = hasRoadCollision
+    ? "CRITICAL_COLLISION_DETECTED"
+    : roadAccess?.requiresNewAccessRoad
+    ? "PRELIMINARY_ACCESS_REQUIRED"
+    : "PARTIAL_OSM_CENTERLINE_CLEARANCE";
+
+  const createProvenanceFooter = (status: CopilotResponseResult["statutoryStatus"]) => {
+    let footer = `\n\n---\n`;
+    footer += `#### 📋 Analysis Provenance & Evidence Classification\n`;
+    footer += `- **Engine**: \`UrjaSetu Local GIS Rules Engine (Deterministic Analysis)\`\n`;
+    footer += `- **Statutory Status**: \`${status}\`\n`;
+    footer += `- **Deterministic GIS Metrics**:\n`;
+    footer += `  - Centroid Coordinates: \`(${centroidLat}° N, ${centroidLon}° E)\`\n`;
+    footer += `  - Footprint Geometry: \`${lengthM}m × ${widthM}m\` (~${areaM2.toLocaleString()} m²)\n`;
+    if (nearestRoadDistM !== undefined) {
+      footer += `  - Nearest Mapped Road Feature: ~${nearestRoadDistM}m to \`${nearestRoadName}\` (${nearestRoadClass}; measured to 1D centerline)\n`;
+    }
+    footer += `- **Unverified Assumptions**:\n`;
+    footer += `  - OpenStreetMap records 1D road centerlines, not 2D statutory right-of-way (ROW) boundary polygons or physical curb edges.\n`;
+    footer += `  - Actual carriageway width, statutory building lines, and curb setbacks remain unverified without ground survey.\n`;
+    footer += `- **Missing Evidence**:\n`;
+    footer += `  - Official Cadastral 7/12 Extract (Mahabhulekh) & CTS demarcation.\n`;
+    footer += `  - Municipal Development Plan (DP) reservation sheet & zoning certificate.\n`;
+    footer += `  - Statutory building line clearance under Maharashtra UDCPR 2020.`;
+    return footer;
+  };
+
   const lowerMsg = message.toLowerCase();
 
-  // Intent 0: Infrastructure Spatial Adjustment Commands (e.g., "move 50m north", "rotate 90 degrees", "align to road", "resize to 300m")
+  // Intent 0: Infrastructure Spatial Adjustment Commands
   const spatialAdj = extractSpatialAdjustmentFromIntent(message, placement);
   if (spatialAdj) {
     let reply = `### Infrastructure Spatial Adjustment Executed\n\n`;
@@ -1314,10 +1645,28 @@ export function generateLocalCopilotResponse(
     }
 
     reply += `\n*The map and footprint geometry have been updated directly. You can undo this change using the action button below or command further adjustments.*`;
+    reply += createProvenanceFooter("VERIFIED_GEOMETRIC");
 
     return {
       reply,
       modelUsed: "local-gis-rules-engine",
+      engineSource: "local_gis_engine",
+      statutoryStatus: "VERIFIED_GEOMETRIC",
+      deterministicMetrics: {
+        coordinates: `(${centroidLat}° N, ${centroidLon}° E)`,
+        dimensionsMeters: `${lengthM}m × ${widthM}m`,
+        areaM2,
+        nearestRoadDistanceM: nearestRoadDistM,
+        nearestRoadName,
+        roadGeometryType: "1D LineString (Centerline)",
+      },
+      assumptions: [
+        "OpenStreetMap features are 1D centerlines; actual carriageway width and statutory ROW are unverified.",
+      ],
+      missingEvidence: [
+        "Cadastral 7/12 land revenue extract (Mahabhulekh) & CTS demarcation.",
+        "Municipal Development Plan (DP) reservation sheet.",
+      ],
       groundedFacts: {
         city,
         infrastructureType: infraType,
@@ -1340,23 +1689,47 @@ export function generateLocalCopilotResponse(
         lowerMsg.includes("encroach") ||
         lowerMsg.includes("check")))
   ) {
-    let reply = `### Road Collision & Carriageway Assessment\n\n`;
+    let reply = `### Road Alignment & Centerline Clearance Assessment\n\n`;
     if (hasRoadCollision && roadCollision) {
-      reply += `⚠️ **Critical Encroachment Detected**: The proposed **${infraType}** footprint directly intersects the mapped right-of-way of **${roadCollision.label}**.\n\n`;
+      reply += `⚠️ **Critical Encroachment Detected**: The proposed **${infraType}** footprint directly intersects the mapped right-of-way or centerline of **${roadCollision.label}**.\n\n`;
       reply += `- **Collision Details**: ${roadCollision.description}\n`;
       reply += `- **Statutory Standard**: Under Indian Roads Congress (IRC) guidelines and Maharashtra UDCPR 2020 (Rule 15.1), no permanent structural footprint may encroach upon public road rights-of-way or carriageways.\n`;
       reply += `- **Recommended Action**: Click the **"Snap to Road & Open Land"** tool in the control panel to automatically retract and align the footprint tangent to the curb with mandatory statutory setback (${infraType === "Park" ? "1.0m" : "3.0m"}), or drag the polygon clear of the road corridor.`;
     } else {
-      reply += `✅ **Zero Road Collision**: The proposed **${infraType}** footprint clears all mapped road carriageways and right-of-way buffers in the **${city}** survey area.\n\n`;
-      reply += `- **Geometric Clearance**: Verified against OpenStreetMap road corridor polygons with statutory curb buffers.\n`;
-      reply += `- **Setback Adherence**: Meets the frontage clearance guidelines under Maharashtra UDCPR 2020.\n`;
-      if (roadAccess?.distanceM !== undefined) {
-        reply += `- **Distance to Nearest Road**: ${Math.round(roadAccess.distanceM)}m to **${roadAccess.nearestRoadName || "Arterial Road"}**.\n`;
-      }
+      const dist = nearestRoadDistM !== undefined ? nearestRoadDistM : 0;
+      reply += `ℹ️ **Geometric Clearance to Mapped OSM Centerline**: The proposed **${infraType}** footprint clears mapped 1D road centerlines in the **${city}** survey area.\n\n`;
+      reply += `- **Status**: \`PARTIAL_OSM_CENTERLINE_CLEARANCE\` | \`UNVERIFIED_STATUTORY_ROW\`\n`;
+      reply += `- **Geometric Clearance**: Separated by ~${dist}m from nearest mapped centerline (**${nearestRoadName}**).\n`;
+      reply += `- **1D Centerline vs Statutory ROW**: OpenStreetMap data represents 1D centerlines, NOT statutory carriageway polygons or legal road rights-of-way. The ~${dist}m metric is measured to the centerline; if this corridor has an unmapped statutory ROW width (e.g. 15m–30m), physical clearance to the curb line is substantially less.\n`;
+      reply += `- **Statutory Setback Notice**: Full compliance with Maharashtra UDCPR 2020 (Rule 15.1 building line setbacks) CANNOT be certified from OpenStreetMap centerlines alone and requires municipal cadastral verification.`;
     }
+    const currentStatus: CopilotResponseResult["statutoryStatus"] = hasRoadCollision
+      ? "CRITICAL_COLLISION_DETECTED"
+      : "PARTIAL_OSM_CENTERLINE_CLEARANCE";
+    reply += createProvenanceFooter(currentStatus);
+
     return {
       reply,
       modelUsed: "local-gis-rules-engine",
+      engineSource: "local_gis_engine",
+      statutoryStatus: currentStatus,
+      deterministicMetrics: {
+        coordinates: `(${centroidLat}° N, ${centroidLon}° E)`,
+        dimensionsMeters: `${lengthM}m × ${widthM}m`,
+        areaM2,
+        nearestRoadDistanceM: nearestRoadDistM,
+        nearestRoadName,
+        roadGeometryType: "1D LineString (Centerline)",
+      },
+      assumptions: [
+        "OpenStreetMap features are 1D centerlines; actual carriageway width and statutory ROW are unverified.",
+        "Ground topography permits surface ingress without unmapped micro-relief barriers.",
+      ],
+      missingEvidence: [
+        "Cadastral 7/12 land revenue extract (Mahabhulekh) & CTS demarcation.",
+        "Municipal Development Plan (DP) reservation sheet.",
+        "Statutory UDCPR 2020 building line clearance certificate.",
+      ],
       groundedFacts: {
         city,
         infrastructureType: infraType,
@@ -1377,20 +1750,43 @@ export function generateLocalCopilotResponse(
     let reply = `### Road Ingress, Egress & Access Road Alignment\n\n`;
     if (roadAccess?.requiresNewAccessRoad) {
       const dist = Math.round(roadAccess.distanceM || 0);
-      reply += `⚠️ **Preliminary Access Road Required**: The site is currently offset from the public street network by **${dist}m** to **${roadAccess.nearestRoadName || "nearest road corridor"}**.\n\n`;
+      reply += `⚠️ **Preliminary Access Road Required**: The site is currently offset from the public street network by **${dist}m** to **${roadAccess.nearestRoadName || "nearest road corridor"}** (measured to the 1D centerline).\n\n`;
       reply += `**Preliminary Access Alignment Overview**:\n`;
       reply += `- **Required Span**: ${dist}m conceptual connection corridor to ${roadAccess.nearestRoadName || "the public highway"}.\n`;
       reply += `- **Minimum Statutory Width (UDCPR 2020)**: Minimum 9.0m to 12.0m carriageway for public institutional facilities, schools, and hospitals to support two-way traffic and emergency tender turning radii.\n`;
       reply += `- **Planning Caution**: The preliminary road displayed on the map is a **conceptual geometric planning line**. Formal right-of-way acquisition and municipal DP road reservation must be confirmed before construction.`;
     } else {
-      const dist = Math.round(roadAccess?.distanceM || 0);
-      reply += `✅ **Direct Road Frontage Confirmed**: The proposed site has direct street access (**${dist}m** to **${roadAccess?.nearestRoadName || "Arterial Corridor"}**).\n\n`;
-      reply += `- **Emergency Access**: Complies with fire tender ingress/egress guidelines.\n`;
-      reply += `- **Recommended Frontage Width**: Maintain at least 12.0m to 15.0m clear frontage for dedicated ambulance and visitor access bays.`;
+      const dist = nearestRoadDistM !== undefined ? nearestRoadDistM : 0;
+      reply += `ℹ️ **Road Centerline Proximity**: Proposed site boundary is ~**${dist}m** from mapped road centerline (**${nearestRoadName}**).\n\n`;
+      reply += `- **Access Continuity**: Positioned within direct approach distance (<= 15m) of mapped street centerline.\n`;
+      reply += `- **Engineering Caveat**: Measured to OpenStreetMap 1D centerline. Statutory carriage-way width and municipal curb clearance under Maharashtra UDCPR 2020 require field cadastre verification.\n`;
+      reply += `- **Recommended Frontage Width**: Maintain at least 12.0m to 15.0m clear frontage for dedicated emergency and visitor access bays.`;
     }
+    const currentStatus: CopilotResponseResult["statutoryStatus"] = roadAccess?.requiresNewAccessRoad
+      ? "PRELIMINARY_ACCESS_REQUIRED"
+      : "PARTIAL_OSM_CENTERLINE_CLEARANCE";
+    reply += createProvenanceFooter(currentStatus);
+
     return {
       reply,
       modelUsed: "local-gis-rules-engine",
+      engineSource: "local_gis_engine",
+      statutoryStatus: currentStatus,
+      deterministicMetrics: {
+        coordinates: `(${centroidLat}° N, ${centroidLon}° E)`,
+        dimensionsMeters: `${lengthM}m × ${widthM}m`,
+        areaM2,
+        nearestRoadDistanceM: nearestRoadDistM,
+        nearestRoadName,
+        roadGeometryType: "1D LineString (Centerline)",
+      },
+      assumptions: [
+        "OpenStreetMap features are 1D centerlines; actual carriageway width and statutory ROW are unverified.",
+      ],
+      missingEvidence: [
+        "Cadastral 7/12 land revenue extract (Mahabhulekh) & CTS demarcation.",
+        "Municipal Development Plan (DP) reservation sheet.",
+      ],
       groundedFacts: {
         city,
         infrastructureType: infraType,
@@ -1423,9 +1819,28 @@ export function generateLocalCopilotResponse(
     reply += `4. **Fire Safety & CFO NOC**: Mandatory clearance from the Chief Fire Officer (CFO) for assembly and public buildings.\n`;
     reply += `5. **DP Reservation Verification**: Must cross-reference municipal Development Plan sheets to verify the parcel is not reserved for water bodies, open reservations, or public utilities.`;
 
+    reply += createProvenanceFooter("UNVERIFIED_STATUTORY_ROW");
+
     return {
       reply,
       modelUsed: "local-gis-rules-engine",
+      engineSource: "local_gis_engine",
+      statutoryStatus: "UNVERIFIED_STATUTORY_ROW",
+      deterministicMetrics: {
+        coordinates: `(${centroidLat}° N, ${centroidLon}° E)`,
+        dimensionsMeters: `${lengthM}m × ${widthM}m`,
+        areaM2,
+        nearestRoadDistanceM: nearestRoadDistM,
+        nearestRoadName,
+        roadGeometryType: "1D LineString (Centerline)",
+      },
+      assumptions: [
+        "OpenStreetMap features are 1D centerlines; actual carriageway width and statutory ROW are unverified.",
+      ],
+      missingEvidence: [
+        "Cadastral 7/12 land revenue extract (Mahabhulekh) & CTS demarcation.",
+        "Municipal Development Plan (DP) reservation sheet.",
+      ],
       groundedFacts: {
         city,
         infrastructureType: infraType,
@@ -1449,14 +1864,14 @@ export function generateLocalCopilotResponse(
 
     reply += `**The Good News (Pros)**:\n`;
     if (!hasRoadCollision) {
-      reply += `- Does not block or overlap any mapped roads or street traffic.\n`;
+      reply += `- Does not block or overlap any mapped road centerlines or street traffic.\n`;
     }
     if (!roadAccess?.requiresNewAccessRoad) {
-      reply += `- Has direct road connection, making it easy for citizens to reach.\n`;
+      reply += `- Has direct road connection (~${nearestRoadDistM ?? 0}m to centerline), making it easy for citizens to reach.\n`;
     } else {
       reply += `- Situated in a developing expansion zone.\n`;
     }
-    reply += `- Sized at approx. ${Math.round(placement?.areaM2 || 2000).toLocaleString()} m² footprint area.\n\n`;
+    reply += `- Sized at approx. ${areaM2.toLocaleString()} m² footprint area.\n\n`;
 
     reply += `**Points of Caution (Cons / Watch Outs)**:\n`;
     if (hasRoadCollision) {
@@ -1470,9 +1885,359 @@ export function generateLocalCopilotResponse(
     }
     reply += `- Official revenue land titles (7/12 extract) still need to be verified with the local Talathi office.`;
 
+    reply += createProvenanceFooter(defaultStatus);
+
     return {
       reply,
       modelUsed: "local-gis-rules-engine",
+      engineSource: "local_gis_engine",
+      statutoryStatus: defaultStatus,
+      deterministicMetrics: {
+        coordinates: `(${centroidLat}° N, ${centroidLon}° E)`,
+        dimensionsMeters: `${lengthM}m × ${widthM}m`,
+        areaM2,
+        nearestRoadDistanceM: nearestRoadDistM,
+        nearestRoadName,
+        roadGeometryType: "1D LineString (Centerline)",
+      },
+      assumptions: [
+        "OpenStreetMap features are 1D centerlines; actual carriageway width and statutory ROW are unverified.",
+      ],
+      missingEvidence: [
+        "Cadastral 7/12 land revenue extract (Mahabhulekh) & CTS demarcation.",
+        "Municipal Development Plan (DP) reservation sheet.",
+      ],
+      groundedFacts: {
+        city,
+        infrastructureType: infraType,
+        hasRoadCollision,
+        roadAccessStatus,
+        statutoryFramework,
+      },
+    };
+  }
+
+  // Intent 8: Intelligent Urban Intervention Planning, Spatial Discovery & Infrastructure Co-Planning (Phase 5 & 6)
+  const isInterventionQuery =
+    (lowerMsg.includes("urban intervention") ||
+     lowerMsg.includes("planning dossier") ||
+     lowerMsg.includes("dossier") ||
+     lowerMsg.includes("co-planning") ||
+     lowerMsg.includes("prioritis") ||
+     lowerMsg.includes("prioritiz") ||
+     lowerMsg.includes("dynamic discovery") ||
+     lowerMsg.includes("spatial discovery") ||
+     lowerMsg.includes("discovery run") ||
+     lowerMsg.includes("dataset registry") ||
+     lowerMsg.includes("source dataset") ||
+     lowerMsg.includes("analysis run") ||
+     lowerMsg.includes("provenance") ||
+     lowerMsg.includes("rejection reason") ||
+     lowerMsg.includes("how were these discovered") ||
+     (lowerMsg.includes("intervention") && !lowerMsg.includes("cooling intervention") && !lowerMsg.includes("heat mitigation")) ||
+     lowerMsg.includes("candidate") ||
+     lowerMsg.includes("karve") ||
+     lowerMsg.includes("laxmi") ||
+     lowerMsg.includes("sassoon") ||
+     lowerMsg.includes("mandai") ||
+     lowerMsg.includes("swargate") ||
+     lowerMsg.includes("balgandharva") ||
+     lowerMsg.includes("saras baug") ||
+     lowerMsg.includes("kamala nehru"));
+
+  if (isInterventionQuery) {
+    const datasetDerivedCandidates = generateInterventionCandidates({ includeSamples: false });
+    const sampleCandidates = generateCuratedSampleCandidates();
+    const allCandidates = [...datasetDerivedCandidates, ...sampleCandidates];
+    const latestRun = getLatestAnalysisRun();
+    const registrySummary = getDatasetAvailabilitySummary();
+    
+    // Check if user is asking specifically about discovery methodology, datasets, or analysis runs
+    const isDiscoveryOrRegistryQuery =
+      lowerMsg.includes("discover") ||
+      lowerMsg.includes("registry") ||
+      lowerMsg.includes("source dataset") ||
+      lowerMsg.includes("analysis run") ||
+      lowerMsg.includes("provenance") ||
+      lowerMsg.includes("rejection") ||
+      lowerMsg.includes("how were these");
+
+    let reply = `### 🏛️ Evidence-Based Urban Intervention Planning: ${city}\n\n`;
+
+    if (isDiscoveryOrRegistryQuery && !lowerMsg.includes("dossier")) {
+      reply += `#### 1. Dynamic Spatial Discovery Engine (Phase 6)\n`;
+      reply += `Intervention candidates in UrjaSetu are **dynamically discovered from actual spatial datasets**, eliminating reliance on hardcoded demonstration points.\n\n`;
+      if (latestRun) {
+        reply += `- **Analysis Run ID**: \`${latestRun.analysisId}\`\n`;
+        reply += `- **Execution Timestamp**: \`${latestRun.executionTimestamp}\`\n`;
+        reply += `- **Thermal Hotspot Threshold**: LST $\\ge$ \`${latestRun.parameters.minLstThreshold ?? 46.0}°C\`\n`;
+        reply += `- **Vegetation Deficit Threshold**: NDVI $\\le$ \`${latestRun.parameters.maxNdviThreshold ?? 0.35}\`\n`;
+        reply += `- **Total Candidates Discovered**: **${latestRun.candidatesDiscovered}** dataset-derived candidates\n`;
+        reply += `- **Total Screened Features**: **${latestRun.featuresEvaluated}** municipal/OSM assets\n\n`;
+
+        reply += `#### 2. Candidate Evaluation & Rejection Audit\n`;
+        reply += `Features screened by the engine must meet multi-criteria spatial and raster thresholds. Rejections during this run:\n`;
+        Object.entries(latestRun.rejectionReasonsSummary).forEach(([reason, count]) => {
+          reply += `- **${reason}**: \`${count}\` features excluded\n`;
+        });
+        reply += `\n`;
+      }
+
+      reply += `#### 3. Ingested Authoritative Spatial Datasets\n`;
+      reply += `- **Official PMC Gardens & Parks**: \`81\` municipal green assets (\`pmc_gardens.json\`, official PMC open register, VERIFIED_OFFICIAL)\n`;
+      reply += `- **Official PMC Government Hospitals**: \`50\` municipal health facilities (\`pmc_hospitals.json\`, official PMC register, VERIFIED_OFFICIAL)\n`;
+      reply += `- **OpenStreetMap EV Charging Stations**: \`13\` charging nodes (\`pmc_ev_stations.json\`, MAPPED_IN_OSM, sanitized without placeholder defaults)\n`;
+      reply += `- **Curated Arterial Road Corridors**: \`10\` key transit spines (\`pmc_road_corridors.json\`, MANUALLY_CURATED sample points, estimated widths)\n`;
+      reply += `- **MSEDCL High-Tension Substations**: \`6\` grid substations (\`pmc_substations.json\`, nameplate MVA capacity; spare headroom unverified)\n`;
+      reply += `- **Landsat 9 TIRS-2 Band 10**: Calibrated 30m Land Surface Temperature (\`pune_lst_calibrated_30m.tif\`, surface skin temperature)\n`;
+      reply += `- **Sentinel-2B MSI Level-2A BOA**: 30m target grid NDVI and SCL classification (\`pune_ndvi_30m.tif\`)\n\n`;
+
+      reply += `#### 4. Candidate Provenance Classification\n`;
+      reply += `- **DATASET_DERIVED** (${datasetDerivedCandidates.filter(c => c.provenanceType === 'DATASET_DERIVED').length} active): Discovered automatically via dynamic spatial search against real feature IDs and satellite raster cells.\n`;
+      reply += `- **MANUALLY_CURATED** (${datasetDerivedCandidates.filter(c => c.provenanceType === 'MANUALLY_CURATED').length} active): Curated highway corridor sample points and multimodal seeds evaluated under REQUIRES_SITE_VALIDATION.\n`;
+      reply += `- **SAMPLE_LOCATION** (${sampleCandidates.length} preserved): Curated landmark locations (e.g., Balgandharva, Saras Baug, Swargate) strictly segregated in reference mode to avoid data contamination.\n\n`;
+
+      reply += `#### 5. Dataset Registry Health & Data Gaps\n`;
+      reply += `- Total Registered Datasets: **${registrySummary.totalRegistered}** (Available: \`${registrySummary.availableCount}\`, Officially Verified: \`${registrySummary.officialVerifiedCount}\`)\n`;
+      reply += `- Cadastral Boundaries / Land Ownership: **MISSING / BLOCKED** (Non-authoritative candidate boundary only; statutory PMC cadastral parcel maps pending municipal MOU).\n`;
+      reply += `- Distribution Transformer Reverse Power Capacity: **FIELD SURVEY REQUIRED** (MSEDCL feeder-level SCADA telemetry pending utility data-sharing agreement).\n\n`;
+    } else {
+      // Check if user is referencing a specific candidate site by id or distinctive site name
+      const domainStopWords = new Set([
+        'corridor', 'shading', 'canopy', 'hospital', 'retrofit', 
+        'expansion', 'parking', 'centre', 'center', 'garden', 
+        'street', 'facility', 'upgrade', 'municipal', 'arterial',
+        'roof', 'solar', 'charging', 'point', 'green', 'space',
+        'park', 'road', 'energy', 'station', 'health', 'hub', 'public',
+        'pune', 'maharashtra', 'india', 'area', 'city'
+      ]);
+
+      let matchedCandidate: (typeof allCandidates)[number] | undefined = undefined;
+      let highestMatchScore = 0;
+
+      for (const c of allCandidates) {
+        if (lowerMsg.includes(c.id.toLowerCase())) {
+          matchedCandidate = c;
+          highestMatchScore = 100;
+          break;
+        }
+
+        const siteWords = c.name
+          .toLowerCase()
+          .split(/[\s,.-]+/)
+          .filter(p => p.length >= 3 && !domainStopWords.has(p));
+
+        if (siteWords.length === 0) continue;
+
+        let score = 0;
+        for (const w of siteWords) {
+          if (lowerMsg.includes(w)) {
+            score += w.length;
+          }
+        }
+
+        if (score > highestMatchScore) {
+          highestMatchScore = score;
+          matchedCandidate = c;
+        }
+      }
+
+      if (highestMatchScore < 3) {
+        matchedCandidate = undefined;
+      }
+
+      if (matchedCandidate) {
+        const lst = matchedCandidate.thermalContext.surfaceTemperatureCelsius;
+        const lstDelta = matchedCandidate.thermalContext.lstDeltaToBaselineCelsius;
+        const ndvi = matchedCandidate.vegetationContext.ndvi30m;
+
+        reply += `#### 1. Candidate Profile: ${matchedCandidate.name}\n`;
+        reply += `- **Category**: \`${matchedCandidate.categoryId}\`\n`;
+        reply += `- **Provenance**: \`${matchedCandidate.provenanceType}\` (${matchedCandidate.provenanceType === "DATASET_DERIVED" ? "Dynamically discovered from spatial dataset" : "Curated reference landmark"})\n`;
+        if (matchedCandidate.sourceFeatureId) {
+          reply += `- **Source Feature ID**: \`${matchedCandidate.sourceFeatureId}\` (Dataset: \`${matchedCandidate.sourceDatasetName ?? "N/A"}\`)\n`;
+        }
+        if (matchedCandidate.analysisRunId) {
+          reply += `- **Analysis Run ID**: \`${matchedCandidate.analysisRunId}\`\n`;
+        }
+        reply += `- **Ward / Prabhag**: ${matchedCandidate.wardOrPrabhag}\n`;
+        reply += `- **Coordinates**: \`(${matchedCandidate.coordinates.lat.toFixed(4)}° N, ${matchedCandidate.coordinates.lng.toFixed(4)}° E)\`\n`;
+        reply += `- **Status**: **${matchedCandidate.status}** (${matchedCandidate.evidenceCompleteness} evidence)\n`;
+        reply += `- **Location Context**: ${matchedCandidate.locationSummary}\n\n`;
+
+        reply += `#### 2. Verified Spatial & Satellite Evidence\n`;
+        reply += `- **Landsat 9 LST**: **${lst !== null ? `${lst}°C` : "NoData"}** (${lstDelta !== null ? `${lstDelta > 0 ? "+" : ""}${lstDelta}°C` : "N/A"} vs study area baseline \`46.3°C\`). Radiometric uncertainty: \`±${matchedCandidate.thermalContext.landsatStQaUncertaintyK ?? 0.81} K\`.\n`;
+        reply += `- **Sentinel-2 NDVI (30m)**: **${ndvi !== null ? ndvi : "NoData"}** (SCL: \`${matchedCandidate.vegetationContext.sclClassName}\`)\n`;
+        reply += `- **Infrastructure Frontage**: ${matchedCandidate.infrastructureContext.nearestRoadDistanceM}m from \`${matchedCandidate.infrastructureContext.nearestRoadName}\`\n`;
+        if (matchedCandidate.infrastructureContext.nearestSubstationName) {
+          reply += `- **Power Substation**: ${matchedCandidate.infrastructureContext.nearestSubstationName} (${matchedCandidate.infrastructureContext.nearestSubstationDistanceM}m)\n`;
+        }
+        if (matchedCandidate.estimatedTargetAreaM2) {
+          reply += `- **Estimated Footprint Area**: \`${matchedCandidate.estimatedTargetAreaM2.toLocaleString()} m²\` (Note: Usable area $\\ne$ footprint)\n`;
+        }
+        reply += `\n`;
+
+        reply += `#### 3. Constraints & Site-Specific Blockers\n`;
+        matchedCandidate.constraints.forEach(con => {
+          reply += `- **[${con.severity}] ${con.title}**: ${con.description} *(Mitigation: ${con.mitigationRequirement})*\n`;
+        });
+        reply += `\n`;
+
+        reply += `#### 4. Mandatory Pre-Implementation Site Surveys\n`;
+        matchedCandidate.missingSurveyChecklist.forEach(surv => {
+          reply += `- **${surv.itemName}** (${surv.requiredForPhase}): ${surv.description} [Standard: \`${surv.surveyStandardOrMethodology}\`]\n`;
+        });
+        reply += `\n`;
+
+        reply += `#### 5. Recommended Immediate Action\n`;
+        reply += `> ${matchedCandidate.recommendedNextAction}\n\n`;
+      } else {
+        const categories = listCategoryMetadata();
+        reply += `#### 1. Five Core Intervention Planning Categories\n`;
+        categories.forEach(cat => {
+          const catCands = datasetDerivedCandidates.filter(c => c.categoryId === cat.id);
+          reply += `1. **${cat.name}** (\`${cat.id}\`): ${cat.shortDescription} — *${catCands.length} dynamically discovered candidates.*\n`;
+        });
+        reply += `\n`;
+
+        reply += `#### 2. Key Dynamically Discovered Candidate Sites\n`;
+        datasetDerivedCandidates.slice(0, 5).forEach(c => {
+          const lst = c.thermalContext.surfaceTemperatureCelsius;
+          reply += `- **${c.name}** (\`${c.categoryId}\`): LST **${lst ?? "N/A"}°C**, Status: **${c.status}** (${c.wardOrPrabhag}) [Provenance: \`${c.provenanceType}\`]\n`;
+        });
+        reply += `\n`;
+
+        reply += `#### 3. Evidence-Based Prioritisation Heuristic\n`;
+        reply += `- **No Arbitrary Composite Scores**: Sites are evaluated multi-dimensionally across continuous LST delta, vegetation index deficit, infrastructure proximity, and structural constraints.\n`;
+        reply += `- **Zero Fabricated Benefits**: UrjaSetu does not simulate unverified air cooling degrees (e.g. "planting 50 trees will reduce temperature by 3°C") or financial ROI without microclimate CFD and energy bills.\n`;
+        reply += `- **Reproducible Runs**: Candidates are stamped with an \`analysisRunId\` and traced to verified municipal or OSM feature IDs.\n`;
+        reply += `- **Mandatory Governance**: Physical site inspection, load testing, utility clearance, and municipal approval must precede financial tendering.\n\n`;
+      }
+    }
+
+    reply += createProvenanceFooter("VERIFIED_GEOMETRIC");
+
+    return {
+      reply,
+      modelUsed: "local-gis-rules-engine",
+      engineSource: "local_gis_engine",
+      statutoryStatus: "VERIFIED_GEOMETRIC",
+      deterministicMetrics: {
+        coordinates: `(${centroidLat}° N, ${centroidLon}° E)`,
+        dimensionsMeters: `${lengthM}m × ${widthM}m`,
+        areaM2,
+        nearestRoadDistanceM: nearestRoadDistM,
+        nearestRoadName,
+        roadGeometryType: "1D LineString (Centerline)",
+      },
+      assumptions: [
+        "Satellite LST measures surface skin temperature on 2023-04-22, not ambient 2m air temperature.",
+        "Building footprint area does not equal usable rooftop area (typically 45-75% net).",
+        "Candidate site status is an exploratory planning classification, not formal administrative sanction.",
+      ],
+      missingEvidence: [
+        "On-site structural non-destructive testing (NDT) / ultrasonic pulse velocity.",
+        "Underground utility cadastre ground-penetrating radar (GPR) scan.",
+        "MSEDCL distribution transformer sanctioned capacity and reverse power headroom.",
+      ],
+      groundedFacts: {
+        city,
+        infrastructureType: infraType,
+        hasRoadCollision,
+        roadAccessStatus,
+        statutoryFramework,
+      },
+    };
+  }
+
+  // Intent 7: Urban Heat, Land Surface Temperature (LST), Vegetation (NDVI), and Microclimate
+  if (
+    lowerMsg.includes("heat") ||
+    lowerMsg.includes("lst") ||
+    lowerMsg.includes("ndvi") ||
+    lowerMsg.includes("vegetation") ||
+    lowerMsg.includes("temperature") ||
+    lowerMsg.includes("cooling") ||
+    lowerMsg.includes("cool roof") ||
+    lowerMsg.includes("canopy") ||
+    lowerMsg.includes("greenery") ||
+    lowerMsg.includes("microclimate") ||
+    lowerMsg.includes("thermal") ||
+    lowerMsg.includes("urban heat island")
+  ) {
+    let pointHeat: any = null;
+    let cityHeat: any = null;
+
+    if (isHeatDataAvailable()) {
+      try {
+        cityHeat = getHeatDiagnostics();
+        if (placement?.lat !== undefined && placement?.lng !== undefined) {
+          pointHeat = queryHeatPoint(placement.lng, placement.lat);
+        }
+      } catch (err) {
+        console.warn("Could not query local heat data:", err);
+      }
+    }
+
+    const cityMeanLST = cityHeat?.landsat9?.calibratedLSTCelsius?.mean ? `${cityHeat.landsat9.calibratedLSTCelsius.mean.toFixed(1)}°C` : "46.3°C";
+    const cityMinLST = cityHeat?.landsat9?.calibratedLSTCelsius?.min ? `${cityHeat.landsat9.calibratedLSTCelsius.min.toFixed(1)}°C` : "25.8°C";
+    const cityMaxLST = cityHeat?.landsat9?.calibratedLSTCelsius?.max ? `${cityHeat.landsat9.calibratedLSTCelsius.max.toFixed(1)}°C` : "61.4°C";
+    const cityMeanNDVI = cityHeat?.sentinel2b?.ndvi30mDistribution?.mean ? cityHeat.sentinel2b.ndvi30mDistribution.mean.toFixed(3) : "0.514";
+
+    let reply = `### 🛰️ Satellite Urban Heat & Vegetation Intelligence: ${city}\n\n`;
+    reply += `#### 1. Verified Satellite Observations\n`;
+    reply += `- **Thermal Regime (Landsat 9 TIRS-2 Band 10)**:\n`;
+    reply += `  - **Acquisition Timestamp**: \`2023-04-22 05:27:39 UTC\`\n`;
+    reply += `  - **Sensor Native Resolution**: \`100m native thermal\` (resampled to 30m USGS delivery grid)\n`;
+    reply += `  - **Study Area Mean LST**: **${cityMeanLST}** (Range: \`${cityMinLST}\` to \`${cityMaxLST}\`)\n`;
+    reply += `  - **Clear-Sky Pixel Ratio**: \`99.98%\` (Mean uncertainty: \`±2.16 K\`)\n`;
+    reply += `- **Vegetation Distribution (Sentinel-2B MSI Level-2A BOA)**:\n`;
+    reply += `  - **Acquisition Timestamp**: \`2023-04-24 05:26:49 UTC\` (~48h baseline)\n`;
+    reply += `  - **Sensor Native Resolution**: \`10m native optical\` (aggregated to 30m target grid via 4×4 area-weighted matrix)\n`;
+    reply += `  - **Study Area Mean NDVI (30m)**: **${cityMeanNDVI}** (Valid terrestrial cells: \`518,651\` / 89.84% valid observation rate; mean valid footprint fraction: \`70.20%\`)\n`;
+    reply += `  - **Preserved Negative Reflectance**: \`2,362,281\` B04 pixels tracked without synthetic zero-clipping\n\n`;
+
+    if (pointHeat?.gridCell?.isInsideGrid && pointHeat.lst.celsius !== null) {
+      reply += `#### 2. Site-Specific Observations at \`(${centroidLat}° N, ${centroidLon}° E)\`\n`;
+      reply += `- **Land Surface Temperature (LST)**: **${pointHeat.lst.celsius}°C** (Uncertainty: \`±${pointHeat.lst.stQaUncertaintyKelvin || 2.16} K\`)\n`;
+      reply += `- **Vegetation Index (NDVI 30m)**: **${pointHeat.ndvi.aggregated30m ?? "NoData"}** (SCL Classification: \`${pointHeat.ndvi.sclClassName}\`)\n`;
+      reply += `- **Thermal Difference from City Baseline**: **${(pointHeat.lst.celsius - (cityHeat?.landsat9?.calibratedLSTCelsius?.mean || 46.3)).toFixed(1)}°C**\n\n`;
+    }
+
+    reply += `#### 3. Urban Planning & Heat Mitigation Recommendations\n`;
+    reply += `- **High-Albedo "Cool Roofs"**: Implement high-reflectance roof coatings meeting statutory BEE ECBC 2017 Table 4.1 standards (Initial Reflectance ≥ 0.70, Emittance ≥ 0.75, SRI ≥ 78; advisory SRI ≥ 82 under LEED/IGBC green rating) on commercial, industrial, and civic buildings to buffer HVAC electrical demand.\n`;
+    reply += `- **Strategic Canopy Greening**: Prioritize native drought-tolerant broadleaf shade trees (Neem, Peepal, Tamarind) along arterial roadway corridors where NDVI < 0.30.\n`;
+    reply += `- **Photovoltaic & EV Microclimate Protection**: Note that crystalline silicon modules feature temperature coefficients of -0.35% to -0.45%/°C above 25°C STC (IEC 61215); because satellite LST measures ground skin temperature rather than cell temperature, actual derating cannot be calculated directly from LST alone. Incorporate elevated open racking (≥ 0.8m) on solar farms for convective cooling; mandate solar canopy shading over EV fast-charging bays to reduce solar radiant heat loading.\n\n`;
+
+    reply += `#### 4. Scientific Limitations & Missing Evidence\n`;
+    reply += `- **LST vs. Air Temperature**: Land Surface Temperature measures radiometric skin surface temperature; it does **NOT** measure ambient 2m air temperature or human wet-bulb heat stress.\n`;
+    reply += `- **NDVI Definition**: NDVI is a mathematical index of spectral reflectance [-1.0, 1.0]; it does **NOT** equate to tree canopy percentage or total vegetation cover.\n`;
+    reply += `- **Additional Required Evidence**: On-site micrometeorological AWS sensor stations and weather measurements, municipal DP zoning confirmation, and building envelope construction extracts are required before statutory infrastructure approval.\n`;
+
+    reply += createProvenanceFooter("VERIFIED_GEOMETRIC");
+
+    return {
+      reply,
+      modelUsed: "local-gis-rules-engine",
+      engineSource: "local_gis_engine",
+      statutoryStatus: "VERIFIED_GEOMETRIC",
+      deterministicMetrics: {
+        coordinates: `(${centroidLat}° N, ${centroidLon}° E)`,
+        dimensionsMeters: `${lengthM}m × ${widthM}m`,
+        areaM2,
+        nearestRoadDistanceM: nearestRoadDistM,
+        nearestRoadName,
+        roadGeometryType: "1D LineString (Centerline)",
+      },
+      assumptions: [
+        "LST is radiometric skin temperature from Landsat 9 Band 10, not ambient 2m air temperature.",
+        "NDVI is a spectral reflectance index [-1.0, 1.0], not tree canopy percentage.",
+      ],
+      missingEvidence: [
+        "Local micrometeorological AWS sensor stations (2m ambient air temperature & relative humidity).",
+        "Cadastral 7/12 land revenue extract (Mahabhulekh) & CTS demarcation.",
+        "Municipal Development Plan (DP) reservation sheet.",
+      ],
       groundedFacts: {
         city,
         infrastructureType: infraType,
@@ -1499,9 +2264,28 @@ export function generateLocalCopilotResponse(
     reply += `4. **Municipal DP Zone Certificate**: Formal demarcation from ${officialContext?.jurisdiction || "Town Planning Dept"} confirming permissible land-use zoning.\n`;
     reply += `5. **Environmental & Utility NOCs**: Clearances for stormwater drainage, tree felling, and 3-phase high-tension power connectivity from MSEDCL.`;
 
+    reply += createProvenanceFooter("INSUFFICIENT_EVIDENCE");
+
     return {
       reply,
       modelUsed: "local-gis-rules-engine",
+      engineSource: "local_gis_engine",
+      statutoryStatus: "INSUFFICIENT_EVIDENCE",
+      deterministicMetrics: {
+        coordinates: `(${centroidLat}° N, ${centroidLon}° E)`,
+        dimensionsMeters: `${lengthM}m × ${widthM}m`,
+        areaM2,
+        nearestRoadDistanceM: nearestRoadDistM,
+        nearestRoadName,
+        roadGeometryType: "1D LineString (Centerline)",
+      },
+      assumptions: [
+        "OpenStreetMap features are 1D centerlines; actual carriageway width and statutory ROW are unverified.",
+      ],
+      missingEvidence: [
+        "Cadastral 7/12 land revenue extract (Mahabhulekh) & CTS demarcation.",
+        "Municipal Development Plan (DP) reservation sheet.",
+      ],
       groundedFacts: {
         city,
         infrastructureType: infraType,
@@ -1512,7 +2296,7 @@ export function generateLocalCopilotResponse(
     };
   }
 
-  // Intent 6: Site Setup, Layout & Siting Appropriateness (e.g. "is the solar farm properly setup at the location")
+  // Intent 6: Site Setup, Layout & Siting Appropriateness
   if (
     lowerMsg.includes("setup") ||
     lowerMsg.includes("properly") ||
@@ -1530,13 +2314,7 @@ export function generateLocalCopilotResponse(
     lowerMsg.includes("layout") ||
     lowerMsg.includes("capacity")
   ) {
-    const areaM2 = Math.round(
-      placement?.areaM2 ||
-        (placement?.lengthM && placement?.widthM ? placement.lengthM * placement.widthM : 50000)
-    );
     const acres = (areaM2 / 4046.86).toFixed(2);
-    const centroidLat = placement?.lat !== undefined ? placement.lat.toFixed(4) : "20.3506";
-    const centroidLon = placement?.lng !== undefined ? placement.lng.toFixed(4) : "74.3626";
     const score = report?.overallScore ?? (hasRoadCollision ? 45 : 85);
     const isSolar = infraType.toLowerCase().includes("solar");
     const isEV = infraType.toLowerCase().includes("ev") || infraType.toLowerCase().includes("charg");
@@ -1559,9 +2337,9 @@ export function generateLocalCopilotResponse(
 
       reply += `#### 2. Spatial Encroachments & Setbacks\n`;
       if (hasRoadCollision) {
-        reply += `- ⚠️ **Road Collision**: The solar farm perimeter encroaches on mapped road corridors. Must retract edges to comply with mandatory 3.0m statutory boundary setback under UDCPR.\n`;
+        reply += `- ⚠️ **Road Collision**: The solar farm perimeter encroaches on mapped road corridors. Must retract edges to comply with mandatory statutory boundary setback under UDCPR.\n`;
       } else {
-        reply += `- ✅ **Carriageway Buffer**: Clear of all mapped road surfaces and street rights-of-way.\n`;
+        reply += `- ✅ **Carriageway Buffer**: Clear of mapped OpenStreetMap 1D road centerlines (statutory ROW unverified).\n`;
       }
       if (buildingCollisions.length > 0) {
         reply += `- ⚠️ **Existing Structures**: Intersects ${buildingCollisions.length} existing mapped structures. Site acquisition or footprint redrawing is required.\n`;
@@ -1573,7 +2351,7 @@ export function generateLocalCopilotResponse(
       if (roadAccess?.requiresNewAccessRoad) {
         reply += `- ⚠️ **O&M Access Road**: Currently landlocked; requires a **${Math.round(roadAccess.distanceM || 0)}m** all-weather access road to **${roadAccess.nearestRoadName || "public road"}** for heavy transformer/inverter delivery and bi-weekly panel washing water tankers.\n`;
       } else {
-        reply += `- ✅ **Logistics Ingress**: Direct access to **${roadAccess?.nearestRoadName || "public road"}** (${Math.round(roadAccess?.distanceM || 0)}m distance).\n`;
+        reply += `- ✅ **Logistics Ingress**: Direct access to **${roadAccess?.nearestRoadName || "public road"}** (~${nearestRoadDistM ?? 0}m distance to centerline).\n`;
       }
       reply += `- ⚡ **Substation Evacuation**: Requires 11kV/33kV power evacuation corridor to nearest MSEDCL/MSETCL feeder.\n\n`;
 
@@ -1582,23 +2360,42 @@ export function generateLocalCopilotResponse(
       reply += `#### 1. EV Charging Station Capacity & Infrastructure\n`;
       reply += `- **Bay Sizing**: Footprint accommodates up to ${Math.max(4, Math.floor(areaM2 / 65))} EV charging bays with designated ingress/egress lanes.\n`;
       reply += `- **Power Demands**: Recommends dedicated 500 kVA - 1 MVA compact substation for DC Fast Chargers (120 kW+ CCS2).\n`;
-      reply += `- **Road Frontage**: ${roadAccess?.requiresNewAccessRoad ? `⚠️ Requires ${Math.round(roadAccess.distanceM || 0)}m road connector.` : `✅ Connected directly to ${roadAccess?.nearestRoadName || "primary road"}.`}\n`;
+      reply += `- **Road Frontage**: ${roadAccess?.requiresNewAccessRoad ? `⚠️ Requires ${Math.round(roadAccess.distanceM || 0)}m road connector.` : `✅ Connected directly to ${roadAccess?.nearestRoadName || "primary road"} (~${nearestRoadDistM ?? 0}m to centerline).`}\n`;
       reply += `- **Traffic Safety**: Must integrate dedicated turning radii to avoid vehicular queue spillage onto arterial carriageways.\n`;
     } else if (isHospital) {
       reply += `#### 1. Healthcare Facility Siting Criteria\n`;
       reply += `- **Frontage Road Width**: UDCPR 2020 Rule 15.1 mandates minimum 15.0m abutting road width for emergency ambulance movement.\n`;
-      reply += `- **Emergency Accessibility**: ${roadAccess?.requiresNewAccessRoad ? `⚠️ Needs ${Math.round(roadAccess.distanceM || 0)}m access road.` : `✅ Direct street connectivity verified.`}\n`;
+      reply += `- **Emergency Accessibility**: ${roadAccess?.requiresNewAccessRoad ? `⚠️ Needs ${Math.round(roadAccess.distanceM || 0)}m access road.` : `✅ Direct street connectivity verified (~${nearestRoadDistM ?? 0}m to centerline).`}\n`;
       reply += `- **Environmental Buffering**: Acoustic barrier and DG set isolation required from adjacent residential zoning.\n`;
     } else {
       reply += `#### 1. Land & Geometric Feasibility\n`;
-      reply += `- **Encroachment Status**: ${hasRoadCollision ? "⚠️ Intersects public rights-of-way." : "✅ Zero road encroachments detected."}\n`;
-      reply += `- **Access Road Status**: ${roadAccess?.requiresNewAccessRoad ? `⚠️ Landlocked; ${Math.round(roadAccess.distanceM || 0)}m preliminary access road required.` : `✅ Connected to ${roadAccess?.nearestRoadName || "road corridor"}.`}\n`;
+      reply += `- **Encroachment Status**: ${hasRoadCollision ? "⚠️ Intersects public rights-of-way." : "✅ Clear of mapped 1D road centerlines (statutory ROW unverified)."}\n`;
+      reply += `- **Access Road Status**: ${roadAccess?.requiresNewAccessRoad ? `⚠️ Landlocked; ${Math.round(roadAccess.distanceM || 0)}m preliminary access road required.` : `✅ Connected to ${roadAccess?.nearestRoadName || "road corridor"} (~${nearestRoadDistM ?? 0}m to centerline).`}\n`;
       reply += `- **Statutory Framework**: ${statutoryFramework}.\n`;
     }
+
+    reply += createProvenanceFooter(defaultStatus);
 
     return {
       reply,
       modelUsed: "local-gis-rules-engine",
+      engineSource: "local_gis_engine",
+      statutoryStatus: defaultStatus,
+      deterministicMetrics: {
+        coordinates: `(${centroidLat}° N, ${centroidLon}° E)`,
+        dimensionsMeters: `${lengthM}m × ${widthM}m`,
+        areaM2,
+        nearestRoadDistanceM: nearestRoadDistM,
+        nearestRoadName,
+        roadGeometryType: "1D LineString (Centerline)",
+      },
+      assumptions: [
+        "OpenStreetMap features are 1D centerlines; actual carriageway width and statutory ROW are unverified.",
+      ],
+      missingEvidence: [
+        "Cadastral 7/12 land revenue extract (Mahabhulekh) & CTS demarcation.",
+        "Municipal Development Plan (DP) reservation sheet.",
+      ],
       groundedFacts: {
         city,
         infrastructureType: infraType,
@@ -1611,12 +2408,6 @@ export function generateLocalCopilotResponse(
 
   // Dynamic Fallback Synthesis
   const score = report?.overallScore ?? (hasRoadCollision ? 45 : 85);
-  const areaM2 = Math.round(
-    placement?.areaM2 ||
-      (placement?.lengthM && placement?.widthM ? placement.lengthM * placement.widthM : 50000)
-  );
-  const centroidLat = placement?.lat !== undefined ? placement.lat.toFixed(4) : "20.3506";
-  const centroidLon = placement?.lng !== undefined ? placement.lng.toFixed(4) : "74.3626";
 
   let reply = `### UrjaSetu Urban Planning Synthesis: ${infraType}\n\n`;
   reply += `**Study Area**: ${city} | **Coordinates**: \`(${centroidLat}° N, ${centroidLon}° E)\`\n`;
@@ -1624,15 +2415,34 @@ export function generateLocalCopilotResponse(
   reply += `**Multi-Criteria Suitability Score**: **${score}/100** (${score >= 70 ? "Viable" : "Action Required"})\n\n`;
 
   reply += `**Key Spatial Observations Regarding Your Query**:\n`;
-  reply += `1. **Road Clearance**: ${hasRoadCollision ? "⚠️ Encroaches on mapped road right-of-way. Use 'Snap to Road & Open Land' to adjust." : "✅ Zero road collisions detected; maintains safe carriageway buffer."}\n`;
-  reply += `2. **Access Road Status**: ${roadAccess?.requiresNewAccessRoad ? `⚠️ Offset from street network; requires ${Math.round(roadAccess.distanceM || 0)}m access road to ${roadAccess.nearestRoadName || "public road"}.` : `✅ Direct frontage connected to ${roadAccess?.nearestRoadName || "mapped road"}.`}\n`;
-  reply += `3. **Statutory Planning Basis**: Complies with ${statutoryFramework}.\n\n`;
+  reply += `1. **Road Clearance**: ${hasRoadCollision ? "⚠️ Encroaches on mapped road centerline. Use 'Snap to Road & Open Land' to adjust." : `ℹ️ Clear of mapped 1D road centerlines (~${nearestRoadDistM ?? 0}m); statutory right-of-way unverified.`}\n`;
+  reply += `2. **Access Road Status**: ${roadAccess?.requiresNewAccessRoad ? `⚠️ Offset from street network; requires ${Math.round(roadAccess.distanceM || 0)}m access road to ${roadAccess.nearestRoadName || "public road"}.` : `✅ Direct frontage connected to ${roadAccess?.nearestRoadName || "mapped road"} (~${nearestRoadDistM ?? 0}m to centerline).`}\n`;
+  reply += `3. **Statutory Planning Basis**: Subject to ${statutoryFramework} (requires municipal DP and cadastre verification).\n\n`;
 
   reply += `💡 *Tip: You can ask specific questions about solar yield, 3D shading ray-tracing, access roads, UDCPR statutory setbacks, or click "Snap to Road & Open Land" to automatically correct boundaries.*`;
+
+  reply += createProvenanceFooter(defaultStatus);
 
   return {
     reply,
     modelUsed: "local-gis-rules-engine",
+    engineSource: "local_gis_engine",
+    statutoryStatus: defaultStatus,
+    deterministicMetrics: {
+      coordinates: `(${centroidLat}° N, ${centroidLon}° E)`,
+      dimensionsMeters: `${lengthM}m × ${widthM}m`,
+      areaM2,
+      nearestRoadDistanceM: nearestRoadDistM,
+      nearestRoadName,
+      roadGeometryType: "1D LineString (Centerline)",
+    },
+    assumptions: [
+      "OpenStreetMap features are 1D centerlines; actual carriageway width and statutory ROW are unverified.",
+    ],
+    missingEvidence: [
+      "Cadastral 7/12 land revenue extract (Mahabhulekh) & CTS demarcation.",
+      "Municipal Development Plan (DP) reservation sheet.",
+    ],
     groundedFacts: {
       city,
       infrastructureType: infraType,

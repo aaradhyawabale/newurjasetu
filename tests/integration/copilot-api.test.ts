@@ -26,7 +26,8 @@ describe("Copilot API Integration & Security", () => {
   });
 
   it("GET /api/copilot returns status and configured model info", async () => {
-    const res = await GET();
+    const req = new NextRequest("http://localhost:3000/api/copilot");
+    const res = await GET(req);
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.status).toBe("ready");
@@ -86,5 +87,62 @@ describe("Copilot API Integration & Security", () => {
         process.env.GEMINI_API_KEY = originalKey;
       }
     }
+  });
+
+  it("POST /api/copilot returns 200 with local GIS rules engine when fallbackToLocal is true", async () => {
+    const originalKey = process.env.GEMINI_API_KEY;
+    delete process.env.GEMINI_API_KEY;
+
+    try {
+      const req = new NextRequest("http://localhost:3000/api/copilot", {
+        method: "POST",
+        headers: {
+          cookie: `urjasetu_session=${userToken}`,
+        },
+        body: JSON.stringify({
+          message: "Check road access for hospital",
+          context: {
+            studyArea: "Pune Central Study Area (PMC)",
+            infrastructureType: "Hospital",
+          },
+          fallbackToLocal: true,
+        }),
+      });
+
+      const res = await POST(req);
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json.modelUsed).toBe("local-gis-rules-engine");
+      expect(json.engineSource).toBe("local_gis_engine");
+      expect(json.cloudUnavailable).toBe(true);
+      expect(typeof json.reply).toBe("string");
+      expect(json.reply).toContain("UrjaSetu");
+    } finally {
+      if (originalKey) {
+        process.env.GEMINI_API_KEY = originalKey;
+      }
+    }
+  });
+
+  it("GET /api/copilot?diagnostic=true returns structured diagnostic report", async () => {
+    const req = new NextRequest("http://localhost:3000/api/copilot?diagnostic=true");
+    const res = await GET(req);
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.status).toBeDefined();
+    expect(typeof json.dns).toBe("object");
+    expect(typeof json.https).toBe("object");
+    expect(typeof json.auth).toBe("object");
+    expect(typeof json.generation).toBe("object");
+  });
+
+  it("GET /api/copilot/health endpoint returns structured diagnostic report", async () => {
+    const { GET: healthGET } = await import("@/app/api/copilot/health/route");
+    const req = new NextRequest("http://localhost:3000/api/copilot/health");
+    const res = await healthGET(req);
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.status).toBeDefined();
+    expect(json.configuredModel).toContain("gemini");
   });
 });

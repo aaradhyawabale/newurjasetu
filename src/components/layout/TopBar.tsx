@@ -16,6 +16,8 @@ import {
   MapPin,
   Sparkles,
   GitCompare,
+  Flame,
+  Building2,
 } from "lucide-react";
 
 interface Scenario {
@@ -41,6 +43,8 @@ interface TopBarProps {
   onSignOut: () => void;
   onCompareClick?: () => void;
   onCopilotClick?: () => void;
+  onHeatDashboardClick?: () => void;
+  onInterventionsClick?: () => void;
   userName?: string | null;
   historyCount: number;
   isAnalyzing: boolean;
@@ -66,6 +70,8 @@ export const TopBar: React.FC<TopBarProps> = ({
   onSignOut,
   onCompareClick,
   onCopilotClick,
+  onHeatDashboardClick,
+  onInterventionsClick,
   userName,
   historyCount,
   isAnalyzing,
@@ -342,6 +348,32 @@ export const TopBar: React.FC<TopBarProps> = ({
           >
             <GitCompare className="w-3.5 h-3.5 text-emerald-700" />
             <span className="hidden sm:inline">Compare</span>
+          </button>
+        )}
+
+        {/* Heat Intelligence Dashboard Button */}
+        {onHeatDashboardClick && (
+          <button
+            type="button"
+            onClick={onHeatDashboardClick}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-btn border border-rose-200 hover:border-rose-300 bg-rose-50/80 hover:bg-rose-100 text-xs font-semibold text-rose-900 transition-colors shadow-2xs"
+            title="Open Pune Urban Heat & Vegetation Intelligence Dashboard"
+          >
+            <Flame className="w-3.5 h-3.5 text-rose-600" />
+            <span className="hidden sm:inline">Heat Intelligence</span>
+          </button>
+        )}
+
+        {/* Urban Interventions Workspace Button */}
+        {onInterventionsClick && (
+          <button
+            type="button"
+            onClick={onInterventionsClick}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-btn border border-emerald-200 hover:border-emerald-300 bg-emerald-50/80 hover:bg-emerald-100 text-xs font-semibold text-emerald-900 transition-colors shadow-2xs"
+            title="Open Intelligent Urban Intervention Planning Workspace"
+          >
+            <Building2 className="w-3.5 h-3.5 text-emerald-700" />
+            <span className="hidden sm:inline">Interventions</span>
           </button>
         )}
       </div>
