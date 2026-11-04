@@ -53,6 +53,56 @@ export interface PriorityCell {
 
   /** Optimistic 90th percentile cooling effect in °C from 30 ensemble members [Modelled] */
   cooling_p90: number | null;
+
+  /** Surface heat excess above cool baseline in °C [Modelled] */
+  heat_excess_celsius?: number | null;
+
+  /** Relative solar PV power output loss (%) from heat excess [Modelled] */
+  solar_penalty_mean?: number | null;
+
+  /** 10th percentile relative solar PV output loss (%) [Modelled] */
+  solar_penalty_p10?: number | null;
+
+  /** 90th percentile relative solar PV output loss (%) [Modelled] */
+  solar_penalty_p90?: number | null;
+}
+
+/**
+ * Solar PV Temperature Penalty Model Card Schema
+ */
+export interface SolarModelCard {
+  model_name: string;
+  version: string;
+  training_dates: {
+    start_date: string;
+    end_date: string;
+    total_days: number;
+  };
+  dataset_plants: Array<{
+    plant_id: number;
+    name: string;
+    rmse_kw: number;
+    r2_score: number;
+    train_days: number;
+    test_days: number;
+  }>;
+  temperature_penalty: {
+    fixed_irradiation_kw_m2: number;
+    base_module_temp_celsius: number;
+    hot_module_temp_celsius: number;
+    delta_temp_celsius: number;
+    percent_change_per_10c_mean: number;
+    percent_change_per_10c_p10: number;
+    percent_change_per_10c_p90: number;
+    bootstrap_samples: number;
+    penalty_per_celsius_mean: number;
+  };
+  limitations: string[];
+  governance: {
+    disclaimers: string[];
+    provenance_tag: ProvenanceCategory;
+  };
+  created_at: string;
 }
 
 /**

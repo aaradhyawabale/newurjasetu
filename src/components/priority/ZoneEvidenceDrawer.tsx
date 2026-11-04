@@ -24,6 +24,7 @@ import {
   MapPin,
   Layers,
   Sparkles,
+  Sun,
 } from "lucide-react";
 
 export type ZoneDetail = PriorityCell & {
@@ -369,12 +370,70 @@ export const ZoneEvidenceDrawer: React.FC<ZoneEvidenceDrawerProps> = ({
           </div>
         </div>
 
-        {/* SECTION 3: LISTED ASSUMPTIONS */}
+        {/* SECTION 3: SOLAR HEAT PENALTY (PV DERATING) */}
+        <div className="space-y-2.5 pt-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-[11px] font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+              <Sun className="w-3.5 h-3.5 text-amber-400" />
+              <span>3. Solar Heat Penalty (PV Derating)</span>
+            </h3>
+            <ProvenanceTag type="Modelled" />
+          </div>
+
+          <div className="p-3 rounded bg-stone-950 border border-amber-900/40 space-y-2">
+            <div className="flex items-center justify-between text-[10px] text-stone-400">
+              <span className="font-semibold text-stone-300">Estimated Relative Output Loss:</span>
+              <span className="font-mono text-stone-500">Gandikota Kaggle PV Model</span>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 text-center font-mono">
+              <div className="bg-stone-900 p-2 rounded border border-stone-800">
+                <div className="text-[9px] text-stone-400 uppercase font-semibold">P10 (Higher Loss)</div>
+                <div className="text-sm font-bold text-red-400 mt-0.5">
+                  {zone.solar_penalty_p10 !== null && zone.solar_penalty_p10 !== undefined
+                    ? `${zone.solar_penalty_p10.toFixed(2)}%`
+                    : "Not available"}
+                </div>
+              </div>
+              <div className="bg-stone-900 p-2 rounded border border-amber-800/80 bg-amber-950/20">
+                <div className="text-[9px] text-amber-400 uppercase font-semibold">Mean Expected Loss</div>
+                <div className="text-sm font-bold text-amber-300 mt-0.5">
+                  {zone.solar_penalty_mean !== null && zone.solar_penalty_mean !== undefined
+                    ? `${zone.solar_penalty_mean.toFixed(2)}%`
+                    : "Not available"}
+                </div>
+              </div>
+              <div className="bg-stone-900 p-2 rounded border border-stone-800">
+                <div className="text-[9px] text-stone-400 uppercase font-semibold">P90 (Milder Loss)</div>
+                <div className="text-sm font-bold text-yellow-300 mt-0.5">
+                  {zone.solar_penalty_p90 !== null && zone.solar_penalty_p90 !== undefined
+                    ? `${zone.solar_penalty_p90.toFixed(2)}%`
+                    : "Not available"}
+                </div>
+              </div>
+            </div>
+
+            <div className="text-[10px] text-stone-400 flex items-center justify-between pt-1 border-t border-stone-900">
+              <span>Local Surface Heat Excess:</span>
+              <span className="font-mono text-stone-300">
+                {zone.heat_excess_celsius !== null && zone.heat_excess_celsius !== undefined
+                  ? `+${zone.heat_excess_celsius.toFixed(2)} °C above cool baseline`
+                  : "Not available"}
+              </span>
+            </div>
+
+            <div className="text-[9px] text-stone-500 leading-tight pt-1">
+              <strong>Caveat:</strong> Relative efficiency loss from microclimatic heat. Does NOT present absolute kWh generation for Pune without balance-of-system engineering.
+            </div>
+          </div>
+        </div>
+
+        {/* SECTION 4: LISTED ASSUMPTIONS */}
         <div className="space-y-2 pt-3">
           <div className="flex items-center justify-between">
             <h3 className="text-[11px] font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
               <Info className="w-3.5 h-3.5" />
-              <span>3. Listed Scenario Planning Assumptions</span>
+              <span>4. Listed Scenario Planning Assumptions</span>
             </h3>
             <ProvenanceTag type="Assumed" />
           </div>

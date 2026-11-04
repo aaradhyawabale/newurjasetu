@@ -16,7 +16,11 @@
     "burden": 8.19,
     "cooling_mean": 2.26,
     "cooling_p10": 2.23,
-    "cooling_p90": 2.29
+    "cooling_p90": 2.29,
+    "heat_excess_celsius": 4.3,
+    "solar_penalty_mean": -2.29,
+    "solar_penalty_p10": -3.2,
+    "solar_penalty_p90": -1.27
   },
   {
     "id": "cell_250m_0002",
@@ -35,7 +39,11 @@
     "burden": 8.11,
     "cooling_mean": 2.8,
     "cooling_p10": 2.77,
-    "cooling_p90": 2.84
+    "cooling_p90": 2.84,
+    "heat_excess_celsius": 4.0,
+    "solar_penalty_mean": -2.13,
+    "solar_penalty_p10": -2.98,
+    "solar_penalty_p90": -1.18
   },
   {
     "id": "cell_250m_0003",
@@ -54,7 +62,11 @@
     "burden": 7.78,
     "cooling_mean": 2.53,
     "cooling_p10": 2.5,
-    "cooling_p90": 2.57
+    "cooling_p90": 2.57,
+    "heat_excess_celsius": 4.03,
+    "solar_penalty_mean": -2.15,
+    "solar_penalty_p10": -3.0,
+    "solar_penalty_p90": -1.19
   },
   {
     "id": "cell_250m_0004",
@@ -73,7 +85,11 @@
     "burden": 12.93,
     "cooling_mean": 1.84,
     "cooling_p10": 1.82,
-    "cooling_p90": 1.87
+    "cooling_p90": 1.87,
+    "heat_excess_celsius": 5.26,
+    "solar_penalty_mean": -2.8,
+    "solar_penalty_p10": -3.91,
+    "solar_penalty_p90": -1.55
   },
   {
     "id": "cell_250m_0005",
@@ -92,7 +108,11 @@
     "burden": 11.38,
     "cooling_mean": 1.35,
     "cooling_p10": 1.34,
-    "cooling_p90": 1.37
+    "cooling_p90": 1.37,
+    "heat_excess_celsius": 6.19,
+    "solar_penalty_mean": -3.3,
+    "solar_penalty_p10": -4.61,
+    "solar_penalty_p90": -1.83
   },
   {
     "id": "cell_250m_0006",
@@ -111,7 +131,11 @@
     "burden": null,
     "cooling_mean": null,
     "cooling_p10": null,
-    "cooling_p90": null
+    "cooling_p90": null,
+    "heat_excess_celsius": null,
+    "solar_penalty_mean": null,
+    "solar_penalty_p10": null,
+    "solar_penalty_p90": null
   },
   {
     "id": "cell_250m_0007",
@@ -130,7 +154,11 @@
     "burden": 2.34,
     "cooling_mean": 3.34,
     "cooling_p10": 2.6,
-    "cooling_p90": 3.84
+    "cooling_p90": 3.84,
+    "heat_excess_celsius": 1.42,
+    "solar_penalty_mean": -0.76,
+    "solar_penalty_p10": -1.06,
+    "solar_penalty_p90": -0.42
   },
   {
     "id": "cell_250m_0008",
@@ -149,7 +177,11 @@
     "burden": 1.92,
     "cooling_mean": 2.69,
     "cooling_p10": 1.94,
-    "cooling_p90": 3.08
+    "cooling_p90": 3.08,
+    "heat_excess_celsius": 0.51,
+    "solar_penalty_mean": -0.27,
+    "solar_penalty_p10": -0.38,
+    "solar_penalty_p90": -0.15
   },
   {
     "id": "cell_250m_0009",
@@ -168,7 +200,11 @@
     "burden": 2.19,
     "cooling_mean": 2.79,
     "cooling_p10": 2.55,
-    "cooling_p90": 3.09
+    "cooling_p90": 3.09,
+    "heat_excess_celsius": 1.35,
+    "solar_penalty_mean": -0.72,
+    "solar_penalty_p10": -1.0,
+    "solar_penalty_p90": -0.4
   },
   {
     "id": "cell_250m_0010",
@@ -187,7 +223,11 @@
     "burden": 1.6,
     "cooling_mean": 3.04,
     "cooling_p10": 2.37,
-    "cooling_p90": 3.57
+    "cooling_p90": 3.57,
+    "heat_excess_celsius": 0.0,
+    "solar_penalty_mean": -0.0,
+    "solar_penalty_p10": -0.0,
+    "solar_penalty_p90": -0.0
   },
   {
     "id": "cell_250m_0011",
@@ -206,7 +246,11 @@
     "burden": 1.93,
     "cooling_mean": 2.97,
     "cooling_p10": 2.42,
-    "cooling_p90": 3.6
+    "cooling_p90": 3.6,
+    "heat_excess_celsius": 0.79,
+    "solar_penalty_mean": -0.42,
+    "solar_penalty_p10": -0.59,
+    "solar_penalty_p90": -0.23
   },
   {
     "id": "cell_250m_0012",
@@ -225,7 +269,11 @@
     "burden": 1.11,
     "cooling_mean": 2.98,
     "cooling_p10": 2.49,
-    "cooling_p90": 3.4
+    "cooling_p90": 3.4,
+    "heat_excess_celsius": 0.0,
+    "solar_penalty_mean": -0.0,
+    "solar_penalty_p10": -0.0,
+    "solar_penalty_p90": -0.0
   },
   {
     "id": "cell_250m_0013",
@@ -244,7 +292,11 @@
     "burden": 0.63,
     "cooling_mean": 3.56,
     "cooling_p10": 3.08,
-    "cooling_p90": 4.07
+    "cooling_p90": 4.07,
+    "heat_excess_celsius": 0.0,
+    "solar_penalty_mean": -0.0,
+    "solar_penalty_p10": -0.0,
+    "solar_penalty_p90": -0.0
   },
   {
     "id": "cell_250m_0014",
@@ -263,7 +315,11 @@
     "burden": 0.95,
     "cooling_mean": 3.35,
     "cooling_p10": 2.86,
-    "cooling_p90": 3.88
+    "cooling_p90": 3.88,
+    "heat_excess_celsius": 0.0,
+    "solar_penalty_mean": -0.0,
+    "solar_penalty_p10": -0.0,
+    "solar_penalty_p90": -0.0
   },
   {
     "id": "cell_250m_0015",
@@ -282,7 +338,11 @@
     "burden": 1.24,
     "cooling_mean": 3.04,
     "cooling_p10": 2.46,
-    "cooling_p90": 3.65
+    "cooling_p90": 3.65,
+    "heat_excess_celsius": 0.0,
+    "solar_penalty_mean": -0.0,
+    "solar_penalty_p10": -0.0,
+    "solar_penalty_p90": -0.0
   },
   {
     "id": "cell_250m_0016",
@@ -301,7 +361,11 @@
     "burden": 5.53,
     "cooling_mean": 3.21,
     "cooling_p10": 2.35,
-    "cooling_p90": 4.31
+    "cooling_p90": 4.31,
+    "heat_excess_celsius": 3.52,
+    "solar_penalty_mean": -1.88,
+    "solar_penalty_p10": -2.62,
+    "solar_penalty_p90": -1.04
   },
   {
     "id": "cell_250m_0017",
@@ -320,7 +384,11 @@
     "burden": 5.86,
     "cooling_mean": 2.83,
     "cooling_p10": 1.87,
-    "cooling_p90": 3.68
+    "cooling_p90": 3.68,
+    "heat_excess_celsius": 3.57,
+    "solar_penalty_mean": -1.9,
+    "solar_penalty_p10": -2.66,
+    "solar_penalty_p90": -1.05
   },
   {
     "id": "cell_250m_0018",
@@ -339,7 +407,11 @@
     "burden": 5.86,
     "cooling_mean": 1.99,
     "cooling_p10": 1.01,
-    "cooling_p90": 3.01
+    "cooling_p90": 3.01,
+    "heat_excess_celsius": 3.36,
+    "solar_penalty_mean": -1.79,
+    "solar_penalty_p10": -2.5,
+    "solar_penalty_p90": -0.99
   },
   {
     "id": "cell_250m_0019",
@@ -358,7 +430,11 @@
     "burden": 7.29,
     "cooling_mean": 3.58,
     "cooling_p10": 3.54,
-    "cooling_p90": 3.63
+    "cooling_p90": 3.63,
+    "heat_excess_celsius": 4.07,
+    "solar_penalty_mean": -2.17,
+    "solar_penalty_p10": -3.03,
+    "solar_penalty_p90": -1.2
   },
   {
     "id": "cell_250m_0020",
@@ -377,7 +453,11 @@
     "burden": 6.95,
     "cooling_mean": 3.04,
     "cooling_p10": 3.0,
-    "cooling_p90": 3.08
+    "cooling_p90": 3.08,
+    "heat_excess_celsius": 4.47,
+    "solar_penalty_mean": -2.38,
+    "solar_penalty_p10": -3.33,
+    "solar_penalty_p90": -1.32
   },
   {
     "id": "cell_250m_0021",
@@ -396,7 +476,11 @@
     "burden": 5.85,
     "cooling_mean": 4.05,
     "cooling_p10": 4.0,
-    "cooling_p90": 4.1
+    "cooling_p90": 4.1,
+    "heat_excess_celsius": 3.65,
+    "solar_penalty_mean": -1.95,
+    "solar_penalty_p10": -2.72,
+    "solar_penalty_p90": -1.08
   },
   {
     "id": "cell_250m_0022",
@@ -415,7 +499,11 @@
     "burden": 2.7,
     "cooling_mean": 2.99,
     "cooling_p10": 2.24,
-    "cooling_p90": 3.76
+    "cooling_p90": 3.76,
+    "heat_excess_celsius": 1.11,
+    "solar_penalty_mean": -0.59,
+    "solar_penalty_p10": -0.83,
+    "solar_penalty_p90": -0.33
   },
   {
     "id": "cell_250m_0023",
@@ -434,7 +522,11 @@
     "burden": 2.48,
     "cooling_mean": 2.88,
     "cooling_p10": 2.31,
-    "cooling_p90": 3.43
+    "cooling_p90": 3.43,
+    "heat_excess_celsius": 1.54,
+    "solar_penalty_mean": -0.82,
+    "solar_penalty_p10": -1.15,
+    "solar_penalty_p90": -0.45
   },
   {
     "id": "cell_250m_0024",
@@ -453,7 +545,11 @@
     "burden": 2.44,
     "cooling_mean": 2.56,
     "cooling_p10": 2.12,
-    "cooling_p90": 2.92
+    "cooling_p90": 2.92,
+    "heat_excess_celsius": 1.51,
+    "solar_penalty_mean": -0.8,
+    "solar_penalty_p10": -1.12,
+    "solar_penalty_p90": -0.45
   },
   {
     "id": "cell_250m_0025",
@@ -472,7 +568,11 @@
     "burden": 4.34,
     "cooling_mean": 2.77,
     "cooling_p10": 2.33,
-    "cooling_p90": 3.25
+    "cooling_p90": 3.25,
+    "heat_excess_celsius": 2.68,
+    "solar_penalty_mean": -1.43,
+    "solar_penalty_p10": -1.99,
+    "solar_penalty_p90": -0.79
   },
   {
     "id": "cell_250m_0026",
@@ -491,7 +591,11 @@
     "burden": 4.62,
     "cooling_mean": 2.54,
     "cooling_p10": 1.87,
-    "cooling_p90": 3.16
+    "cooling_p90": 3.16,
+    "heat_excess_celsius": 2.68,
+    "solar_penalty_mean": -1.43,
+    "solar_penalty_p10": -1.99,
+    "solar_penalty_p90": -0.79
   },
   {
     "id": "cell_250m_0027",
@@ -510,7 +614,11 @@
     "burden": 3.07,
     "cooling_mean": 2.14,
     "cooling_p10": 1.65,
-    "cooling_p90": 2.75
+    "cooling_p90": 2.75,
+    "heat_excess_celsius": 1.44,
+    "solar_penalty_mean": -0.77,
+    "solar_penalty_p10": -1.07,
+    "solar_penalty_p90": -0.42
   },
   {
     "id": "cell_250m_0028",
@@ -529,7 +637,11 @@
     "burden": 4.43,
     "cooling_mean": 2.64,
     "cooling_p10": 1.74,
-    "cooling_p90": 3.24
+    "cooling_p90": 3.24,
+    "heat_excess_celsius": 2.63,
+    "solar_penalty_mean": -1.4,
+    "solar_penalty_p10": -1.96,
+    "solar_penalty_p90": -0.78
   },
   {
     "id": "cell_250m_0029",
@@ -548,7 +660,11 @@
     "burden": 4.13,
     "cooling_mean": 2.62,
     "cooling_p10": 1.65,
-    "cooling_p90": 3.16
+    "cooling_p90": 3.16,
+    "heat_excess_celsius": 2.56,
+    "solar_penalty_mean": -1.36,
+    "solar_penalty_p10": -1.9,
+    "solar_penalty_p90": -0.76
   },
   {
     "id": "cell_250m_0030",
@@ -567,7 +683,11 @@
     "burden": 5.07,
     "cooling_mean": 2.13,
     "cooling_p10": 1.23,
-    "cooling_p90": 2.75
+    "cooling_p90": 2.75,
+    "heat_excess_celsius": 2.78,
+    "solar_penalty_mean": -1.48,
+    "solar_penalty_p10": -2.07,
+    "solar_penalty_p90": -0.82
   },
   {
     "id": "cell_250m_0031",
@@ -586,7 +706,11 @@
     "burden": 5.6,
     "cooling_mean": 2.74,
     "cooling_p10": 2.32,
-    "cooling_p90": 3.32
+    "cooling_p90": 3.32,
+    "heat_excess_celsius": 4.0,
+    "solar_penalty_mean": -2.13,
+    "solar_penalty_p10": -2.98,
+    "solar_penalty_p90": -1.18
   },
   {
     "id": "cell_250m_0032",
@@ -605,7 +729,11 @@
     "burden": 5.23,
     "cooling_mean": 2.99,
     "cooling_p10": 2.19,
-    "cooling_p90": 3.61
+    "cooling_p90": 3.61,
+    "heat_excess_celsius": 4.02,
+    "solar_penalty_mean": -2.14,
+    "solar_penalty_p10": -2.99,
+    "solar_penalty_p90": -1.19
   },
   {
     "id": "cell_250m_0033",
@@ -624,7 +752,11 @@
     "burden": 5.27,
     "cooling_mean": 2.71,
     "cooling_p10": 1.66,
-    "cooling_p90": 3.43
+    "cooling_p90": 3.43,
+    "heat_excess_celsius": 3.86,
+    "solar_penalty_mean": -2.06,
+    "solar_penalty_p10": -2.87,
+    "solar_penalty_p90": -1.14
   },
   {
     "id": "cell_250m_0034",
@@ -643,7 +775,11 @@
     "burden": 1.38,
     "cooling_mean": 2.99,
     "cooling_p10": 2.29,
-    "cooling_p90": 3.56
+    "cooling_p90": 3.56,
+    "heat_excess_celsius": 0.06,
+    "solar_penalty_mean": -0.03,
+    "solar_penalty_p10": -0.04,
+    "solar_penalty_p90": -0.02
   },
   {
     "id": "cell_250m_0035",
@@ -662,7 +798,11 @@
     "burden": 1.56,
     "cooling_mean": 3.08,
     "cooling_p10": 2.52,
-    "cooling_p90": 3.65
+    "cooling_p90": 3.65,
+    "heat_excess_celsius": 0.17,
+    "solar_penalty_mean": -0.09,
+    "solar_penalty_p10": -0.13,
+    "solar_penalty_p90": -0.05
   },
   {
     "id": "cell_250m_0036",
@@ -681,7 +821,11 @@
     "burden": 2.1,
     "cooling_mean": 3.56,
     "cooling_p10": 2.91,
-    "cooling_p90": 4.16
+    "cooling_p90": 4.16,
+    "heat_excess_celsius": 0.85,
+    "solar_penalty_mean": -0.45,
+    "solar_penalty_p10": -0.63,
+    "solar_penalty_p90": -0.25
   },
   {
     "id": "cell_250m_0037",
@@ -700,7 +844,11 @@
     "burden": 6.77,
     "cooling_mean": 3.04,
     "cooling_p10": 3.0,
-    "cooling_p90": 3.08
+    "cooling_p90": 3.08,
+    "heat_excess_celsius": 3.71,
+    "solar_penalty_mean": -1.98,
+    "solar_penalty_p10": -2.76,
+    "solar_penalty_p90": -1.09
   },
   {
     "id": "cell_250m_0038",
@@ -719,7 +867,11 @@
     "burden": 7.74,
     "cooling_mean": 3.03,
     "cooling_p10": 2.99,
-    "cooling_p90": 3.07
+    "cooling_p90": 3.07,
+    "heat_excess_celsius": 3.95,
+    "solar_penalty_mean": -2.11,
+    "solar_penalty_p10": -2.94,
+    "solar_penalty_p90": -1.17
   },
   {
     "id": "cell_250m_0039",
@@ -738,7 +890,11 @@
     "burden": 7.59,
     "cooling_mean": 2.59,
     "cooling_p10": 2.56,
-    "cooling_p90": 2.63
+    "cooling_p90": 2.63,
+    "heat_excess_celsius": 4.89,
+    "solar_penalty_mean": -2.61,
+    "solar_penalty_p10": -3.64,
+    "solar_penalty_p90": -1.44
   },
   {
     "id": "cell_250m_0040",
@@ -757,7 +913,11 @@
     "burden": 3.52,
     "cooling_mean": 3.78,
     "cooling_p10": 3.29,
-    "cooling_p90": 4.45
+    "cooling_p90": 4.45,
+    "heat_excess_celsius": 2.11,
+    "solar_penalty_mean": -1.12,
+    "solar_penalty_p10": -1.57,
+    "solar_penalty_p90": -0.62
   },
   {
     "id": "cell_250m_0041",
@@ -776,7 +936,11 @@
     "burden": 3.45,
     "cooling_mean": 3.3,
     "cooling_p10": 2.74,
-    "cooling_p90": 3.79
+    "cooling_p90": 3.79,
+    "heat_excess_celsius": 3.18,
+    "solar_penalty_mean": -1.69,
+    "solar_penalty_p10": -2.37,
+    "solar_penalty_p90": -0.94
   },
   {
     "id": "cell_250m_0042",
@@ -795,6 +959,10 @@
     "burden": 4.51,
     "cooling_mean": 3.01,
     "cooling_p10": 2.45,
-    "cooling_p90": 3.65
+    "cooling_p90": 3.65,
+    "heat_excess_celsius": 3.37,
+    "solar_penalty_mean": -1.8,
+    "solar_penalty_p10": -2.51,
+    "solar_penalty_p90": -0.99
   }
 ]

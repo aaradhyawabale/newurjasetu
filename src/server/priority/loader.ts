@@ -6,7 +6,8 @@ import {
   EnsembleStats,
   GreenLossDataset,
   GreenLossCell,
-  WardGreenLossAggregate
+  WardGreenLossAggregate,
+  SolarModelCard
 } from './types';
 
 export * from './types';
@@ -34,6 +35,7 @@ export const CELLS_FILE = path.join(PRIORITY_DATA_DIR, 'cells.json');
 export const ENSEMBLE_FILE = path.join(PRIORITY_DATA_DIR, 'ensemble_effects.bin');
 export const MODEL_CARD_FILE = path.join(PRIORITY_DATA_DIR, 'model_card.json');
 export const GREEN_LOSS_FILE = path.join(PRIORITY_DATA_DIR, 'green_loss.json');
+export const SOLAR_MODEL_CARD_FILE = path.join(PRIORITY_DATA_DIR, 'solar_model_card.json');
 
 /**
  * Number of Monte Carlo / physical ensemble members per 250m cell
@@ -45,6 +47,7 @@ let cachedCells: PriorityCell[] | null = null;
 let cachedModelCard: PriorityModelCard | null = null;
 let cachedEnsembleBuffer: Float32Array | null = null;
 let cachedGreenLoss: GreenLossDataset | null = null;
+let cachedSolarModelCard: SolarModelCard | null = null;
 
 /**
  * Reset server-side memory caches (useful during tests or hot-reloading)
@@ -54,6 +57,7 @@ export function clearPriorityCache(): void {
   cachedModelCard = null;
   cachedEnsembleBuffer = null;
   cachedGreenLoss = null;
+  cachedSolarModelCard = null;
 }
 
 /**
@@ -113,6 +117,10 @@ export function getPriorityCellsSync(): PriorityCell[] {
       cooling_mean: item.cooling_mean !== null && item.cooling_mean !== undefined ? Number(item.cooling_mean) : null,
       cooling_p10: item.cooling_p10 !== null && item.cooling_p10 !== undefined ? Number(item.cooling_p10) : null,
       cooling_p90: item.cooling_p90 !== null && item.cooling_p90 !== undefined ? Number(item.cooling_p90) : null,
+      heat_excess_celsius: item.heat_excess_celsius !== null && item.heat_excess_celsius !== undefined ? Number(item.heat_excess_celsius) : null,
+      solar_penalty_mean: item.solar_penalty_mean !== null && item.solar_penalty_mean !== undefined ? Number(item.solar_penalty_mean) : null,
+      solar_penalty_p10: item.solar_penalty_p10 !== null && item.solar_penalty_p10 !== undefined ? Number(item.solar_penalty_p10) : null,
+      solar_penalty_p90: item.solar_penalty_p90 !== null && item.solar_penalty_p90 !== undefined ? Number(item.solar_penalty_p90) : null,
     };
   });
 
@@ -381,4 +389,34 @@ export function getGreenLossCellById(id: string): GreenLossCell | null {
 export function getGreenLossWardAggregatesSync(): WardGreenLossAggregate[] {
   const data = getGreenLossDataSync();
   return data.ward_aggregates;
+}
+
+/**
+ * Check whether solar model card artifact exists on disk
+ */
+export function isSolarModelCardAvailable(): boolean {
+  return fs.existsSync(SOLAR_MODEL_CARD_FILE);
+}
+
+/**
+ * Synchronously load and cache the Solar Heat Penalty model card
+ */
+export function getSolarModelCardSync(): SolarModelCard | null {
+  if (cachedSolarModelCard) {
+    return cachedSolarModelCard;
+  }
+
+  if (!fs.existsSync(SOLAR_MODEL_CARD_FILE)) {
+    return null;
+  }
+
+  try {
+    const raw = fs.readFileSync(SOLAR_MODEL_CARD_FILE, 'utf-8');
+    const parsed = JSON.parse(raw) as SolarModelCard;
+    cachedSolarModelCard = parsed;
+    return parsed;
+  } catch (err: any) {
+    console.error(`Failed to parse Solar model card: ${err.message}`);
+    return null;
+  }
 }

@@ -22,3 +22,6 @@ prisma/test.db-shm
 *.tsbuildinfo
 .DS_Store
 ndata/
+data/external/
+__pycache__/
+*.pyc

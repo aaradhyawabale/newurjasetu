@@ -59,7 +59,7 @@ export const VIRIDIS_PALETTE = {
   colors: ["#440154", "#3b528b", "#21918c", "#5ec962", "#fde725"]
 };
 
-type ActiveLayerType = "burden" | "lst" | "ndvi" | "population" | "selected" | "green_loss";
+type ActiveLayerType = "burden" | "lst" | "ndvi" | "population" | "selected" | "green_loss" | "solar_penalty";
 
 interface HeatPriorityScreenProps {
   initialCells?: PriorityCell[];
@@ -291,6 +291,10 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
           delta_ndbi: lossCell?.delta_ndbi ?? 0,
           loss_area_ha: lossCell?.loss_area_ha ?? 0,
           extra_heat_mean: lossCell?.extra_heat_mean ?? 0,
+          heat_excess_celsius: cell.heat_excess_celsius ?? 0,
+          solar_penalty_mean: cell.solar_penalty_mean !== null && cell.solar_penalty_mean !== undefined ? cell.solar_penalty_mean : null,
+          solar_penalty_p10: cell.solar_penalty_p10 !== null && cell.solar_penalty_p10 !== undefined ? cell.solar_penalty_p10 : null,
+          solar_penalty_p90: cell.solar_penalty_p90 !== null && cell.solar_penalty_p90 !== undefined ? cell.solar_penalty_p90 : null,
           isSelected: isSelected ? 1 : 0,
           rank,
           selection_frequency: freq,
@@ -545,6 +549,22 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
           -0.30, "#7f1d1d",
           -0.20, "#dc2626",
           -0.10, "#ea580c"
+        ],
+        "#1e293b"
+      ];
+    } else if (activeLayer === "solar_penalty") {
+      fillColorExpr = [
+        "case",
+        ["!=", ["get", "solar_penalty_mean"], null],
+        [
+          "interpolate",
+          ["linear"],
+          ["get", "solar_penalty_mean"],
+          -5.5, "#7f1d1d",
+          -4.0, "#dc2626",
+          -2.5, "#ea580c",
+          -1.0, "#eab308",
+           0.0, "#334155"
         ],
         "#1e293b"
       ];
@@ -1350,17 +1370,29 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
           >
             Green Loss
           </button>
+          <button
+            type="button"
+            onClick={() => setActiveLayer("solar_penalty")}
+            className={`px-2.5 py-1 rounded font-medium transition-colors ${
+              activeLayer === "solar_penalty"
+                ? "bg-amber-600 text-white font-bold shadow-xs"
+                : "text-stone-400 hover:text-stone-200"
+            }`}
+          >
+            Solar Penalty
+          </button>
         </div>
 
         {/* Floating Colour-Blind-Safe Sequential Palette Legend */}
-        <div className="absolute bottom-24 right-3 z-20 bg-stone-900/90 backdrop-blur-md p-2.5 rounded-lg border border-stone-800 shadow-xl flex flex-col gap-1.5 w-60">
+        <div className="absolute bottom-24 right-3 z-20 bg-stone-900/90 backdrop-blur-md p-2.5 rounded-lg border border-stone-800 shadow-xl flex flex-col gap-1.5 w-64">
           <div className="flex items-center justify-between text-[10px] font-mono text-stone-300">
             <span className="font-bold uppercase tracking-wider">
               {activeLayer === "burden" ? "Heat Burden (Viridis)" :
                activeLayer === "lst" ? "LST Radiometric (°C)" :
                activeLayer === "ndvi" ? "Sentinel-2 NDVI" :
                activeLayer === "population" ? "Resident Density" :
-               activeLayer === "green_loss" ? "Vegetation Loss (ΔNDVI)" : "Selected Zones"}
+               activeLayer === "green_loss" ? "Vegetation Loss (ΔNDVI)" :
+               activeLayer === "solar_penalty" ? "Solar Heat Penalty (% Loss)" : "Selected Zones"}
             </span>
             <ProvenanceTag
               type={activeLayer === "lst" || activeLayer === "ndvi" ? "Measured" : "Modelled"}
@@ -1374,6 +1406,14 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
               <div className="flex-1 h-full bg-orange-600" title="Moderate Loss (ΔNDVI -0.10 to -0.20)" />
               <div className="flex-1 h-full bg-red-600" title="High Loss (ΔNDVI -0.20 to -0.30)" />
               <div className="flex-1 h-full bg-red-900" title="Severe Loss (ΔNDVI ≤ -0.30)" />
+            </div>
+          ) : activeLayer === "solar_penalty" ? (
+            <div className="w-full h-3 rounded overflow-hidden flex border border-stone-700">
+              <div className="flex-1 h-full bg-slate-700" title="Cool baseline (0.0% loss)" />
+              <div className="flex-1 h-full bg-yellow-500" title="Mild derating (-1.0% loss)" />
+              <div className="flex-1 h-full bg-orange-600" title="Moderate derating (-2.5% loss)" />
+              <div className="flex-1 h-full bg-red-600" title="Elevated derating (-4.0% loss)" />
+              <div className="flex-1 h-full bg-red-900" title="Severe derating (-5.5%+ loss)" />
             </div>
           ) : (
             <div className="w-full h-3 rounded overflow-hidden flex border border-stone-700">
@@ -1389,6 +1429,11 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
                 <span>Stable (Δ ≥ -0.10)</span>
                 <span>Severe Loss (≤ -0.30)</span>
               </>
+            ) : activeLayer === "solar_penalty" ? (
+              <>
+                <span>0.0% (Cool Baseline)</span>
+                <span>-5.5% (High Penalty)</span>
+              </>
             ) : (
               <>
                 <span>Low Exposure</span>
@@ -1400,6 +1445,8 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
           <span className="text-[8px] text-stone-500 leading-tight">
             {activeLayer === "green_loss"
               ? "Sentinel-2 2019 vs 2026 pre-monsoon (ΔNDVI ≤ -0.10 & ΔNDBI > 0)."
+              : activeLayer === "solar_penalty"
+              ? "Relative PV derating from local surface heat excess. Does not calculate absolute kWh."
               : "Colour-blind-safe sequential Viridis palette (Deuteranopia & Protanopia compliant)."}
           </span>
         </div>

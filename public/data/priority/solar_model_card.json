@@ -1,0 +1,54 @@
+{
+  "model_name": "UrjaSetu Empirical Solar Temperature Penalty Model",
+  "version": "1.0.0",
+  "training_dates": {
+    "start_date": "2020-05-15",
+    "end_date": "2020-06-17",
+    "total_days": 34
+  },
+  "dataset_plants": [
+    {
+      "plant_id": 4135001,
+      "name": "Gandikota Solar Plant 1 (India)",
+      "rmse_kw": 20.1,
+      "r2_score": 0.9954,
+      "train_days": 27,
+      "test_days": 7
+    },
+    {
+      "plant_id": 4136001,
+      "name": "Gandikota Solar Plant 2 (India)",
+      "rmse_kw": 25.19,
+      "r2_score": 0.9947,
+      "train_days": 27,
+      "test_days": 7
+    }
+  ],
+  "temperature_penalty": {
+    "fixed_irradiation_kw_m2": 0.8,
+    "base_module_temp_celsius": 45.0,
+    "hot_module_temp_celsius": 55.0,
+    "delta_temp_celsius": 10.0,
+    "percent_change_per_10c_mean": -5.33,
+    "percent_change_per_10c_p10": -7.44,
+    "percent_change_per_10c_p90": -2.95,
+    "bootstrap_samples": 30,
+    "penalty_per_celsius_mean": -0.533
+  },
+  "limitations": [
+    "Trained on 34 days of operational SCADA and weather sensor data (May 15 - June 17, 2020) from two utility-scale solar plants in Gandikota, India.",
+    "Not Pune-specific: Pune urban microclimates have distinct convective wind patterns, humidity profiles, atmospheric aerosol optical depths, and rooftop boundary layer turbulence.",
+    "Relative output loss only: does NOT predict absolute kWh solar generation for Pune cells without site-specific panel tilt, orientation, inverter sizing, and clipping factors.",
+    "Surface temperature (LST) is radiometric skin temperature, NOT PV module surface temperature or ambient 2m air temperature."
+  ],
+  "governance": {
+    "disclaimers": [
+      "Surface temperature (LST) is radiometric skin temperature, NOT 2m air temperature.",
+      "NDVI is a spectral vegetation reflectance index, NOT 3D canopy cover or shading.",
+      "Do NOT present absolute kWh for Pune; only relative percentage efficiency derating from local heat excess.",
+      "Unknown values stay null and show 'Not available'."
+    ],
+    "provenance_tag": "Modelled"
+  },
+  "created_at": "2026-11-04T18:46:14.352017+00:00"
+}
