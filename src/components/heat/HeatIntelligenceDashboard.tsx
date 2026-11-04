@@ -23,6 +23,7 @@ import {
   ArrowRight,
   BookOpen
 } from "lucide-react";
+import { ProvenanceTag } from "../ui/ProvenanceTag";
 
 interface HeatIntelligenceDashboardProps {
   isOpen: boolean;
@@ -178,6 +179,22 @@ export const HeatIntelligenceDashboard: React.FC<HeatIntelligenceDashboardProps>
           </button>
         </div>
 
+        {/* Project Scientific Rules & Disclaimers Banner */}
+        <div className="px-6 py-2.5 bg-stone-100 border-b border-stone-200 flex items-center justify-between flex-wrap gap-2 text-[10.5px] text-stone-700 font-mono shrink-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-bold text-stone-900 uppercase">Scientific Disclaimers:</span>
+            <span>• Surface temperature (LST) is radiometric skin temperature, NOT 2m ambient air temperature</span>
+            <span>• NDVI is a spectral reflectance index, NOT 3D tree canopy cover</span>
+            <span>• No arbitrary weighted composite scores</span>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="text-stone-500 text-[10px]">Data Provenance:</span>
+            <ProvenanceTag type="Measured" />
+            <ProvenanceTag type="Modelled" />
+            <ProvenanceTag type="Assumed" />
+          </div>
+        </div>
+
         {/* Content Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {isLoading ? (
@@ -201,29 +218,44 @@ export const HeatIntelligenceDashboard: React.FC<HeatIntelligenceDashboardProps>
                   {/* Top Stats Grid */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <div className="p-3.5 rounded-panel bg-rose-50/70 border border-rose-200 flex flex-col gap-1">
-                      <span className="text-[10px] font-mono text-rose-700 font-semibold uppercase">Mean LST (°C)</span>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-mono text-rose-700 font-semibold uppercase">Mean LST (°C)</span>
+                        <ProvenanceTag type="Measured" />
+                      </div>
                       <span className="text-2xl font-bold font-mono text-rose-950">
-                        {landsat.calibratedLSTCelsius.mean.toFixed(1)}°C
+                        {landsat?.calibratedLSTCelsius?.mean !== null && landsat?.calibratedLSTCelsius?.mean !== undefined
+                          ? `${landsat.calibratedLSTCelsius.mean.toFixed(1)}°C`
+                          : "Not available"}
                       </span>
                       <span className="text-[10px] text-stone-500">
-                        Range: {landsat.calibratedLSTCelsius.min.toFixed(1)}°C – {landsat.calibratedLSTCelsius.max.toFixed(1)}°C
+                        Range: {landsat?.calibratedLSTCelsius?.min !== null && landsat?.calibratedLSTCelsius?.min !== undefined ? `${landsat.calibratedLSTCelsius.min.toFixed(1)}°C` : "Not available"} – {landsat?.calibratedLSTCelsius?.max !== null && landsat?.calibratedLSTCelsius?.max !== undefined ? `${landsat.calibratedLSTCelsius.max.toFixed(1)}°C` : "Not available"}
                       </span>
                     </div>
 
                     <div className="p-3.5 rounded-panel bg-emerald-50/70 border border-emerald-200 flex flex-col gap-1">
-                      <span className="text-[10px] font-mono text-emerald-700 font-semibold uppercase">Mean NDVI (30m)</span>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-mono text-emerald-700 font-semibold uppercase">Mean NDVI (30m)</span>
+                        <ProvenanceTag type="Measured" />
+                      </div>
                       <span className="text-2xl font-bold font-mono text-emerald-950">
-                        {sentinel.ndvi30mDistribution.mean.toFixed(3)}
+                        {sentinel?.ndvi30mDistribution?.mean !== null && sentinel?.ndvi30mDistribution?.mean !== undefined
+                          ? sentinel.ndvi30mDistribution.mean.toFixed(3)
+                          : "Not available"}
                       </span>
                       <span className="text-[10px] text-stone-500">
-                        Median: {sentinel.ndvi30mDistribution.median.toFixed(3)} (±{sentinel.ndvi30mDistribution.std.toFixed(3)})
+                        Median: {sentinel?.ndvi30mDistribution?.median !== null && sentinel?.ndvi30mDistribution?.median !== undefined ? sentinel.ndvi30mDistribution.median.toFixed(3) : "Not available"} (±{sentinel?.ndvi30mDistribution?.std !== null && sentinel?.ndvi30mDistribution?.std !== undefined ? sentinel.ndvi30mDistribution.std.toFixed(3) : "Not available"})
                       </span>
                     </div>
 
                     <div className="p-3.5 rounded-panel bg-blue-50/70 border border-blue-200 flex flex-col gap-1">
-                      <span className="text-[10px] font-mono text-blue-700 font-semibold uppercase">Study Area Extent</span>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-mono text-blue-700 font-semibold uppercase">Study Area Extent</span>
+                        <ProvenanceTag type="Modelled" />
+                      </div>
                       <span className="text-2xl font-bold font-mono text-blue-950">
-                        {metadata.candidateBoundaryAreaKm2.toFixed(1)} km²
+                        {metadata?.candidateBoundaryAreaKm2 !== null && metadata?.candidateBoundaryAreaKm2 !== undefined
+                          ? `${metadata.candidateBoundaryAreaKm2.toFixed(1)} km²`
+                          : "Not available"}
                       </span>
                       <span className="text-[10px] text-stone-500">
                         577,304 boundary cells (30m)
@@ -231,12 +263,17 @@ export const HeatIntelligenceDashboard: React.FC<HeatIntelligenceDashboardProps>
                     </div>
 
                     <div className="p-3.5 rounded-panel bg-purple-50/70 border border-purple-200 flex flex-col gap-1">
-                      <span className="text-[10px] font-mono text-purple-700 font-semibold uppercase">Clear-Sky Validity</span>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-mono text-purple-700 font-semibold uppercase">Clear-Sky Validity</span>
+                        <ProvenanceTag type="Measured" />
+                      </div>
                       <span className="text-2xl font-bold font-mono text-purple-950">
-                        {landsat.qaPixelBreakdown.clearPercentage.toFixed(2)}%
+                        {landsat?.qaPixelBreakdown?.clearPercentage !== null && landsat?.qaPixelBreakdown?.clearPercentage !== undefined
+                          ? `${landsat.qaPixelBreakdown.clearPercentage.toFixed(2)}%`
+                          : "Not available"}
                       </span>
                       <span className="text-[10px] text-stone-500">
-                        Uncertainty: ±{landsat.surfaceTemperatureQA.meanUncertaintyK.toFixed(2)} K
+                        Uncertainty: ±{landsat?.surfaceTemperatureQA?.meanUncertaintyK !== null && landsat?.surfaceTemperatureQA?.meanUncertaintyK !== undefined ? `${landsat.surfaceTemperatureQA.meanUncertaintyK.toFixed(2)} K` : "Not available"}
                       </span>
                     </div>
                   </div>
@@ -355,21 +392,47 @@ export const HeatIntelligenceDashboard: React.FC<HeatIntelligenceDashboardProps>
 
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 font-mono text-[11px]">
                       <div className="p-2.5 rounded bg-white border border-rose-200 flex flex-col">
-                        <span className="text-[10px] text-stone-400">Mean Temperature</span>
-                        <span className="text-base font-bold text-rose-900">{landsat.calibratedLSTCelsius.mean.toFixed(2)}°C</span>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] text-stone-400">Mean Temperature</span>
+                          <ProvenanceTag type="Measured" />
+                        </div>
+                        <span className="text-base font-bold text-rose-900">
+                          {landsat?.calibratedLSTCelsius?.mean !== null && landsat?.calibratedLSTCelsius?.mean !== undefined
+                            ? `${landsat.calibratedLSTCelsius.mean.toFixed(2)}°C`
+                            : "Not available"}
+                        </span>
                       </div>
                       <div className="p-2.5 rounded bg-white border border-rose-200 flex flex-col">
-                        <span className="text-[10px] text-stone-400">Median (P50)</span>
-                        <span className="text-base font-bold text-rose-900">{landsat.calibratedLSTCelsius.median.toFixed(2)}°C</span>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] text-stone-400">Median (P50)</span>
+                          <ProvenanceTag type="Measured" />
+                        </div>
+                        <span className="text-base font-bold text-rose-900">
+                          {landsat?.calibratedLSTCelsius?.median !== null && landsat?.calibratedLSTCelsius?.median !== undefined
+                            ? `${landsat.calibratedLSTCelsius.median.toFixed(2)}°C`
+                            : "Not available"}
+                        </span>
                       </div>
                       <div className="p-2.5 rounded bg-white border border-rose-200 flex flex-col">
-                        <span className="text-[10px] text-stone-400">Std Deviation</span>
-                        <span className="text-base font-bold text-stone-700">±{landsat.calibratedLSTCelsius.std.toFixed(2)}°C</span>
-                      </div>
-                      <div className="p-2.5 rounded bg-white border border-rose-200 flex flex-col">
-                        <span className="text-[10px] text-stone-400">Range (Min–Max)</span>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] text-stone-400">Std Deviation</span>
+                          <ProvenanceTag type="Measured" />
+                        </div>
                         <span className="text-base font-bold text-stone-700">
-                          {landsat.calibratedLSTCelsius.min.toFixed(1)}° – {landsat.calibratedLSTCelsius.max.toFixed(1)}°C
+                          {landsat?.calibratedLSTCelsius?.std !== null && landsat?.calibratedLSTCelsius?.std !== undefined
+                            ? `±${landsat.calibratedLSTCelsius.std.toFixed(2)}°C`
+                            : "Not available"}
+                        </span>
+                      </div>
+                      <div className="p-2.5 rounded bg-white border border-rose-200 flex flex-col">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] text-stone-400">Range (Min–Max)</span>
+                          <ProvenanceTag type="Measured" />
+                        </div>
+                        <span className="text-base font-bold text-stone-700">
+                          {landsat?.calibratedLSTCelsius?.min !== null && landsat?.calibratedLSTCelsius?.min !== undefined
+                            ? `${landsat.calibratedLSTCelsius.min.toFixed(1)}° – ${landsat.calibratedLSTCelsius.max.toFixed(1)}°C`
+                            : "Not available"}
                         </span>
                       </div>
                     </div>
@@ -377,13 +440,14 @@ export const HeatIntelligenceDashboard: React.FC<HeatIntelligenceDashboardProps>
                     {/* Quantile Breakdown Bar */}
                     <div className="space-y-1.5 pt-2">
                       <div className="flex justify-between text-[10px] font-mono text-stone-500">
-                        <span>P10: {landsat.calibratedLSTCelsius.p10.toFixed(1)}°C</span>
-                        <span>Median: {landsat.calibratedLSTCelsius.median.toFixed(1)}°C</span>
-                        <span>P90: {landsat.calibratedLSTCelsius.p90.toFixed(1)}°C</span>
+                        <span>P10: {landsat?.calibratedLSTCelsius?.p10 !== null && landsat?.calibratedLSTCelsius?.p10 !== undefined ? `${landsat.calibratedLSTCelsius.p10.toFixed(1)}°C` : "Not available"}</span>
+                        <span>Median: {landsat?.calibratedLSTCelsius?.median !== null && landsat?.calibratedLSTCelsius?.median !== undefined ? `${landsat.calibratedLSTCelsius.median.toFixed(1)}°C` : "Not available"}</span>
+                        <span>P90: {landsat?.calibratedLSTCelsius?.p90 !== null && landsat?.calibratedLSTCelsius?.p90 !== undefined ? `${landsat.calibratedLSTCelsius.p90.toFixed(1)}°C` : "Not available"}</span>
                       </div>
                       <div className="h-3 w-full rounded-xs bg-gradient-to-r from-[#2378e1] via-[#f5eb5a] via-[#f58723] to-[#e12323] shadow-inner" />
-                      <div className="text-[9.5px] text-stone-500 text-center font-mono">
-                        Visualization Stretch: 25.0°C to 60.0°C (Continuous colormap; not a regulatory thermal hazard classification)
+                      <div className="flex items-center justify-center gap-1.5 text-[9.5px] text-stone-500 text-center font-mono">
+                        <ProvenanceTag type="Assumed" />
+                        <span>Visualization Stretch: 25.0°C to 60.0°C (Continuous colormap; not a regulatory thermal hazard classification)</span>
                       </div>
                     </div>
                   </div>
@@ -468,33 +532,62 @@ export const HeatIntelligenceDashboard: React.FC<HeatIntelligenceDashboardProps>
 
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 font-mono text-[11px]">
                       <div className="p-2.5 rounded bg-white border border-emerald-200 flex flex-col">
-                        <span className="text-[10px] text-stone-400">Mean NDVI</span>
-                        <span className="text-base font-bold text-emerald-900">{sentinel.ndvi30mDistribution.mean.toFixed(3)}</span>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] text-stone-400">Mean NDVI</span>
+                          <ProvenanceTag type="Measured" />
+                        </div>
+                        <span className="text-base font-bold text-emerald-900">
+                          {sentinel?.ndvi30mDistribution?.mean !== null && sentinel?.ndvi30mDistribution?.mean !== undefined
+                            ? sentinel.ndvi30mDistribution.mean.toFixed(3)
+                            : "Not available"}
+                        </span>
                       </div>
                       <div className="p-2.5 rounded bg-white border border-emerald-200 flex flex-col">
-                        <span className="text-[10px] text-stone-400">Median (P50)</span>
-                        <span className="text-base font-bold text-emerald-900">{sentinel.ndvi30mDistribution.median.toFixed(3)}</span>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] text-stone-400">Median (P50)</span>
+                          <ProvenanceTag type="Measured" />
+                        </div>
+                        <span className="text-base font-bold text-emerald-900">
+                          {sentinel?.ndvi30mDistribution?.median !== null && sentinel?.ndvi30mDistribution?.median !== undefined
+                            ? sentinel.ndvi30mDistribution.median.toFixed(3)
+                            : "Not available"}
+                        </span>
                       </div>
                       <div className="p-2.5 rounded bg-white border border-emerald-200 flex flex-col">
-                        <span className="text-[10px] text-stone-400">Std Deviation</span>
-                        <span className="text-base font-bold text-stone-700">±{sentinel.ndvi30mDistribution.std.toFixed(3)}</span>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] text-stone-400">Std Deviation</span>
+                          <ProvenanceTag type="Measured" />
+                        </div>
+                        <span className="text-base font-bold text-stone-700">
+                          {sentinel?.ndvi30mDistribution?.std !== null && sentinel?.ndvi30mDistribution?.std !== undefined
+                            ? `±${sentinel.ndvi30mDistribution.std.toFixed(3)}`
+                            : "Not available"}
+                        </span>
                       </div>
                       <div className="p-2.5 rounded bg-white border border-emerald-200 flex flex-col">
-                        <span className="text-[10px] text-stone-400">Valid Observation Count</span>
-                        <span className="text-base font-bold text-stone-700">{sentinel.ndvi30mDistribution.validPixelCount.toLocaleString()}</span>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] text-stone-400">Valid Pixel Count</span>
+                          <ProvenanceTag type="Measured" />
+                        </div>
+                        <span className="text-base font-bold text-stone-700">
+                          {sentinel?.ndvi30mDistribution?.validPixelCount !== null && sentinel?.ndvi30mDistribution?.validPixelCount !== undefined
+                            ? sentinel.ndvi30mDistribution.validPixelCount.toLocaleString()
+                            : "Not available"}
+                        </span>
                       </div>
                     </div>
 
                     {/* Gradient Bar */}
                     <div className="space-y-1.5 pt-2">
                       <div className="flex justify-between text-[10px] font-mono text-stone-500">
-                        <span>Min: {sentinel.ndvi30mDistribution.min.toFixed(3)}</span>
-                        <span>Median: {sentinel.ndvi30mDistribution.median.toFixed(3)}</span>
-                        <span>Max: {sentinel.ndvi30mDistribution.max.toFixed(3)}</span>
+                        <span>Min: {sentinel?.ndvi30mDistribution?.min !== null && sentinel?.ndvi30mDistribution?.min !== undefined ? sentinel.ndvi30mDistribution.min.toFixed(3) : "Not available"}</span>
+                        <span>Median: {sentinel?.ndvi30mDistribution?.median !== null && sentinel?.ndvi30mDistribution?.median !== undefined ? sentinel.ndvi30mDistribution.median.toFixed(3) : "Not available"}</span>
+                        <span>Max: {sentinel?.ndvi30mDistribution?.max !== null && sentinel?.ndvi30mDistribution?.max !== undefined ? sentinel.ndvi30mDistribution.max.toFixed(3) : "Not available"}</span>
                       </div>
                       <div className="h-3 w-full rounded-xs bg-gradient-to-r from-[#87735f] via-[#d7c391] via-[#d2e15f] via-[#37a02d] to-[#0f5519] shadow-inner" />
-                      <div className="text-[9.5px] text-stone-500 text-center font-mono">
-                        Visualization Stretch: -0.20 to +0.85 (Spectral reflectance index; not canopy percentage)
+                      <div className="flex items-center justify-center gap-1.5 text-[9.5px] text-stone-500 text-center font-mono">
+                        <ProvenanceTag type="Assumed" />
+                        <span>Visualization Stretch: -0.20 to +0.85 (Spectral reflectance index; not canopy percentage)</span>
                       </div>
                     </div>
                   </div>
@@ -511,7 +604,10 @@ export const HeatIntelligenceDashboard: React.FC<HeatIntelligenceDashboardProps>
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 font-mono text-[10.5px]">
                       <div className="p-3 rounded bg-purple-50/80 border border-purple-200 space-y-1.5">
-                        <div className="font-bold text-purple-950">99.98% Clear-Sky Ratio</div>
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-purple-950">99.98% Clear-Sky Ratio</span>
+                          <ProvenanceTag type="Measured" />
+                        </div>
                         <div className="text-stone-600 text-[10px]">
                           <strong>Scale:</strong> Landsat 9 30m grid<br />
                           <strong>Numerator:</strong> 577,208 clear cells<br />
@@ -521,7 +617,10 @@ export const HeatIntelligenceDashboard: React.FC<HeatIntelligenceDashboardProps>
                       </div>
 
                       <div className="p-3 rounded bg-emerald-50/80 border border-emerald-200 space-y-1.5">
-                        <div className="font-bold text-emerald-950">89.84% Valid Target Cells</div>
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-emerald-950">89.84% Valid Target Cells</span>
+                          <ProvenanceTag type="Modelled" />
+                        </div>
                         <div className="text-stone-600 text-[10px]">
                           <strong>Scale:</strong> Aggregated 30m target cells<br />
                           <strong>Numerator:</strong> 518,651 valid cells<br />
@@ -531,7 +630,10 @@ export const HeatIntelligenceDashboard: React.FC<HeatIntelligenceDashboardProps>
                       </div>
 
                       <div className="p-3 rounded bg-blue-50/80 border border-blue-200 space-y-1.5">
-                        <div className="font-bold text-blue-950">70.20% Mean Valid Footprint</div>
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-blue-950">70.20% Mean Valid Footprint</span>
+                          <ProvenanceTag type="Modelled" />
+                        </div>
                         <div className="text-stone-600 text-[10px]">
                           <strong>Scale:</strong> Sub-pixel 10m area density<br />
                           <strong>Numerator:</strong> Sum of valid 10m sub-pixel areas<br />

@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
 import { AnalysisReportResult } from "../analysis-engine/engine";
 import {
   AiPlanningInsights,
@@ -19,6 +19,17 @@ import {
   listRegisteredDatasets,
   getDatasetAvailabilitySummary,
 } from "../intervention-engine";
+import {
+  optimizeInterventionBudget,
+  OptimizeOptions,
+  OptimizeResult,
+} from "../priority/optimizer";
+import {
+  getPriorityCellById,
+  getCellEnsembleStats,
+  PriorityCell,
+  EnsembleStats,
+} from "../priority/loader";
 
 export type GeminiAdvisorErrorCode =
   | "KEY_NOT_CONFIGURED"
@@ -1169,6 +1180,255 @@ export function extractSpatialAdjustmentFromIntent(
 }
 
 /**
+ * Gemini function calling tool declaration for running counterfactual cooling optimization.
+ */
+export const runOptimizationToolDeclaration: FunctionDeclaration = {
+  name: "run_optimization",
+  description:
+    "Runs greedy counterfactual cooling optimization over candidate 250m priority cells under a hectare budget constraint using the 30-member Monte Carlo ensemble. Returns selected zones, allocated hectares, mean cooling, cooling ranges, and population benefited. The model may only quote numbers returned by this tool.",
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      budget_ha: {
+        type: Type.NUMBER,
+        description:
+          "Target land intervention budget in hectares (must be a positive number, e.g. 10.0)",
+      },
+      target_ndvi: {
+        type: Type.NUMBER,
+        description:
+          "Counterfactual target NDVI for greenable areas (e.g. 0.65)",
+      },
+    },
+    required: ["budget_ha", "target_ndvi"],
+  },
+};
+
+/**
+ * Gemini function calling tool declaration for retrieving priority cell facts.
+ */
+export const getZoneToolDeclaration: FunctionDeclaration = {
+  name: "get_zone",
+  description:
+    "Retrieves verified satellite measurements, modelled cooling statistics, and Monte Carlo ensemble details for a specific 250m priority cell by unique cell ID (e.g. 'cell_250m_0001'). The model may only quote numbers returned by this tool.",
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      id: {
+        type: Type.STRING,
+        description: "Unique priority cell identifier, e.g. 'cell_250m_0001'",
+      },
+    },
+    required: ["id"],
+  },
+};
+
+export interface ToolRunOptimizationArgs {
+  budget_ha: number;
+  target_ndvi: number;
+  ward?: string;
+  objective?: "cooling" | "population_weighted";
+}
+
+/**
+ * Real backend execution handler for run_optimization tool.
+ */
+export function executeRunOptimizationTool(args: ToolRunOptimizationArgs) {
+  const budget_ha = Number(args.budget_ha);
+  const target_ndvi = Number(args.target_ndvi);
+
+  if (!Number.isFinite(budget_ha) || budget_ha <= 0) {
+    return {
+      status: "ERROR",
+      error: "Invalid budget_ha: must be a positive number.",
+      budget_ha,
+      allocated_ha: 0,
+      selected_cells: [],
+      governance: {
+        disclaimers: ["Budget must be a positive number in hectares."],
+        tags: {},
+      },
+    };
+  }
+
+  const result = optimizeInterventionBudget({
+    budget_ha,
+    target_ndvi: Number.isFinite(target_ndvi) ? target_ndvi : 0.65,
+    ward: args.ward,
+    objective: args.objective || "cooling",
+  });
+
+  return {
+    status: result.status,
+    budget_ha: result.budget_ha,
+    allocated_ha: result.allocated_ha,
+    total_cells_evaluated: result.total_cells_evaluated,
+    selected_cells_count: result.selected_cells.length,
+    selected_cells: result.selected_cells.map((c) => ({
+      id: c.id,
+      ward: c.ward,
+      centroid: c.centroid,
+      greenable_ha: c.greenable_ha,
+      cooling_mean: c.cooling_mean,
+      cooling_p10: c.cooling_p10,
+      cooling_p90: c.cooling_p90,
+      population: c.population,
+      benefit_per_ha: c.benefit_per_ha,
+      selection_frequency: c.selection_frequency,
+      times_selected_ensemble: c.times_selected_ensemble,
+      rank: c.rank,
+    })),
+    governance: {
+      tags: {
+        budget_ha: "[Assumed]",
+        target_ndvi: "[Assumed]",
+        allocated_ha: "[Modelled]",
+        greenable_ha: "[Modelled]",
+        cooling_mean: "[Modelled]",
+        cooling_p10: "[Modelled]",
+        cooling_p90: "[Modelled]",
+        population: "[Measured]",
+        selection_frequency: "[Modelled]",
+      },
+      disclaimers: [
+        "Surface temperature (LST) is radiometric skin temperature, NOT 2m ambient air temperature.",
+        "NDVI is a spectral reflectance index, NOT tree canopy cover.",
+        "No arbitrary weighted composite scores; ranking is strictly based on physical cooling benefit per hectare.",
+        "The model may only quote numbers returned by tools; unobserved values remain null / 'Not available'.",
+      ],
+    },
+  };
+}
+
+export interface ToolGetZoneArgs {
+  id: string;
+}
+
+export type ToolGetZoneResult =
+  | {
+      found: false;
+      error: string;
+    }
+  | {
+      found: true;
+      id: string;
+      ward: string;
+      centroid: [number, number];
+      population: number | null;
+      lst_mean: number | null;
+      lst_std: number | null;
+      n_obs: number | null;
+      ndvi: number | null;
+      built_frac: number | null;
+      greenable_ha: number | null;
+      burden: number | null;
+      cooling_mean: number | null;
+      cooling_p10: number | null;
+      cooling_p90: number | null;
+      ensemble_stats: {
+        memberCount: number;
+        mean: number | null;
+        p10: number | null;
+        p90: number | null;
+        min: number | null;
+        max: number | null;
+        spread: number | null;
+      } | null;
+      governance: {
+        tags: Record<string, string>;
+        disclaimers: string[];
+      };
+    };
+
+/**
+ * Real backend execution handler for get_zone tool.
+ */
+export function executeGetZoneTool(args: ToolGetZoneArgs): ToolGetZoneResult {
+  if (!args || typeof args.id !== "string" || args.id.trim().length === 0) {
+    return {
+      found: false,
+      error: "Invalid zone ID: ID must be a non-empty string.",
+    };
+  }
+
+  const cleanId = args.id.trim();
+  let cell: PriorityCell | null = null;
+  try {
+    cell = getPriorityCellById(cleanId);
+  } catch (err) {
+    return {
+      found: false,
+      error: `Priority data unavailable: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
+
+  if (!cell) {
+    return {
+      found: false,
+      error: `Zone '${cleanId}' not found in the priority cells database. Do not invent or fabricate data.`,
+    };
+  }
+
+  let ensembleStats: EnsembleStats | null = null;
+  try {
+    ensembleStats = getCellEnsembleStats(cleanId);
+  } catch {
+    ensembleStats = null;
+  }
+
+  return {
+    found: true,
+    id: cell.id,
+    ward: cell.ward,
+    centroid: cell.centroid,
+    population: cell.population, // [Measured]
+    lst_mean: cell.lst_mean, // [Measured] radiometric skin temp (°C)
+    lst_std: cell.lst_std, // [Measured]
+    n_obs: cell.n_obs, // [Measured]
+    ndvi: cell.ndvi, // [Measured]
+    built_frac: cell.built_frac, // [Measured]
+    greenable_ha: cell.greenable_ha, // [Modelled]
+    burden: cell.burden, // [Modelled]
+    cooling_mean: cell.cooling_mean, // [Modelled]
+    cooling_p10: cell.cooling_p10, // [Modelled]
+    cooling_p90: cell.cooling_p90, // [Modelled]
+    ensemble_stats: ensembleStats
+      ? {
+          memberCount: ensembleStats.memberCount,
+          mean: ensembleStats.mean,
+          p10: ensembleStats.p10,
+          p90: ensembleStats.p90,
+          min: ensembleStats.min,
+          max: ensembleStats.max,
+          spread: ensembleStats.spread,
+        }
+      : null,
+    governance: {
+      tags: {
+        population: "[Measured]",
+        lst_mean: "[Measured]",
+        lst_std: "[Measured]",
+        n_obs: "[Measured]",
+        ndvi: "[Measured]",
+        built_frac: "[Measured]",
+        greenable_ha: "[Modelled]",
+        burden: "[Modelled]",
+        cooling_mean: "[Modelled]",
+        cooling_p10: "[Modelled]",
+        cooling_p90: "[Modelled]",
+        robustness: "[Modelled]",
+      },
+      disclaimers: [
+        "Surface temperature (LST) is radiometric skin temperature, NOT 2m ambient air temperature.",
+        "NDVI is a spectral reflectance index, NOT tree canopy cover.",
+        "No arbitrary weighted composite scores; all numbers are strictly from sensors or physical models.",
+        "The model may only quote numbers returned by tools; unobserved values remain null / 'Not available'.",
+      ],
+    },
+  };
+}
+
+/**
  * Interactive Copilot conversational query grounded in active GIS evidence and statutory planning rules.
  */
 export async function generateCopilotResponse(
@@ -1266,7 +1526,27 @@ STRICT GROUNDING & PLANNING PRINCIPLES:
     f. Distinguish radiometric surface skin temperature (Landsat 9 ST_B10 at 10:57 AM pre-monsoon) from 2m ambient air temperature and wet-bulb globe temperature.
     g. Reference governing standards: BEE ECBC 2017 Table 4.1 (SRI ≥ 78), IRC:103-2012 (walkways ≥ 1.8m clear width), IEC 61215:2021 (module thermal qualification), CPWD landscaping specifications, IS 875 Part 3 (wind uplift).
     h. Mandate pre-implementation site surveys (structural slab NDT, underground utility GPR, transformer headroom with MSEDCL, statutory CTSO cadastral survey).
-    i. Candidate eligibility is an exploratory planning classification, NOT formal municipal sanction or budget allocation.`;
+    i. Candidate eligibility is an exploratory planning classification, NOT formal municipal sanction or budget allocation.
+11. MANDATORY SCIENTIFIC SAFEGUARDS, TOOL CALLING & DATA PROVENANCE RULES:
+    a. FUNCTION CALLING & TOOL USAGE:
+       - You have access to real backend priority optimization tools:
+         * \`run_optimization(budget_ha, target_ndvi)\`: Runs greedy counterfactual cooling optimization over candidate 250m priority cells under a hectare budget constraint using the 30-member Monte Carlo ensemble.
+         * \`get_zone(id)\`: Retrieves verified satellite measurements, modelled cooling statistics, and Monte Carlo ensemble details for a specific 250m priority cell by unique cell ID (e.g. 'cell_250m_0001').
+       - When the user asks to run optimization, budget cooling hectares, or view zone facts, ALWAYS call these tools.
+    b. STRICT NUMBER GROUNDING:
+       - You MAY ONLY quote numbers returned by tools or provided in verified GIS context.
+       - You are STRICTLY FORBIDDEN from inventing, fabricating, extrapolating, or guessing numerical values.
+       - If a tool returns a null value or error, you MUST report it as null / "Not available".
+       - Every displayed number MUST be explicitly tagged with its provenance tag:
+         * [Measured]: For satellite/ground measurements (LST, NDVI, n_obs, built_frac, population).
+         * [Modelled]: For algorithmic/ML outputs (cooling_mean, cooling_p10, cooling_p90, greenable_ha, burden, selection_frequency).
+         * [Assumed]: For user-specified parameters or scenario inputs (budget_ha, target_ndvi).
+    c. EXPLICIT REFUSALS:
+       - When asked to provide, estimate, or invent data that is unobserved or not available from tools (e.g. ambient air temperature, unmeasured building heights, fictitious composite scores, or non-existent zones):
+         * You MUST REFUSE to invent values and explain why.
+         * Surface temperature (LST) is radiometric skin temperature from thermal infrared sensors, NOT 2m ambient air temperature. Ambient air temperature is not available in satellite observations.
+         * NDVI is a spectral reflectance index [-1.0, 1.0], NOT tree canopy cover or volume.
+         * No arbitrary weighted composite scores are calculated or permitted; ranking is strictly based on physical cooling benefit per hectare.`;
 
   let heatContextPayload: any = null;
   const isHeatQuery = /\b(heat|temperature|lst|ndvi|vegetation|cooling|cool roof|canopy|greenery|thermal|microclimate|solar)\b/i.test(message);
@@ -1367,6 +1647,12 @@ STRICT GROUNDING & PLANNING PRINCIPLES:
     let lastErr: any = null;
     let effectiveModel = modelName;
 
+    const tools = [
+      {
+        functionDeclarations: [runOptimizationToolDeclaration, getZoneToolDeclaration],
+      },
+    ];
+
     for (const m of candidateModels) {
       try {
         response = await withTimeout(
@@ -1376,14 +1662,19 @@ STRICT GROUNDING & PLANNING PRINCIPLES:
               contents: prompt,
               config: {
                 systemInstruction,
-                temperature: 0.2,
+                temperature: 0.1,
+                tools,
               },
             })
           ),
           35000,
           `Gemini API request for model ${m} timed out after 35 seconds.`
         );
-        if (response && response.text) {
+        if (
+          response &&
+          (response.text ||
+            (response.functionCalls && response.functionCalls.length > 0))
+        ) {
           effectiveModel = m;
           break;
         }
@@ -1411,7 +1702,78 @@ STRICT GROUNDING & PLANNING PRINCIPLES:
       throw lastErr;
     }
 
-    const rawReply = response.text || "No response received from model.";
+    let rawReply = response.text || "";
+
+    // Execute function calls against real backend if predicted by model
+    if (response.functionCalls && response.functionCalls.length > 0) {
+      const functionResponseParts: any[] = [];
+      for (const call of response.functionCalls) {
+        let toolOutput: any;
+        if (call.name === "run_optimization") {
+          toolOutput = executeRunOptimizationTool(call.args as any);
+        } else if (call.name === "get_zone") {
+          toolOutput = executeGetZoneTool(call.args as any);
+        } else {
+          toolOutput = { error: `Tool ${call.name} is not recognized.`, found: false };
+        }
+        functionResponseParts.push({
+          functionResponse: {
+            name: call.name,
+            response: { output: toolOutput },
+            ...(call.id ? { id: call.id } : {}),
+          },
+        });
+      }
+
+      try {
+        const candidateContent = response.candidates?.[0]?.content || {
+          role: "model",
+          parts: response.functionCalls.map((c: any) => ({ functionCall: c })),
+        };
+
+        const secondTurn = await withTimeout(
+          callWithRetry(() =>
+            ai.models.generateContent({
+              model: effectiveModel,
+              contents: [
+                { role: "user", parts: [{ text: prompt }] },
+                candidateContent,
+                { role: "user", parts: functionResponseParts },
+              ],
+              config: {
+                systemInstruction,
+                temperature: 0.1,
+              },
+            })
+          ),
+          35000,
+          `Gemini API tool execution response for model ${effectiveModel} timed out after 35 seconds.`
+        );
+
+        if (secondTurn && secondTurn.text) {
+          rawReply = secondTurn.text;
+        }
+      } catch (secondErr) {
+        console.warn("Second-turn function synthesis error:", secondErr);
+        if (!rawReply) {
+          const firstCall = response.functionCalls[0];
+          if (firstCall.name === "run_optimization") {
+            const out = executeRunOptimizationTool(firstCall.args as any);
+            rawReply = `### Priority Counterfactual Optimization Results\n- **Target Budget**: [Assumed] ${out.budget_ha} ha\n- **Allocated**: [Modelled] ${out.allocated_ha} ha\n- **Selected Zones**: [Modelled] ${out.selected_cells_count}\n`;
+          } else if (firstCall.name === "get_zone") {
+            const out = executeGetZoneTool(firstCall.args as any);
+            rawReply = out.found
+              ? `### Priority Zone Details: ${out.id}\n- **Ward**: ${out.ward}\n- **LST Mean**: [Measured] ${out.lst_mean}°C\n- **NDVI**: [Measured] ${out.ndvi}\n- **Predicted Cooling**: [Modelled] ${out.cooling_mean}°C\n`
+              : `Zone '${firstCall.args?.id}' not found. Unobserved data cannot be fabricated.`;
+          }
+        }
+      }
+    }
+
+    if (!rawReply) {
+      rawReply = "No response received from model.";
+    }
+
     let reply = rawReply;
     let proposedAdjustment: CopilotAdjustment | null = null;
 
@@ -1675,6 +2037,278 @@ export function generateLocalCopilotResponse(
         statutoryFramework,
       },
       proposedAdjustment: spatialAdj,
+    };
+  }
+
+  // Strict Refusal Policy: Refuse to fabricate or guess unmeasured values (Air temp, canopy cover %, fake scores)
+  const isRefusalQuery =
+    (lowerMsg.includes("air temp") ||
+     lowerMsg.includes("ambient temp") ||
+     lowerMsg.includes("air temperature") ||
+     lowerMsg.includes("ambient temperature")) ||
+    (lowerMsg.includes("canopy cover") ||
+     lowerMsg.includes("tree canopy") ||
+     lowerMsg.includes("canopy percentage") ||
+     lowerMsg.includes("canopy percent") ||
+     lowerMsg.includes("canopy volume")) ||
+    (lowerMsg.includes("arbitrary score") ||
+     lowerMsg.includes("fake score") ||
+     lowerMsg.includes("invent a score") ||
+     lowerMsg.includes("invent score") ||
+     lowerMsg.includes("make up a score") ||
+     lowerMsg.includes("guess score") ||
+     lowerMsg.includes("weighted score")) ||
+    (lowerMsg.includes("guess temperature") ||
+     lowerMsg.includes("guess the temperature") ||
+     lowerMsg.includes("invent temperature") ||
+     lowerMsg.includes("fabricate"));
+
+  if (isRefusalQuery) {
+    let reply = `### ⛔ Scientific Data Governance: Refusal to Invent Unmeasured Values\n\n`;
+    reply += `In accordance with UrjaSetu scientific governance rules, this system **refuses to fabricate, invent, or guess unmeasured data**. Unknown values strictly remain \`null\` and display as **"Not available"**.\n\n`;
+    reply += `#### Mandatory Scientific Safeguards\n`;
+    reply += `1. **Surface Temperature (LST) is NOT Air Temperature**:\n`;
+    reply += `   - Satellite thermal sensors (Landsat 9 TIRS-2 Band 10) measure radiometric surface skin temperature, **NOT** 2m ambient air temperature or human wet-bulb heat stress.\n`;
+    reply += `   - Ambient air temperature requires calibrated micrometeorological automatic weather stations (AWS) at 2m height with aspirated radiation shields, which cannot be hallucinated from spaceborne radiometric data.\n\n`;
+    reply += `2. **NDVI is NOT Tree Canopy Cover**:\n`;
+    reply += `   - Normalized Difference Vegetation Index (NDVI) is a unitless mathematical ratio of spectral reflectance in red and near-infrared bands \`[-1.0, 1.0]\`, **NOT** 3D tree canopy volume, canopy percentage, or shade architecture.\n`;
+    reply += `   - Ground canopy cover requires terrestrial LiDAR, drone photogrammetry, or high-resolution hemispherical crown segmentation.\n\n`;
+    reply += `3. **No Arbitrary Weighted Composite Scores**:\n`;
+    reply += `   - Prioritization is grounded strictly in physical cooling benefits (predicted LST delta in °C via 30-member spatial-block bootstrap LightGBM ensemble) per greenable hectare.\n`;
+    reply += `   - Subjective weight matrices (e.g. 40% heat + 30% green + 30% pop) are disallowed as unscientific.\n\n`;
+    reply += `4. **Strict Provenance Tagging**:\n`;
+    reply += `   - Every valid displayed number is strictly tagged as **[Measured]** (satellite/ground), **[Modelled]** (machine learning prediction), or **[Assumed]** (scenario parameter).\n`;
+
+    reply += createProvenanceFooter("INSUFFICIENT_EVIDENCE");
+
+    return {
+      reply,
+      modelUsed: "local-gis-rules-engine",
+      engineSource: "local_gis_engine",
+      statutoryStatus: "INSUFFICIENT_EVIDENCE",
+      deterministicMetrics: {
+        coordinates: `(${centroidLat}° N, ${centroidLon}° E)`,
+        dimensionsMeters: `${lengthM}m × ${widthM}m`,
+        areaM2,
+        nearestRoadDistanceM: nearestRoadDistM,
+        nearestRoadName,
+        roadGeometryType: "1D LineString (Centerline)",
+      },
+      assumptions: [
+        "Surface temperature (LST) is radiometric skin temperature, NOT 2m ambient air temperature.",
+        "NDVI is a spectral reflectance index, NOT tree canopy cover.",
+        "Unknown values remain null and show 'Not available'.",
+      ],
+      missingEvidence: [
+        "Calibrated 2m micrometeorological weather station (AWS) measurements.",
+        "Terrestrial/airborne LiDAR tree canopy crown segmentation.",
+      ],
+      groundedFacts: {
+        city,
+        infrastructureType: infraType,
+        hasRoadCollision,
+        roadAccessStatus,
+        statutoryFramework,
+      },
+    };
+  }
+
+  // Priority Tool Intent: run_optimization(budget_ha, target_ndvi)
+  const isPriorityOptimizationQuery =
+    lowerMsg.includes("run_optimization") ||
+    (lowerMsg.includes("optimize") &&
+      (lowerMsg.includes("budget") ||
+       lowerMsg.includes("ha") ||
+       lowerMsg.includes("cooling") ||
+       lowerMsg.includes("greening") ||
+       lowerMsg.includes("counterfactual") ||
+       lowerMsg.includes("hectare"))) ||
+    (lowerMsg.includes("counterfactual") && lowerMsg.includes("cooling"));
+
+  if (isPriorityOptimizationQuery) {
+    let budget_ha = 10.0;
+    const budgetMatch =
+      message.match(/(?:budget|spend|allocate)?\s*(\d+(?:\.\d+)?)\s*(?:ha|hectare|hectares)\b/i) ||
+      message.match(/(?:budget_ha|budget)[:=]\s*(\d+(?:\.\d+)?)/i);
+    if (budgetMatch) {
+      budget_ha = parseFloat(budgetMatch[1]);
+    }
+
+    let target_ndvi = 0.65;
+    const ndviMatch =
+      message.match(/(?:target_ndvi|ndvi|target)[:=\s]+(?:of\s*)?(\d+(?:\.\d+)?)/i) ||
+      message.match(/(\d+(?:\.\d+)?)\s*(?:target_ndvi|target ndvi|ndvi)\b/i);
+    if (ndviMatch) {
+      target_ndvi = parseFloat(ndviMatch[1]);
+    }
+
+    const optResult = executeRunOptimizationTool({ budget_ha, target_ndvi });
+
+    let reply = `### 🌳 Counterfactual Heat Priority Optimization Results\n\n`;
+    reply += `*Greedy benefit-per-hectare selection under hectare budget with 30-member Monte Carlo spatial bootstrap ensemble.*\n\n`;
+    reply += `#### Scenario Inputs & Portfolio Summary\n`;
+    reply += `- **Target Budget**: [Assumed] **${optResult.budget_ha} ha**\n`;
+    reply += `- **Counterfactual Target NDVI**: [Assumed] **${target_ndvi}** (applied to greenable parcel fraction)\n`;
+    reply += `- **Allocated Intervention Land**: [Modelled] **${optResult.allocated_ha} ha**\n`;
+    reply += `- **Candidate Cells Evaluated**: [Measured] **${optResult.total_cells_evaluated}**\n`;
+    reply += `- **Selected Priority Zones**: [Modelled] **${optResult.selected_cells_count}**\n\n`;
+
+    if (optResult.status === "UNAVAILABLE") {
+      reply += `⚠️ **Cooling Estimates Unavailable**: Counterfactual cooling predictions are unavailable because the model direction check failed or ensemble artifacts are missing. In accordance with project rules, cooling values remain null / "Not available".\n\n`;
+    } else if (optResult.selected_cells.length > 0) {
+      reply += `#### Top Ranked Priority Zones\n`;
+      optResult.selected_cells.slice(0, 5).forEach((c) => {
+        const coolingMean = c.cooling_mean !== null ? `${c.cooling_mean}°C` : "Not available";
+        const coolingInterval = (c.cooling_p10 !== null && c.cooling_p90 !== null)
+          ? `[${c.cooling_p10}°C to ${c.cooling_p90}°C]`
+          : "Not available";
+        const pop = c.population !== null ? c.population.toLocaleString() : "Not available";
+        const robustnessPct = (c.selection_frequency * 100).toFixed(0);
+
+        reply += `- **Zone \`${c.id}\`** (${c.ward}, Rank ${c.rank}):\n`;
+        reply += `  - Greenable Land: [Modelled] **${c.greenable_ha} ha**\n`;
+        reply += `  - Expected Cooling: [Modelled] **${coolingMean}** (80% CI: ${coolingInterval})\n`;
+        reply += `  - Population Benefited: [Measured] **${pop} citizens**\n`;
+        reply += `  - Monte Carlo Robustness: [Modelled] **${robustnessPct}%** (${c.times_selected_ensemble}/30 ensemble iterations)\n`;
+      });
+      reply += `\n`;
+    }
+
+    reply += `#### Mandatory Scientific Safeguards\n`;
+    reply += `- **Surface Temperature (LST)**: Radiometric skin temperature from Landsat 9 TIRS-2; NOT 2m ambient air temperature.\n`;
+    reply += `- **NDVI**: Unitless spectral reflectance index [-1.0, 1.0]; NOT tree canopy cover percentage.\n`;
+    reply += `- **Grounding**: Model quotes only numbers returned by optimizer backend; arbitrary composite scores are disallowed.\n`;
+
+    reply += createProvenanceFooter("VERIFIED_GEOMETRIC");
+
+    return {
+      reply,
+      modelUsed: "local-gis-rules-engine",
+      engineSource: "local_gis_engine",
+      statutoryStatus: "VERIFIED_GEOMETRIC",
+      deterministicMetrics: {
+        coordinates: `(${centroidLat}° N, ${centroidLon}° E)`,
+        dimensionsMeters: `${lengthM}m × ${widthM}m`,
+        areaM2,
+        nearestRoadDistanceM: nearestRoadDistM,
+        nearestRoadName,
+        roadGeometryType: "1D LineString (Centerline)",
+      },
+      assumptions: [
+        `Scenario budget: ${optResult.budget_ha} ha [Assumed].`,
+        `Counterfactual target NDVI: ${target_ndvi} [Assumed].`,
+      ],
+      missingEvidence: [
+        "High-resolution municipal drone thermography.",
+        "Ground-level sapling survival survey.",
+      ],
+      groundedFacts: {
+        city,
+        infrastructureType: infraType,
+        hasRoadCollision,
+        roadAccessStatus,
+        statutoryFramework,
+      },
+    };
+  }
+
+  // Priority Tool Intent: get_zone(id)
+  const zoneIdMatch =
+    message.match(/\b(cell_250m_\d+)\b/i) ||
+    message.match(/(?:get_zone|zone_id|zone)[:=\s]+([a-zA-Z0-9_\-]+)/i);
+
+  if (zoneIdMatch) {
+    const requestedId = zoneIdMatch[1];
+    const zoneData = executeGetZoneTool({ id: requestedId });
+
+    if (!zoneData.found) {
+      let reply = `### 🔍 Priority Zone Lookup: \`${requestedId}\`\n\n`;
+      reply += `⚠️ **Zone Not Found**: \`${requestedId}\` does not exist in the priority cells database.\n\n`;
+      reply += `**Scientific Data Governance Rule**: UrjaSetu strictly refuses to fabricate or guess unobserved zone metrics. Unknown values remain \`null\` and display as **"Not available"**.\n`;
+      reply += createProvenanceFooter("INSUFFICIENT_EVIDENCE");
+
+      return {
+        reply,
+        modelUsed: "local-gis-rules-engine",
+        engineSource: "local_gis_engine",
+        statutoryStatus: "INSUFFICIENT_EVIDENCE",
+        deterministicMetrics: {
+          coordinates: `(${centroidLat}° N, ${centroidLon}° E)`,
+          dimensionsMeters: `${lengthM}m × ${widthM}m`,
+          areaM2,
+          nearestRoadDistanceM: nearestRoadDistM,
+          nearestRoadName,
+          roadGeometryType: "1D LineString (Centerline)",
+        },
+        assumptions: ["Requested zone does not exist; data fabrication is forbidden."],
+        missingEvidence: [`Zone ID ${requestedId} is not registered in cells.json.`],
+        groundedFacts: {
+          city,
+          infrastructureType: infraType,
+          hasRoadCollision,
+          roadAccessStatus,
+          statutoryFramework,
+        },
+      };
+    }
+
+    let reply = `### 📍 Priority Zone Intelligence: \`${zoneData.id}\`\n\n`;
+    reply += `**Administrative Ward**: ${zoneData.ward}\n`;
+    reply += `**Centroid Coordinates**: [Measured] \`(${zoneData.centroid[1].toFixed(4)}° N, ${zoneData.centroid[0].toFixed(4)}° E)\`\n\n`;
+
+    reply += `#### 1. Measured Satellite & Demographic Observations\n`;
+    reply += `- **Land Surface Temperature (LST Mean)**: [Measured] **${zoneData.lst_mean !== null ? zoneData.lst_mean + "°C" : "Not available"}** (Std: ${zoneData.lst_std !== null ? "±" + zoneData.lst_std + "°C" : "Not available"})\n`;
+    reply += `  *(Radiometric surface skin temperature from Landsat 9 TIRS-2 pre-monsoon composite; NOT 2m ambient air temperature)*\n`;
+    reply += `- **Cloud-Free Satellite Observations**: [Measured] **${zoneData.n_obs !== null ? zoneData.n_obs + " scenes" : "Not available"}**\n`;
+    reply += `- **Vegetation Index (NDVI)**: [Measured] **${zoneData.ndvi !== null ? zoneData.ndvi : "Not available"}**\n`;
+    reply += `  *(Unitless spectral reflectance index [-1.0, 1.0] from Sentinel-2 L2A; NOT tree canopy cover)*\n`;
+    reply += `- **Built-Up Surface Fraction**: [Measured] **${zoneData.built_frac !== null ? (zoneData.built_frac * 100).toFixed(1) + "%" : "Not available"}**\n`;
+    reply += `- **Resident Population**: [Measured] **${zoneData.population !== null ? zoneData.population.toLocaleString() + " people" : "Not available"}**\n\n`;
+
+    reply += `#### 2. Modelled Physical Cooling Predictions\n`;
+    reply += `- **Greenable Land**: [Modelled] **${zoneData.greenable_ha !== null ? zoneData.greenable_ha + " ha" : "Not available"}**\n`;
+    reply += `- **Expected Cooling Benefit**: [Modelled] **${zoneData.cooling_mean !== null ? zoneData.cooling_mean + "°C" : "Not available"}**\n`;
+    reply += `- **Cooling 80% Confidence Interval**: [Modelled] **${zoneData.cooling_p10 !== null && zoneData.cooling_p90 !== null ? "[" + zoneData.cooling_p10 + "°C to " + zoneData.cooling_p90 + "°C]" : "Not available"}**\n`;
+    if (zoneData.ensemble_stats?.spread !== null && zoneData.ensemble_stats?.spread !== undefined) {
+      reply += `- **Monte Carlo Uncertainty Spread**: [Modelled] **${zoneData.ensemble_stats.spread}°C** across ${zoneData.ensemble_stats.memberCount} bootstrap members\n`;
+    }
+    reply += `\n`;
+
+    reply += `#### 3. Statutory Disclaimers\n`;
+    reply += `- Surface temperature (LST) is radiometric skin temperature, NOT 2m ambient air temperature.\n`;
+    reply += `- NDVI is a spectral reflectance index, NOT tree canopy cover.\n`;
+    reply += `- Unknown values remain null and show "Not available".\n`;
+
+    reply += createProvenanceFooter("VERIFIED_GEOMETRIC");
+
+    return {
+      reply,
+      modelUsed: "local-gis-rules-engine",
+      engineSource: "local_gis_engine",
+      statutoryStatus: "VERIFIED_GEOMETRIC",
+      deterministicMetrics: {
+        coordinates: `(${zoneData.centroid[1].toFixed(4)}° N, ${zoneData.centroid[0].toFixed(4)}° E)`,
+        dimensionsMeters: "250m × 250m",
+        areaM2: 62500,
+        nearestRoadDistanceM: nearestRoadDistM,
+        nearestRoadName,
+        roadGeometryType: "250m Grid Cell Centroid",
+      },
+      assumptions: [
+        "Counterfactual cooling modelled via 30-member spatial-block bootstrap LightGBM ensemble.",
+        "LST is radiometric skin temperature from Landsat 9 Band 10.",
+      ],
+      missingEvidence: [
+        "In-situ aspirated ambient air temperature sensor logging.",
+        "Microclimate CFD wind canyon modelling.",
+      ],
+      groundedFacts: {
+        city,
+        infrastructureType: infraType,
+        hasRoadCollision,
+        roadAccessStatus,
+        statutoryFramework,
+      },
     };
   }
 

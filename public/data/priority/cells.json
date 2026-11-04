@@ -1,0 +1,800 @@
+[
+  {
+    "id": "cell_250m_0001",
+    "centroid": [
+      73.85445,
+      18.51635
+    ],
+    "ward": "Kasba Vishrambaugwada",
+    "population": 2693,
+    "lst_mean": 41.99,
+    "lst_std": 1.99,
+    "n_obs": 64,
+    "ndvi": 0.122,
+    "built_frac": 0.87,
+    "greenable_ha": 0.46,
+    "burden": 8.19,
+    "cooling_mean": 2.26,
+    "cooling_p10": 2.23,
+    "cooling_p90": 2.29
+  },
+  {
+    "id": "cell_250m_0002",
+    "centroid": [
+      73.8567,
+      18.5186
+    ],
+    "ward": "Kasba Vishrambaugwada",
+    "population": 2725,
+    "lst_mean": 41.69,
+    "lst_std": 2.02,
+    "n_obs": 64,
+    "ndvi": 0.081,
+    "built_frac": 0.89,
+    "greenable_ha": 0.53,
+    "burden": 8.11,
+    "cooling_mean": 2.8,
+    "cooling_p10": 2.77,
+    "cooling_p90": 2.84
+  },
+  {
+    "id": "cell_250m_0003",
+    "centroid": [
+      73.85895,
+      18.52085
+    ],
+    "ward": "Kasba Vishrambaugwada",
+    "population": 2546,
+    "lst_mean": 41.72,
+    "lst_std": 1.81,
+    "n_obs": 64,
+    "ndvi": 0.136,
+    "built_frac": 0.91,
+    "greenable_ha": 0.53,
+    "burden": 7.78,
+    "cooling_mean": 2.53,
+    "cooling_p10": 2.5,
+    "cooling_p90": 2.57
+  },
+  {
+    "id": "cell_250m_0004",
+    "centroid": [
+      73.86595,
+      18.51075
+    ],
+    "ward": "Bhawani Peth",
+    "population": 3535,
+    "lst_mean": 42.95,
+    "lst_std": 1.23,
+    "n_obs": 64,
+    "ndvi": 0.1,
+    "built_frac": 0.92,
+    "greenable_ha": 0.36,
+    "burden": 12.93,
+    "cooling_mean": 1.84,
+    "cooling_p10": 1.82,
+    "cooling_p90": 1.87
+  },
+  {
+    "id": "cell_250m_0005",
+    "centroid": [
+      73.8682,
+      18.5085
+    ],
+    "ward": "Bhawani Peth",
+    "population": 2947,
+    "lst_mean": 43.88,
+    "lst_std": 1.48,
+    "n_obs": 64,
+    "ndvi": 0.091,
+    "built_frac": 0.87,
+    "greenable_ha": 0.26,
+    "burden": 11.38,
+    "cooling_mean": 1.35,
+    "cooling_p10": 1.34,
+    "cooling_p90": 1.37
+  },
+  {
+    "id": "cell_250m_0006",
+    "centroid": [
+      73.87045,
+      18.50625
+    ],
+    "ward": "Bhawani Peth",
+    "population": null,
+    "lst_mean": null,
+    "lst_std": null,
+    "n_obs": 0,
+    "ndvi": null,
+    "built_frac": null,
+    "greenable_ha": null,
+    "burden": null,
+    "cooling_mean": null,
+    "cooling_p10": null,
+    "cooling_p90": null
+  },
+  {
+    "id": "cell_250m_0007",
+    "centroid": [
+      73.84025,
+      18.52615
+    ],
+    "ward": "Shivajinagar - Ghole Road",
+    "population": 1807,
+    "lst_mean": 39.11,
+    "lst_std": 1.51,
+    "n_obs": 64,
+    "ndvi": 0.248,
+    "built_frac": 0.63,
+    "greenable_ha": 1.54,
+    "burden": 2.34,
+    "cooling_mean": 3.34,
+    "cooling_p10": 2.6,
+    "cooling_p90": 3.84
+  },
+  {
+    "id": "cell_250m_0008",
+    "centroid": [
+      73.8425,
+      18.5284
+    ],
+    "ward": "Shivajinagar - Ghole Road",
+    "population": 1904,
+    "lst_mean": 38.2,
+    "lst_std": 1.47,
+    "n_obs": 64,
+    "ndvi": 0.29,
+    "built_frac": 0.63,
+    "greenable_ha": 1.38,
+    "burden": 1.92,
+    "cooling_mean": 2.69,
+    "cooling_p10": 1.94,
+    "cooling_p90": 3.08
+  },
+  {
+    "id": "cell_250m_0009",
+    "centroid": [
+      73.84475,
+      18.53065
+    ],
+    "ward": "Shivajinagar - Ghole Road",
+    "population": 1722,
+    "lst_mean": 39.04,
+    "lst_std": 1.28,
+    "n_obs": 64,
+    "ndvi": 0.284,
+    "built_frac": 0.63,
+    "greenable_ha": 1.33,
+    "burden": 2.19,
+    "cooling_mean": 2.79,
+    "cooling_p10": 2.55,
+    "cooling_p90": 3.09
+  },
+  {
+    "id": "cell_250m_0010",
+    "centroid": [
+      73.80325,
+      18.50965
+    ],
+    "ward": "Kothrud",
+    "population": 1885,
+    "lst_mean": 37.69,
+    "lst_std": 1.54,
+    "n_obs": 64,
+    "ndvi": 0.311,
+    "built_frac": 0.63,
+    "greenable_ha": 1.77,
+    "burden": 1.6,
+    "cooling_mean": 3.04,
+    "cooling_p10": 2.37,
+    "cooling_p90": 3.57
+  },
+  {
+    "id": "cell_250m_0011",
+    "centroid": [
+      73.8055,
+      18.5074
+    ],
+    "ward": "Kothrud",
+    "population": 1882,
+    "lst_mean": 38.48,
+    "lst_std": 1.5,
+    "n_obs": 64,
+    "ndvi": 0.32,
+    "built_frac": 0.59,
+    "greenable_ha": 1.59,
+    "burden": 1.93,
+    "cooling_mean": 2.97,
+    "cooling_p10": 2.42,
+    "cooling_p90": 3.6
+  },
+  {
+    "id": "cell_250m_0012",
+    "centroid": [
+      73.80775,
+      18.50515
+    ],
+    "ward": "Kothrud",
+    "population": 1622,
+    "lst_mean": 37.21,
+    "lst_std": 2.02,
+    "n_obs": 64,
+    "ndvi": 0.284,
+    "built_frac": 0.62,
+    "greenable_ha": 1.52,
+    "burden": 1.11,
+    "cooling_mean": 2.98,
+    "cooling_p10": 2.49,
+    "cooling_p90": 3.4
+  },
+  {
+    "id": "cell_250m_0013",
+    "centroid": [
+      73.80395,
+      18.55605
+    ],
+    "ward": "Aundh",
+    "population": 1368,
+    "lst_mean": 36.59,
+    "lst_std": 1.29,
+    "n_obs": 64,
+    "ndvi": 0.337,
+    "built_frac": 0.58,
+    "greenable_ha": 1.99,
+    "burden": 0.63,
+    "cooling_mean": 3.56,
+    "cooling_p10": 3.08,
+    "cooling_p90": 4.07
+  },
+  {
+    "id": "cell_250m_0014",
+    "centroid": [
+      73.8062,
+      18.5583
+    ],
+    "ward": "Aundh",
+    "population": 1587,
+    "lst_mean": 37.09,
+    "lst_std": 1.57,
+    "n_obs": 64,
+    "ndvi": 0.375,
+    "built_frac": 0.57,
+    "greenable_ha": 1.92,
+    "burden": 0.95,
+    "cooling_mean": 3.35,
+    "cooling_p10": 2.86,
+    "cooling_p90": 3.88
+  },
+  {
+    "id": "cell_250m_0015",
+    "centroid": [
+      73.80845,
+      18.56055
+    ],
+    "ward": "Aundh",
+    "population": 1677,
+    "lst_mean": 37.46,
+    "lst_std": 1.84,
+    "n_obs": 64,
+    "ndvi": 0.32,
+    "built_frac": 0.6,
+    "greenable_ha": 1.79,
+    "burden": 1.24,
+    "cooling_mean": 3.04,
+    "cooling_p10": 2.46,
+    "cooling_p90": 3.65
+  },
+  {
+    "id": "cell_250m_0016",
+    "centroid": [
+      73.87395,
+      18.53895
+    ],
+    "ward": "Sangamwadi",
+    "population": 2314,
+    "lst_mean": 41.21,
+    "lst_std": 1.24,
+    "n_obs": 64,
+    "ndvi": 0.143,
+    "built_frac": 0.77,
+    "greenable_ha": 0.93,
+    "burden": 5.53,
+    "cooling_mean": 3.21,
+    "cooling_p10": 2.35,
+    "cooling_p90": 4.31
+  },
+  {
+    "id": "cell_250m_0017",
+    "centroid": [
+      73.8762,
+      18.5367
+    ],
+    "ward": "Sangamwadi",
+    "population": 2341,
+    "lst_mean": 41.26,
+    "lst_std": 1.26,
+    "n_obs": 64,
+    "ndvi": 0.165,
+    "built_frac": 0.8,
+    "greenable_ha": 0.81,
+    "burden": 5.86,
+    "cooling_mean": 2.83,
+    "cooling_p10": 1.87,
+    "cooling_p90": 3.68
+  },
+  {
+    "id": "cell_250m_0018",
+    "centroid": [
+      73.87845,
+      18.53445
+    ],
+    "ward": "Sangamwadi",
+    "population": 2516,
+    "lst_mean": 41.05,
+    "lst_std": 1.44,
+    "n_obs": 64,
+    "ndvi": 0.17,
+    "built_frac": 0.77,
+    "greenable_ha": 0.68,
+    "burden": 5.86,
+    "cooling_mean": 1.99,
+    "cooling_p10": 1.01,
+    "cooling_p90": 3.01
+  },
+  {
+    "id": "cell_250m_0019",
+    "centroid": [
+      73.88335,
+      18.52505
+    ],
+    "ward": "Dhole Patil",
+    "population": 2697,
+    "lst_mean": 41.76,
+    "lst_std": 1.27,
+    "n_obs": 64,
+    "ndvi": 0.115,
+    "built_frac": 0.8,
+    "greenable_ha": 0.72,
+    "burden": 7.29,
+    "cooling_mean": 3.58,
+    "cooling_p10": 3.54,
+    "cooling_p90": 3.63
+  },
+  {
+    "id": "cell_250m_0020",
+    "centroid": [
+      73.8856,
+      18.5273
+    ],
+    "ward": "Dhole Patil",
+    "population": 2457,
+    "lst_mean": 42.16,
+    "lst_std": 1.67,
+    "n_obs": 64,
+    "ndvi": 0.115,
+    "built_frac": 0.79,
+    "greenable_ha": 0.61,
+    "burden": 6.95,
+    "cooling_mean": 3.04,
+    "cooling_p10": 3.0,
+    "cooling_p90": 3.08
+  },
+  {
+    "id": "cell_250m_0021",
+    "centroid": [
+      73.88785,
+      18.52955
+    ],
+    "ward": "Dhole Patil",
+    "population": 2171,
+    "lst_mean": 41.34,
+    "lst_std": 1.28,
+    "n_obs": 64,
+    "ndvi": 0.113,
+    "built_frac": 0.85,
+    "greenable_ha": 0.81,
+    "burden": 5.85,
+    "cooling_mean": 4.05,
+    "cooling_p10": 4.0,
+    "cooling_p90": 4.1
+  },
+  {
+    "id": "cell_250m_0022",
+    "centroid": [
+      73.84895,
+      18.49145
+    ],
+    "ward": "Sahkar Nagar",
+    "population": 2122,
+    "lst_mean": 38.8,
+    "lst_std": 2.01,
+    "n_obs": 64,
+    "ndvi": 0.228,
+    "built_frac": 0.67,
+    "greenable_ha": 1.32,
+    "burden": 2.7,
+    "cooling_mean": 2.99,
+    "cooling_p10": 2.24,
+    "cooling_p90": 3.76
+  },
+  {
+    "id": "cell_250m_0023",
+    "centroid": [
+      73.8512,
+      18.4892
+    ],
+    "ward": "Sahkar Nagar",
+    "population": 1673,
+    "lst_mean": 39.23,
+    "lst_std": 1.55,
+    "n_obs": 64,
+    "ndvi": 0.23,
+    "built_frac": 0.7,
+    "greenable_ha": 1.26,
+    "burden": 2.48,
+    "cooling_mean": 2.88,
+    "cooling_p10": 2.31,
+    "cooling_p90": 3.43
+  },
+  {
+    "id": "cell_250m_0024",
+    "centroid": [
+      73.85345,
+      18.48695
+    ],
+    "ward": "Sahkar Nagar",
+    "population": 1787,
+    "lst_mean": 39.2,
+    "lst_std": 1.22,
+    "n_obs": 64,
+    "ndvi": 0.282,
+    "built_frac": 0.65,
+    "greenable_ha": 1.29,
+    "burden": 2.44,
+    "cooling_mean": 2.56,
+    "cooling_p10": 2.12,
+    "cooling_p90": 2.92
+  },
+  {
+    "id": "cell_250m_0025",
+    "centroid": [
+      73.86315,
+      18.47225
+    ],
+    "ward": "Bibwewadi",
+    "population": 2309,
+    "lst_mean": 40.37,
+    "lst_std": 1.97,
+    "n_obs": 64,
+    "ndvi": 0.233,
+    "built_frac": 0.7,
+    "greenable_ha": 1.17,
+    "burden": 4.34,
+    "cooling_mean": 2.77,
+    "cooling_p10": 2.33,
+    "cooling_p90": 3.25
+  },
+  {
+    "id": "cell_250m_0026",
+    "centroid": [
+      73.8654,
+      18.4745
+    ],
+    "ward": "Bibwewadi",
+    "population": 2357,
+    "lst_mean": 40.37,
+    "lst_std": 1.98,
+    "n_obs": 64,
+    "ndvi": 0.246,
+    "built_frac": 0.73,
+    "greenable_ha": 1.12,
+    "burden": 4.62,
+    "cooling_mean": 2.54,
+    "cooling_p10": 1.87,
+    "cooling_p90": 3.16
+  },
+  {
+    "id": "cell_250m_0027",
+    "centroid": [
+      73.86765,
+      18.47675
+    ],
+    "ward": "Bibwewadi",
+    "population": 2008,
+    "lst_mean": 39.13,
+    "lst_std": 1.65,
+    "n_obs": 64,
+    "ndvi": 0.254,
+    "built_frac": 0.74,
+    "greenable_ha": 1.06,
+    "burden": 3.07,
+    "cooling_mean": 2.14,
+    "cooling_p10": 1.65,
+    "cooling_p90": 2.75
+  },
+  {
+    "id": "cell_250m_0028",
+    "centroid": [
+      73.85005,
+      18.46125
+    ],
+    "ward": "Dhankwadi",
+    "population": 2193,
+    "lst_mean": 40.32,
+    "lst_std": 1.81,
+    "n_obs": 64,
+    "ndvi": 0.223,
+    "built_frac": 0.76,
+    "greenable_ha": 0.98,
+    "burden": 4.43,
+    "cooling_mean": 2.64,
+    "cooling_p10": 1.74,
+    "cooling_p90": 3.24
+  },
+  {
+    "id": "cell_250m_0029",
+    "centroid": [
+      73.8523,
+      18.459
+    ],
+    "ward": "Dhankwadi",
+    "population": 2154,
+    "lst_mean": 40.25,
+    "lst_std": 1.44,
+    "n_obs": 64,
+    "ndvi": 0.195,
+    "built_frac": 0.73,
+    "greenable_ha": 0.9,
+    "burden": 4.13,
+    "cooling_mean": 2.62,
+    "cooling_p10": 1.65,
+    "cooling_p90": 3.16
+  },
+  {
+    "id": "cell_250m_0030",
+    "centroid": [
+      73.85455,
+      18.45675
+    ],
+    "ward": "Dhankwadi",
+    "population": 2376,
+    "lst_mean": 40.47,
+    "lst_std": 2.07,
+    "n_obs": 64,
+    "ndvi": 0.215,
+    "built_frac": 0.78,
+    "greenable_ha": 0.89,
+    "burden": 5.07,
+    "cooling_mean": 2.13,
+    "cooling_p10": 1.23,
+    "cooling_p90": 2.75
+  },
+  {
+    "id": "cell_250m_0031",
+    "centroid": [
+      73.89005,
+      18.47625
+    ],
+    "ward": "Kondhwa-wanawdi",
+    "population": 2295,
+    "lst_mean": 41.69,
+    "lst_std": 1.87,
+    "n_obs": 64,
+    "ndvi": 0.204,
+    "built_frac": 0.73,
+    "greenable_ha": 1.1,
+    "burden": 5.6,
+    "cooling_mean": 2.74,
+    "cooling_p10": 2.32,
+    "cooling_p90": 3.32
+  },
+  {
+    "id": "cell_250m_0032",
+    "centroid": [
+      73.8923,
+      18.4785
+    ],
+    "ward": "Kondhwa-wanawdi",
+    "population": 2107,
+    "lst_mean": 41.71,
+    "lst_std": 1.71,
+    "n_obs": 64,
+    "ndvi": 0.205,
+    "built_frac": 0.74,
+    "greenable_ha": 1.13,
+    "burden": 5.23,
+    "cooling_mean": 2.99,
+    "cooling_p10": 2.19,
+    "cooling_p90": 3.61
+  },
+  {
+    "id": "cell_250m_0033",
+    "centroid": [
+      73.89455,
+      18.48075
+    ],
+    "ward": "Kondhwa-wanawdi",
+    "population": 2064,
+    "lst_mean": 41.55,
+    "lst_std": 2.09,
+    "n_obs": 64,
+    "ndvi": 0.19,
+    "built_frac": 0.78,
+    "greenable_ha": 1,
+    "burden": 5.27,
+    "cooling_mean": 2.71,
+    "cooling_p10": 1.66,
+    "cooling_p90": 3.43
+  },
+  {
+    "id": "cell_250m_0034",
+    "centroid": [
+      73.79625,
+      18.48925
+    ],
+    "ward": "Warje-karvenager",
+    "population": 1594,
+    "lst_mean": 37.75,
+    "lst_std": 1.86,
+    "n_obs": 64,
+    "ndvi": 0.262,
+    "built_frac": 0.63,
+    "greenable_ha": 1.48,
+    "burden": 1.38,
+    "cooling_mean": 2.99,
+    "cooling_p10": 2.29,
+    "cooling_p90": 3.56
+  },
+  {
+    "id": "cell_250m_0035",
+    "centroid": [
+      73.7985,
+      18.487
+    ],
+    "ward": "Warje-karvenager",
+    "population": 1758,
+    "lst_mean": 37.86,
+    "lst_std": 1.62,
+    "n_obs": 64,
+    "ndvi": 0.261,
+    "built_frac": 0.62,
+    "greenable_ha": 1.44,
+    "burden": 1.56,
+    "cooling_mean": 3.08,
+    "cooling_p10": 2.52,
+    "cooling_p90": 3.65
+  },
+  {
+    "id": "cell_250m_0036",
+    "centroid": [
+      73.80075,
+      18.48475
+    ],
+    "ward": "Warje-karvenager",
+    "population": 1769,
+    "lst_mean": 38.54,
+    "lst_std": 1.5,
+    "n_obs": 64,
+    "ndvi": 0.273,
+    "built_frac": 0.67,
+    "greenable_ha": 1.6,
+    "burden": 2.1,
+    "cooling_mean": 3.56,
+    "cooling_p10": 2.91,
+    "cooling_p90": 4.16
+  },
+  {
+    "id": "cell_250m_0037",
+    "centroid": [
+      73.84695,
+      18.50115
+    ],
+    "ward": "Tillak Rasta",
+    "population": 2489,
+    "lst_mean": 41.4,
+    "lst_std": 2.07,
+    "n_obs": 64,
+    "ndvi": 0.105,
+    "built_frac": 0.85,
+    "greenable_ha": 0.6,
+    "burden": 6.77,
+    "cooling_mean": 3.04,
+    "cooling_p10": 3.0,
+    "cooling_p90": 3.08
+  },
+  {
+    "id": "cell_250m_0038",
+    "centroid": [
+      73.8492,
+      18.5034
+    ],
+    "ward": "Tillak Rasta",
+    "population": 2681,
+    "lst_mean": 41.64,
+    "lst_std": 1.25,
+    "n_obs": 64,
+    "ndvi": 0.178,
+    "built_frac": 0.87,
+    "greenable_ha": 0.69,
+    "burden": 7.74,
+    "cooling_mean": 3.03,
+    "cooling_p10": 2.99,
+    "cooling_p90": 3.07
+  },
+  {
+    "id": "cell_250m_0039",
+    "centroid": [
+      73.85145,
+      18.50565
+    ],
+    "ward": "Tillak Rasta",
+    "population": 2276,
+    "lst_mean": 42.58,
+    "lst_std": 1.77,
+    "n_obs": 64,
+    "ndvi": 0.104,
+    "built_frac": 0.88,
+    "greenable_ha": 0.51,
+    "burden": 7.59,
+    "cooling_mean": 2.59,
+    "cooling_p10": 2.56,
+    "cooling_p90": 2.63
+  },
+  {
+    "id": "cell_250m_0040",
+    "centroid": [
+      73.91025,
+      18.55625
+    ],
+    "ward": "Nagar Road",
+    "population": 2098,
+    "lst_mean": 39.8,
+    "lst_std": 1.86,
+    "n_obs": 64,
+    "ndvi": 0.178,
+    "built_frac": 0.7,
+    "greenable_ha": 1.33,
+    "burden": 3.52,
+    "cooling_mean": 3.78,
+    "cooling_p10": 3.29,
+    "cooling_p90": 4.45
+  },
+  {
+    "id": "cell_250m_0041",
+    "centroid": [
+      73.9125,
+      18.554
+    ],
+    "ward": "Nagar Road",
+    "population": 1681,
+    "lst_mean": 40.87,
+    "lst_std": 1.24,
+    "n_obs": 64,
+    "ndvi": 0.209,
+    "built_frac": 0.7,
+    "greenable_ha": 1.2,
+    "burden": 3.45,
+    "cooling_mean": 3.3,
+    "cooling_p10": 2.74,
+    "cooling_p90": 3.79
+  },
+  {
+    "id": "cell_250m_0042",
+    "centroid": [
+      73.91475,
+      18.55175
+    ],
+    "ward": "Nagar Road",
+    "population": 2096,
+    "lst_mean": 41.06,
+    "lst_std": 1.83,
+    "n_obs": 64,
+    "ndvi": 0.228,
+    "built_frac": 0.71,
+    "greenable_ha": 1.25,
+    "burden": 4.51,
+    "cooling_mean": 3.01,
+    "cooling_p10": 2.45,
+    "cooling_p90": 3.65
+  }
+]

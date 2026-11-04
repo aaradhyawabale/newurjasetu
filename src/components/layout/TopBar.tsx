@@ -18,6 +18,9 @@ import {
   GitCompare,
   Flame,
   Building2,
+  Wrench,
+  Sun,
+  Layers,
 } from "lucide-react";
 
 interface Scenario {
@@ -45,6 +48,11 @@ interface TopBarProps {
   onCopilotClick?: () => void;
   onHeatDashboardClick?: () => void;
   onInterventionsClick?: () => void;
+  onToggleLegacyTools?: () => void;
+  showLegacyTools?: boolean;
+  onOpenShadowSimulator?: () => void;
+  onOpenSolarReality?: () => void;
+  onOpenReportDrawer?: () => void;
   userName?: string | null;
   historyCount: number;
   isAnalyzing: boolean;
@@ -72,6 +80,11 @@ export const TopBar: React.FC<TopBarProps> = ({
   onCopilotClick,
   onHeatDashboardClick,
   onInterventionsClick,
+  onToggleLegacyTools,
+  showLegacyTools = false,
+  onOpenShadowSimulator,
+  onOpenSolarReality,
+  onOpenReportDrawer,
   userName,
   historyCount,
   isAnalyzing,
@@ -89,6 +102,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   const [showScenarioMenu, setShowScenarioMenu] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showLegacyMenu, setShowLegacyMenu] = useState(false);
 
   // Keyboard shortcut listener (Cmd+K / Ctrl+K)
   useEffect(() => {
@@ -376,6 +390,142 @@ export const TopBar: React.FC<TopBarProps> = ({
             <span className="hidden sm:inline">Interventions</span>
           </button>
         )}
+
+        {/* Legacy Tools Dropdown Menu */}
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setShowLegacyMenu(!showLegacyMenu)}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-btn border text-xs font-semibold transition-colors shadow-2xs ${
+              showLegacyTools
+                ? "border-amber-300 bg-amber-50 text-amber-900"
+                : "border-stone-200 hover:border-stone-300 bg-white hover:bg-stone-50 text-stone-700"
+            }`}
+            title="Access Legacy Manual Siting Tools, Shading Simulators & Reports"
+          >
+            <Wrench className="w-3.5 h-3.5 text-stone-500" />
+            <span className="hidden sm:inline">Legacy tools</span>
+            <ChevronDown className="w-3 h-3 text-stone-400" />
+          </button>
+
+          {showLegacyMenu && (
+            <div className="absolute right-0 sm:left-0 top-full mt-1.5 w-64 bg-white border border-stone-200 rounded-panel shadow-xl py-1 z-50">
+              <div className="px-3 py-1.5 border-b border-stone-100 flex items-center justify-between text-[10px] font-mono uppercase tracking-wider text-stone-400 font-semibold">
+                <span>Legacy Modules</span>
+                <span className="text-[9px] px-1 py-0.2 bg-stone-100 rounded text-stone-500">Preserved</span>
+              </div>
+
+              {onToggleLegacyTools && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onToggleLegacyTools();
+                    setShowLegacyMenu(false);
+                  }}
+                  className="w-full px-3 py-2 text-left hover:bg-stone-50 flex items-center justify-between text-xs text-stone-800 transition-colors border-b border-stone-100"
+                >
+                  <div className="flex items-center gap-2">
+                    <Layers className="w-3.5 h-3.5 text-emerald-700" />
+                    <div className="flex flex-col">
+                      <span className="font-semibold text-stone-900">Manual Siting Palette</span>
+                      <span className="text-[10px] text-stone-500">11 infrastructure types sidebar</span>
+                    </div>
+                  </div>
+                  <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded font-bold ${
+                    showLegacyTools ? "bg-emerald-100 text-emerald-800" : "bg-stone-100 text-stone-500"
+                  }`}>
+                    {showLegacyTools ? "Active" : "Hidden"}
+                  </span>
+                </button>
+              )}
+
+              {onOpenShadowSimulator && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onOpenShadowSimulator();
+                    setShowLegacyMenu(false);
+                  }}
+                  className="w-full px-3 py-2 text-left hover:bg-stone-50 flex items-center gap-2 text-xs text-stone-700 transition-colors"
+                >
+                  <Sun className="w-3.5 h-3.5 text-amber-600" />
+                  <div className="flex flex-col">
+                    <span className="font-medium text-stone-900">Shadow Simulator</span>
+                    <span className="text-[10px] text-stone-500">3D diurnal building solar shading</span>
+                  </div>
+                </button>
+              )}
+
+              {onOpenSolarReality && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onOpenSolarReality();
+                    setShowLegacyMenu(false);
+                  }}
+                  className="w-full px-3 py-2 text-left hover:bg-stone-50 flex items-center gap-2 text-xs text-stone-700 transition-colors"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                  <div className="flex flex-col">
+                    <span className="font-medium text-stone-900">Solar Reality & Financials</span>
+                    <span className="text-[10px] text-stone-500">PV generation & payback calculations</span>
+                  </div>
+                </button>
+              )}
+
+              {onCompareClick && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onCompareClick();
+                    setShowLegacyMenu(false);
+                  }}
+                  className="w-full px-3 py-2 text-left hover:bg-stone-50 flex items-center gap-2 text-xs text-stone-700 transition-colors"
+                >
+                  <GitCompare className="w-3.5 h-3.5 text-emerald-700" />
+                  <div className="flex flex-col">
+                    <span className="font-medium text-stone-900">Candidate Comparison</span>
+                    <span className="text-[10px] text-stone-500">Side-by-side scenario simulator</span>
+                  </div>
+                </button>
+              )}
+
+              {onOpenReportDrawer && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onOpenReportDrawer();
+                    setShowLegacyMenu(false);
+                  }}
+                  className="w-full px-3 py-2 text-left hover:bg-stone-50 flex items-center gap-2 text-xs text-stone-700 transition-colors"
+                >
+                  <FileText className="w-3.5 h-3.5 text-stone-500" />
+                  <div className="flex flex-col">
+                    <span className="font-medium text-stone-900">Siting Assessment Report</span>
+                    <span className="text-[10px] text-stone-500">Multi-criteria analysis drawer</span>
+                  </div>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => {
+                  onHistoryClick();
+                  setShowLegacyMenu(false);
+                }}
+                className="w-full px-3 py-2 text-left hover:bg-stone-50 flex items-center justify-between text-xs text-stone-700 transition-colors border-t border-stone-100"
+              >
+                <div className="flex items-center gap-2">
+                  <History className="w-3.5 h-3.5 text-stone-500" />
+                  <span className="font-medium text-stone-900">Placement History</span>
+                </div>
+                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-stone-100 text-stone-600">
+                  {historyCount}
+                </span>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Right: Actions, Exports & Profile */}

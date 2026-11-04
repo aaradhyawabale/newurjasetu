@@ -18,6 +18,7 @@ import {
   Download,
   Info,
   Zap,
+  X,
 } from "lucide-react";
 import { InfrastructureTypeId, INFRASTRUCTURE_TYPES } from "@/config/infra-types";
 
@@ -29,6 +30,7 @@ interface ToolSidebarProps {
   onExportMapClick: () => void;
   historyCount: number;
   hasActivePlacement: boolean;
+  onClose?: () => void;
   className?: string;
 }
 
@@ -47,6 +49,7 @@ export const ToolSidebar: React.FC<ToolSidebarProps> = ({
   onExportMapClick,
   historyCount,
   hasActivePlacement,
+  onClose,
   className = "",
 }) => {
   const tools: ToolItem[] = [
@@ -79,11 +82,23 @@ export const ToolSidebar: React.FC<ToolSidebarProps> = ({
     >
       {/* Top Header & Tool List */}
       <div className="flex flex-col">
-        <div className="px-4 py-3.5 border-b border-stone-200 bg-stone-50/50 flex items-center justify-between">
-          <span className="text-[11px] font-mono uppercase tracking-wider font-semibold text-stone-500">
-            Urban Tools
-          </span>
-          <span className="text-[10px] font-mono text-stone-400">11 Types</span>
+        <div className="px-4 py-3 border-b border-stone-200 bg-stone-50/50 flex items-center justify-between">
+          <div className="flex flex-col">
+            <span className="text-[11px] font-mono uppercase tracking-wider font-semibold text-stone-600">
+              Legacy Tools
+            </span>
+            <span className="text-[10px] text-stone-400">Manual Siting (11 Types)</span>
+          </div>
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1 rounded hover:bg-stone-200 text-stone-500 hover:text-stone-800 transition-colors"
+              title="Hide legacy tools palette"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
 
         <nav className="p-2 flex flex-col gap-0.5">

@@ -30,6 +30,7 @@ import {
 } from "@/config/infra-types";
 import { NumberField } from "../ui/NumberField";
 import { StatusBadge } from "../ui/StatusBadge";
+import { ProvenanceTag } from "../ui/ProvenanceTag";
 import { ValidationResult } from "@/server/analysis-engine/validation";
 
 interface PlacementData {
@@ -161,6 +162,7 @@ export const PlacementPanel: React.FC<PlacementPanelProps> = ({
               Project Area Dimensions
             </span>
             <div className="flex items-center gap-1.5">
+              <ProvenanceTag type="Modelled" />
               <span className="text-xs font-mono font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
                 {footprintAreaM2.toLocaleString()} m²
               </span>
@@ -195,7 +197,10 @@ export const PlacementPanel: React.FC<PlacementPanelProps> = ({
           {/* Length in meters with quick steppers & slider */}
           <div className="flex flex-col gap-1 p-2.5 bg-stone-50 rounded-panel border border-stone-200">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-mono font-medium text-stone-700">Length (Span)</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-mono font-medium text-stone-700">Length (Span)</span>
+                <ProvenanceTag type="Assumed" />
+              </div>
               <div className="flex items-center gap-1">
                 {[-50, -10, 10, 50].map((delta) => (
                   <button
@@ -237,7 +242,10 @@ export const PlacementPanel: React.FC<PlacementPanelProps> = ({
           {/* Width in meters with quick steppers & slider */}
           <div className="flex flex-col gap-1 p-2.5 bg-stone-50 rounded-panel border border-stone-200">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-mono font-medium text-stone-700">Width (Cross-Section)</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-mono font-medium text-stone-700">Width (Cross-Section)</span>
+                <ProvenanceTag type="Assumed" />
+              </div>
               <div className="flex items-center gap-1">
                 {[-10, -5, 5, 10].map((delta) => (
                   <button

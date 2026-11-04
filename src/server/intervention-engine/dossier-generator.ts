@@ -1,6 +1,7 @@
 import { InterventionCandidate, PlanningDossier } from './types';
 import { getCategoryMetadata } from './intervention-registry';
 import { getCandidateById } from './candidate-generator';
+import { getModelCardSync } from '../priority/loader';
 
 export function generatePlanningDossier(candidateId: string): PlanningDossier {
   const candidate = getCandidateById(candidateId);
@@ -79,6 +80,17 @@ export function generatePlanningDossier(candidateId: string): PlanningDossier {
     spatialEvidenceSummary,
     regulatoryAndStandardAlignment,
     preImplementationSurveyPlan,
-    nonAuthoritativeDisclaimer
+    nonAuthoritativeDisclaimer,
+    modelCardSummary: (() => {
+      const mc = getModelCardSync();
+      if (!mc) return undefined;
+      return {
+        modelName: mc.model_name,
+        rmse: mc.metrics?.rmse ?? null,
+        r2: mc.metrics?.r2 ?? null,
+        heldOutSceneDate: mc.held_out_scene?.date ?? "N/A",
+        directionCheckPassed: mc.direction_check?.passed ?? false,
+      };
+    })(),
   };
 }

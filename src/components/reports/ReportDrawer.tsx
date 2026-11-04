@@ -39,6 +39,7 @@ import { GeminiInsightsCard } from "./GeminiInsightsCard";
 import { AiPlanningInsights } from "@/server/ai/types";
 import { NearbyBridgeCrossingCandidate } from "@/server/analysis-engine/bridge-planner";
 import { CriterionResult } from "@/server/analysis-engine/engine";
+import { ProvenanceTag } from "../ui/ProvenanceTag";
 
 interface ReportDrawerProps {
   isOpen: boolean;
@@ -254,10 +255,15 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                   <h3 className="text-lg font-bold text-stone-900 leading-tight">
                     {overall.band}
                   </h3>
-                  <div className="flex items-center gap-2 mt-0.5">
+                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                    <ProvenanceTag type="Modelled" />
                     <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-white/80 border border-stone-200 text-stone-700 font-medium">
                       Data Confidence: <strong>{overall.confidence}%</strong>
                     </span>
+                    <span className="text-[10px] text-stone-500 font-mono">
+                      (Geometric heuristic screening; not an arbitrary statutory composite score)
+                    </span>
+                  </div>
                     {overall.tone === "negative" && (
                       <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-red-100 text-red-800 font-bold border border-red-200">
                         Constrained
@@ -265,7 +271,6 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                     )}
                   </div>
                 </div>
-              </div>
 
               {/* Spatial Metadata & Action */}
               <div className="flex flex-col items-start md:items-end gap-2.5 w-full md:w-auto pt-3 md:pt-0 border-t md:border-t-0 border-stone-200/60">
@@ -585,11 +590,14 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                 {/* Metrics Grid */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 font-mono text-[11px]">
                   <div className="p-2.5 rounded bg-white border border-rose-200 flex flex-col">
-                    <span className="text-[9.5px] text-stone-400">Site Surface Temp (LST)</span>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9.5px] text-stone-400">Site Surface Temp (LST)</span>
+                      <ProvenanceTag type="Measured" />
+                    </div>
                     <span className="text-sm font-bold text-rose-900">
                       {report.heatIntelligence.siteObservations.lstCelsius !== null
                         ? `${report.heatIntelligence.siteObservations.lstCelsius}°C`
-                        : "NoData / Masked"}
+                        : "Not available"}
                     </span>
                     {report.heatIntelligence.siteObservations.stQaUncertaintyK && (
                       <span className="text-[9px] text-stone-500">
@@ -599,11 +607,14 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                   </div>
 
                   <div className="p-2.5 rounded bg-white border border-rose-200 flex flex-col">
-                    <span className="text-[9.5px] text-stone-400">Site Vegetation (NDVI)</span>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9.5px] text-stone-400">Site Vegetation (NDVI)</span>
+                      <ProvenanceTag type="Measured" />
+                    </div>
                     <span className="text-sm font-bold text-emerald-900">
                       {report.heatIntelligence.siteObservations.ndvi30m !== null
                         ? report.heatIntelligence.siteObservations.ndvi30m
-                        : "NoData"}
+                        : "Not available"}
                     </span>
                     <span className="text-[9px] text-stone-500">
                       30m area-weighted
@@ -611,23 +622,34 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                   </div>
 
                   <div className="p-2.5 rounded bg-white border border-rose-200 flex flex-col">
-                    <span className="text-[9.5px] text-stone-400">Study Area Baseline</span>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9.5px] text-stone-400">Study Area Baseline</span>
+                      <ProvenanceTag type="Measured" />
+                    </div>
                     <span className="text-sm font-bold text-stone-800">
-                      {report.heatIntelligence.citywideBaselines.meanLSTCelsius}°C Mean
+                      {report.heatIntelligence.citywideBaselines.meanLSTCelsius !== null ? `${report.heatIntelligence.citywideBaselines.meanLSTCelsius}°C Mean` : "Not available"}
                     </span>
-                    <span className="text-[9px] text-stone-500">
-                      Δ {report.heatIntelligence.citywideBaselines.thermalDeltaCelsius !== null
-                        ? (report.heatIntelligence.citywideBaselines.thermalDeltaCelsius > 0
-                            ? `+${report.heatIntelligence.citywideBaselines.thermalDeltaCelsius}°C`
-                            : `${report.heatIntelligence.citywideBaselines.thermalDeltaCelsius}°C`)
-                        : "N/A"}
+                    <span className="text-[9px] text-stone-500 flex items-center justify-between">
+                      <span>
+                        Δ {report.heatIntelligence.citywideBaselines.thermalDeltaCelsius !== null
+                          ? (report.heatIntelligence.citywideBaselines.thermalDeltaCelsius > 0
+                              ? `+${report.heatIntelligence.citywideBaselines.thermalDeltaCelsius}°C`
+                              : `${report.heatIntelligence.citywideBaselines.thermalDeltaCelsius}°C`)
+                          : "Not available"}
+                      </span>
+                      {report.heatIntelligence.citywideBaselines.thermalDeltaCelsius !== null && (
+                        <ProvenanceTag type="Modelled" />
+                      )}
                     </span>
                   </div>
 
                   <div className="p-2.5 rounded bg-white border border-rose-200 flex flex-col">
-                    <span className="text-[9.5px] text-stone-400">Surface Class (SCL)</span>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9.5px] text-stone-400">Surface Class (SCL)</span>
+                      <ProvenanceTag type="Measured" />
+                    </div>
                     <span className="text-xs font-bold text-stone-800 truncate" title={report.heatIntelligence.siteObservations.sclClassName}>
-                      {report.heatIntelligence.siteObservations.sclClassName}
+                      {report.heatIntelligence.siteObservations.sclClassName || "Not available"}
                     </span>
                     <span className="text-[9px] text-stone-500">
                       Sentinel-2 L2A
@@ -708,11 +730,12 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                 </div>
 
                 {/* Scientific Disclosure */}
-                <div className="text-[9.5px] text-stone-500 flex items-start gap-1 bg-rose-100/50 p-2 rounded border border-rose-200">
+                <div className="text-[9.5px] text-stone-600 flex items-start gap-1.5 bg-rose-100/60 p-2.5 rounded border border-rose-200 leading-relaxed">
                   <Info className="w-3.5 h-3.5 text-rose-600 shrink-0 mt-0.5" />
-                  <span>
-                    <strong>Scientific Notice:</strong> Land Surface Temperature (LST) measures radiometric skin temperature from Landsat 9 TIRS-2 Band 10 (100m native resolution resampled to 30m). It does NOT equate to 2m ambient air temperature or human physiological thermal stress.
-                  </span>
+                  <div className="space-y-0.5">
+                    <div><strong>Scientific Notice:</strong> Surface temperature (LST) measures radiometric skin temperature from Landsat 9 TIRS-2 Band 10 (100m native resolution resampled to 30m). It does NOT equate to 2m ambient air temperature or human physiological thermal stress.</div>
+                    <div>NDVI measures spectral green reflectance [-1.0, 1.0], NOT 3D tree canopy cover or shade. Siting scores are heuristic multi-criteria indicators without arbitrary statutory composite weights.</div>
+                  </div>
                 </div>
               </div>
             )}

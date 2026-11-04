@@ -1,0 +1,139 @@
+{
+  "manifest_version": "1.0.0",
+  "pipeline_script": "scripts/pipeline/build_dataset.py",
+  "generated_at": "2026-11-04T16:07:08.299519+00:00",
+  "study_area": {
+    "name": "Pune Urban Agglomeration (PMC Candidate Boundary)",
+    "bbox_wgs84": [
+      73.731787,
+      18.385364,
+      74.018537,
+      18.621772
+    ],
+    "crs_target": "EPSG:32643 (UTM Zone 43N)",
+    "display_crs": "EPSG:4326 (WGS84)"
+  },
+  "temporal_parameters": {
+    "season": "Pre-Monsoon Summer (March - May)",
+    "start_year": 2022,
+    "end_year": 2026,
+    "months": [
+      3,
+      4,
+      5
+    ]
+  },
+  "sources": {
+    "landsat_c2_l2": {
+      "collection": "landsat-c2-l2",
+      "provider": "USGS / NASA via Microsoft Planetary Computer STAC",
+      "license": "Public Domain (U.S. Government Work)",
+      "resolution": "100m native thermal resampled to 30m delivered",
+      "bands": [
+        "ST_B10",
+        "QA_PIXEL",
+        "QA_RADSAT"
+      ],
+      "processing_method": "Cloud-masked via QA_PIXEL; per-pixel median composite with std and observation count",
+      "scenes_referenced": [
+        {
+          "id": "LC09_L2SP_147047_20230422_02_T1",
+          "datetime": "2023-04-22T05:27:39Z",
+          "cloud_cover": 0.42,
+          "platform": "LANDSAT_9"
+        },
+        {
+          "id": "LC08_L2SP_147047_20220505_02_T1",
+          "datetime": "2022-05-05T05:28:12Z",
+          "cloud_cover": 1.15,
+          "platform": "LANDSAT_8"
+        },
+        {
+          "id": "LC09_L2SP_147047_20240424_02_T1",
+          "datetime": "2024-04-24T05:27:15Z",
+          "cloud_cover": 0.88,
+          "platform": "LANDSAT_9"
+        }
+      ]
+    },
+    "sentinel_2_l2a": {
+      "collection": "sentinel-2-l2a",
+      "provider": "European Space Agency (ESA) Copernicus via Microsoft Planetary Computer STAC",
+      "license": "Copernicus Open Access Policy",
+      "resolution": "10m (B04, B08), 20m (B11, SCL)",
+      "indices": {
+        "NDVI": "(B08 - B04) / (B08 + B04)",
+        "NDBI": "(B11 - B08) / (B11 + B08)",
+        "NDWI": "(B03 - B08) / (B03 + B08)"
+      },
+      "processing_method": "SCL cloud and shadow filtering; median multi-temporal composite",
+      "scenes_referenced": [
+        {
+          "id": "S2B_MSIL2A_20230424T052649_N0510_R105_T43QCA",
+          "datetime": "2023-04-24T05:26:49Z",
+          "cloud_cover": 0.12
+        },
+        {
+          "id": "S2A_MSIL2A_20240418T052651_N0510_R105_T43QCA",
+          "datetime": "2024-04-18T05:26:51Z",
+          "cloud_cover": 0.35
+        }
+      ]
+    },
+    "copernicus_dem": {
+      "collection": "cop-dem-glo-30",
+      "provider": "European Space Agency (ESA) Copernicus",
+      "license": "Copernicus Open Access Policy",
+      "resolution": "30m",
+      "features_derived": [
+        "Elevation (AMSL meters)",
+        "Terrain Slope (degrees)"
+      ]
+    },
+    "osm_infrastructure": {
+      "provider": "OpenStreetMap Contributors",
+      "license": "Open Database License (ODbL) 1.0",
+      "features_derived": [
+        "Building density fraction per cell",
+        "Distance to nearest water body (meters)"
+      ]
+    },
+    "population_grid": {
+      "source_id": "worldpop_2022_100m",
+      "provider": "WorldPop Project / Census of India Projections",
+      "reference_year": 2022,
+      "license": "CC-BY 4.0",
+      "resolution": "100m ambient resident population density"
+    }
+  },
+  "provenance_classification": {
+    "lst_median": "Measured",
+    "lst_std": "Modelled",
+    "n_obs": "Measured",
+    "ndvi": "Measured",
+    "ndbi": "Measured",
+    "ndwi": "Measured",
+    "elevation": "Measured",
+    "slope": "Modelled",
+    "building_density": "Modelled",
+    "distance_to_water_m": "Modelled",
+    "population": "Modelled",
+    "burden": "Modelled",
+    "cooling_mean": "Modelled",
+    "cooling_p10": "Modelled",
+    "cooling_p90": "Modelled"
+  },
+  "scientific_governance_disclaimers": [
+    "Surface temperature (LST) is radiometric skin temperature, NOT 2m ambient air temperature or human heat stress.",
+    "NDVI is a unitless spectral greenness index, NOT 3D tree canopy cover or shade architecture.",
+    "NDBI indicates shortwave-infrared vs NIR reflectance, highlighting built-up and dry soil imperviousness.",
+    "No arbitrary weighted composite scores; all priority ranks derive from transparent physical and demographic models.",
+    "Unknown or cloud-obscured values stay null and show 'Not available'."
+  ],
+  "output_artifacts": {
+    "training_table_100m": "data/pipeline_output/training_table_100m.csv",
+    "aggregates_250m_json": "data/pipeline_output/aggregates_250m.json",
+    "aggregates_250m_csv": "data/pipeline_output/aggregates_250m.csv",
+    "dataset_manifest_json": "data/pipeline_output/dataset_manifest.json"
+  }
+}

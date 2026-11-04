@@ -83,6 +83,7 @@ export const AppShell: React.FC<AppShellProps> = ({
   // State: 2-Click Linear & Footprint drawing mode (e.g. Bridge start -> endpoint)
   const [linearStartPoint, setLinearStartPoint] = useState<{ lat: number; lng: number } | null>(null);
   const [isTwoClickDrawMode, setIsTwoClickDrawMode] = useState<boolean>(false);
+  const [showLegacyTools, setShowLegacyTools] = useState<boolean>(false);
 
   // Keyboard shortcut listener: Escape cancels active multi-click drawing modes
   useEffect(() => {
@@ -1136,6 +1137,31 @@ export const AppShell: React.FC<AppShellProps> = ({
         onHeatDashboardClick={() => setIsHeatDashboardOpen(true)}
         onInterventionsClick={() => setIsInterventionsOpen(true)}
         onCopilotClick={() => setIsCopilotOpen(true)}
+        onToggleLegacyTools={() => setShowLegacyTools((prev) => !prev)}
+        showLegacyTools={showLegacyTools}
+        onOpenShadowSimulator={() => {
+          if (!activePlacement) {
+            showToast("Site or select an infrastructure placement to simulate shadows", "info");
+            setShowLegacyTools(true);
+            return;
+          }
+          setIsShadowSimulatorOpen(true);
+        }}
+        onOpenSolarReality={() => {
+          if (!activePlacement) {
+            showToast("Site or select an infrastructure placement to evaluate solar reality", "info");
+            setShowLegacyTools(true);
+            return;
+          }
+          setIsSolarRealityOpen(true);
+        }}
+        onOpenReportDrawer={() => {
+          if (!currentReport) {
+            showToast("Run analysis on a placement first to generate an assessment report", "info");
+            return;
+          }
+          setIsReportOpen(true);
+        }}
         userName={user.name || user.email}
         historyCount={historyItems.length}
         isAnalyzing={isAnalyzing}
@@ -1144,16 +1170,19 @@ export const AppShell: React.FC<AppShellProps> = ({
 
       {/* Main Workspace: Left Sidebar + Center Map + Right Panel */}
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
-        {/* Left Tool Sidebar */}
-        <ToolSidebar
-          selectedTool={activeTool}
-          onSelectTool={handleSelectTool}
-          onRemoveClick={handleRemoveClick}
-          onHistoryClick={() => setIsHistoryOpen(true)}
-          onExportMapClick={handleExportMapPng}
-          historyCount={historyItems.length}
-          hasActivePlacement={Boolean(activePlacement)}
-        />
+        {/* Left Tool Sidebar (Hidden by default, accessible via Legacy Tools menu) */}
+        {showLegacyTools && (
+          <ToolSidebar
+            selectedTool={activeTool}
+            onSelectTool={handleSelectTool}
+            onRemoveClick={handleRemoveClick}
+            onHistoryClick={() => setIsHistoryOpen(true)}
+            onExportMapClick={handleExportMapPng}
+            historyCount={historyItems.length}
+            hasActivePlacement={Boolean(activePlacement)}
+            onClose={() => setShowLegacyTools(false)}
+          />
+        )}
 
         {/* Center Map View */}
         <main className="flex-1 h-full min-h-[260px] relative overflow-hidden bg-stone-100">

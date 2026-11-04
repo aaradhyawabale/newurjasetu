@@ -177,6 +177,13 @@ export interface PlanningDossier {
     responsibleDepartment: string;
   }[];
   nonAuthoritativeDisclaimer: string;
+  modelCardSummary?: {
+    modelName: string;
+    rmse: number | null;
+    r2: number | null;
+    heldOutSceneDate: string;
+    directionCheckPassed: boolean;
+  };
 }
 
 export interface AnalysisRun {

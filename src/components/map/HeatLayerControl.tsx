@@ -16,6 +16,7 @@ import {
   Compass,
   Sparkles
 } from "lucide-react";
+import { ProvenanceTag } from "../ui/ProvenanceTag";
 
 export interface HeatLayerControlProps {
   showLst?: boolean;
@@ -204,8 +205,9 @@ export const HeatLayerControl: React.FC<HeatLayerControlProps> = ({
                   <span>42.5°C</span>
                   <span>60.0°C (Max Display)</span>
                 </div>
-                <div className="text-[9px] text-stone-500 font-sans leading-tight">
-                  Display stretch: 25°C to 60°C. Continuous colormap for visualization; not a regulatory thermal hazard classification.
+                <div className="flex items-center gap-1.5 text-[9px] text-stone-500 font-sans leading-tight">
+                  <ProvenanceTag type="Assumed" />
+                  <span>Display stretch: 25°C to 60°C. Continuous colormap; not a regulatory thermal hazard classification.</span>
                 </div>
 
                 {/* Opacity Slider */}
@@ -260,8 +262,9 @@ export const HeatLayerControl: React.FC<HeatLayerControlProps> = ({
                   <span>+0.32</span>
                   <span>+0.85 (Max Display)</span>
                 </div>
-                <div className="text-[9px] text-stone-500 font-sans leading-tight">
-                  Display stretch: -0.20 to +0.85. Continuous reflectance ratio (NIR-Red)/(NIR+Red); not tree canopy percentage.
+                <div className="flex items-center gap-1.5 text-[9px] text-stone-500 font-sans leading-tight">
+                  <ProvenanceTag type="Assumed" />
+                  <span>Display stretch: -0.20 to +0.85. Reflectance ratio (NIR-Red)/(NIR+Red); not tree canopy percentage.</span>
                 </div>
 
                 {/* Opacity Slider */}
@@ -323,7 +326,10 @@ export const HeatLayerControl: React.FC<HeatLayerControlProps> = ({
             ) : pointData?.query ? (
               <div className="space-y-1 pt-1 border-t border-stone-800">
                 <div className="flex justify-between items-center">
-                  <span className="text-stone-400">Surface Temp (LST):</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-stone-400">Surface Temp (LST):</span>
+                    <ProvenanceTag type="Measured" />
+                  </div>
                   {pointData.query.lst.celsius !== null ? (
                     <span className="text-rose-400 font-bold">
                       {pointData.query.lst.celsius}°C
@@ -334,25 +340,28 @@ export const HeatLayerControl: React.FC<HeatLayerControlProps> = ({
                       )}
                     </span>
                   ) : (
-                    <span className="text-stone-500 italic">NoData / Outside Grid</span>
+                    <span className="text-stone-500 italic">Not available</span>
                   )}
                 </div>
 
                 <div className="flex justify-between items-center">
-                  <span className="text-stone-400">Vegetation (NDVI 30m):</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-stone-400">Vegetation (NDVI 30m):</span>
+                    <ProvenanceTag type="Measured" />
+                  </div>
                   {pointData.query.ndvi.aggregated30m !== null ? (
                     <span className="text-emerald-400 font-bold">
                       {pointData.query.ndvi.aggregated30m}
                     </span>
                   ) : (
-                    <span className="text-stone-500 italic">NoData</span>
+                    <span className="text-stone-500 italic">Not available</span>
                   )}
                 </div>
 
                 <div className="flex justify-between items-center text-[10px]">
                   <span className="text-stone-400">Surface Class (SCL):</span>
                   <span className="text-stone-200 font-sans">
-                    {pointData.query.ndvi.sclClassName}
+                    {pointData.query.ndvi.sclClassName || "Not available"}
                   </span>
                 </div>
               </div>
@@ -362,8 +371,9 @@ export const HeatLayerControl: React.FC<HeatLayerControlProps> = ({
               </div>
             )}
 
-            <div className="text-[9px] text-stone-400 pt-1 border-t border-stone-800 leading-tight">
-              ⚠️ <strong>Scientific Notice:</strong> LST is radiometric surface temperature, not ambient air temperature.
+            <div className="text-[9px] text-stone-400 pt-1 border-t border-stone-800 leading-tight space-y-0.5">
+              <div>⚠️ <strong>Scientific Notice:</strong> Surface temperature (LST) is radiometric skin temperature, NOT 2m ambient air temperature.</div>
+              <div>NDVI is a spectral reflectance index, NOT 3D tree canopy cover. No arbitrary weighted composite scores.</div>
             </div>
           </div>
         )}

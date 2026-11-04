@@ -39,6 +39,7 @@ import {
   AnalysisRun,
   DatasetRegistryItem
 } from "@/server/intervention-engine/types";
+import { ProvenanceTag } from "../ui/ProvenanceTag";
 
 interface InterventionWorkspaceProps {
   isOpen: boolean;
@@ -319,6 +320,22 @@ export const InterventionPlanningWorkspace: React.FC<InterventionWorkspaceProps>
           </div>
         </div>
 
+        {/* Project Scientific Rules & Disclaimers Banner */}
+        <div className="px-6 py-2 bg-stone-100 border-b border-stone-200 flex items-center justify-between flex-wrap gap-2 text-[10.5px] text-stone-700 font-mono shrink-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-bold text-stone-900 uppercase">Scientific Disclaimers:</span>
+            <span>• Surface temperature (LST) is radiometric skin temperature, NOT 2m ambient air temperature</span>
+            <span>• NDVI is a spectral reflectance index, NOT 3D tree canopy cover</span>
+            <span>• No arbitrary weighted composite scores</span>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="text-stone-500 text-[10px]">Data Provenance:</span>
+            <ProvenanceTag type="Measured" />
+            <ProvenanceTag type="Modelled" />
+            <ProvenanceTag type="Assumed" />
+          </div>
+        </div>
+
         {/* Discovery & Provenance Mode Sub-bar */}
         <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-2 bg-stone-100/70 border-b border-stone-200 text-xs">
           <div className="flex items-center gap-2">
@@ -588,28 +605,32 @@ export const InterventionPlanningWorkspace: React.FC<InterventionWorkspaceProps>
 
                   {/* Satellite Metrics Grid */}
                   <div className="grid grid-cols-2 gap-2 mt-3 pt-2.5 border-t border-stone-100 text-[11px]">
-                    <div className="flex items-center gap-1.5">
-                      <Flame className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-                      <div>
-                        <span className="font-semibold text-stone-900">
-                          {c.thermalContext.surfaceTemperatureCelsius !== null ? `${c.thermalContext.surfaceTemperatureCelsius}°C` : "N/A"}
+                    <div className="flex items-center justify-between gap-1">
+                      <div className="flex items-center gap-1.5 truncate">
+                        <Flame className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                        <span className="font-semibold text-stone-900 truncate">
+                          {c.thermalContext.surfaceTemperatureCelsius !== null ? `${c.thermalContext.surfaceTemperatureCelsius}°C` : "Not available"}
                         </span>
-                        <span className={`ml-1 text-[10px] font-medium ${lstDelta && lstDelta > 0 ? "text-rose-600 font-bold" : "text-stone-500"}`}>
-                          ({lstDelta !== null ? `${lstDelta > 0 ? "+" : ""}${lstDelta}°C` : ""})
-                        </span>
+                        {lstDelta !== null && (
+                          <span className={`text-[10px] font-medium ${lstDelta > 0 ? "text-rose-600 font-bold" : "text-stone-500"}`}>
+                            ({lstDelta > 0 ? "+" : ""}{lstDelta}°C)
+                          </span>
+                        )}
                       </div>
+                      <ProvenanceTag type="Measured" />
                     </div>
 
-                    <div className="flex items-center gap-1.5">
-                      <TreePine className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                      <div>
-                        <span className="font-semibold text-stone-900">
-                          {c.vegetationContext.ndvi30m !== null ? c.vegetationContext.ndvi30m : "N/A"}
+                    <div className="flex items-center justify-between gap-1">
+                      <div className="flex items-center gap-1.5 truncate">
+                        <TreePine className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <span className="font-semibold text-stone-900 truncate">
+                          {c.vegetationContext.ndvi30m !== null ? c.vegetationContext.ndvi30m : "Not available"}
                         </span>
-                        <span className="ml-1 text-[10px] text-stone-500">
+                        <span className="text-[10px] text-stone-500">
                           NDVI
                         </span>
                       </div>
+                      <ProvenanceTag type="Measured" />
                     </div>
                   </div>
 
@@ -736,55 +757,75 @@ export const InterventionPlanningWorkspace: React.FC<InterventionWorkspaceProps>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     {/* Thermal Card */}
                     <div className="p-3.5 rounded-xl border border-rose-200 bg-rose-50/40">
-                      <div className="flex items-center gap-1.5 text-rose-800 text-xs font-bold">
-                        <Flame className="w-4 h-4 text-rose-600" />
-                        <span>Landsat 9 LST</span>
+                      <div className="flex items-center justify-between gap-1">
+                        <div className="flex items-center gap-1.5 text-rose-800 text-xs font-bold">
+                          <Flame className="w-4 h-4 text-rose-600" />
+                          <span>Landsat 9 LST</span>
+                        </div>
+                        <ProvenanceTag type="Measured" />
                       </div>
                       <div className="mt-2 text-xl font-bold text-stone-900">
-                        {activeCandidate.thermalContext.surfaceTemperatureCelsius !== null ? `${activeCandidate.thermalContext.surfaceTemperatureCelsius}°C` : "No Data"}
+                        {activeCandidate.thermalContext.surfaceTemperatureCelsius !== null ? `${activeCandidate.thermalContext.surfaceTemperatureCelsius}°C` : "Not available"}
                       </div>
-                      <p className="text-[11px] text-stone-600 mt-1">
-                        {activeCandidate.thermalContext.lstDeltaToBaselineCelsius !== null 
-                          ? `${activeCandidate.thermalContext.lstDeltaToBaselineCelsius > 0 ? "+" : ""}${activeCandidate.thermalContext.lstDeltaToBaselineCelsius}°C vs Study Area Mean (46.3°C)`
-                          : "Baseline comparison unavailable"}
+                      <p className="text-[11px] text-stone-600 mt-1 flex items-center justify-between">
+                        <span>
+                          {activeCandidate.thermalContext.lstDeltaToBaselineCelsius !== null 
+                            ? `${activeCandidate.thermalContext.lstDeltaToBaselineCelsius > 0 ? "+" : ""}${activeCandidate.thermalContext.lstDeltaToBaselineCelsius}°C vs Baseline (46.3°C)`
+                            : "Baseline comparison unavailable"}
+                        </span>
+                        {activeCandidate.thermalContext.lstDeltaToBaselineCelsius !== null && (
+                          <ProvenanceTag type="Modelled" />
+                        )}
                       </p>
-                      <p className="text-[10px] text-stone-500 mt-1">
-                        USGS ST_QA: ±{activeCandidate.thermalContext.landsatStQaUncertaintyK ?? 0.81} K uncertainty
+                      <p className="text-[10px] text-stone-500 mt-1 flex items-center justify-between">
+                        <span>USGS ST_QA: ±{activeCandidate.thermalContext.landsatStQaUncertaintyK ?? 2.16} K uncertainty</span>
+                        <ProvenanceTag type="Measured" />
                       </p>
                     </div>
 
                     {/* Vegetation Card */}
                     <div className="p-3.5 rounded-xl border border-emerald-200 bg-emerald-50/40">
-                      <div className="flex items-center gap-1.5 text-emerald-800 text-xs font-bold">
-                        <TreePine className="w-4 h-4 text-emerald-600" />
-                        <span>Sentinel-2 NDVI (30m)</span>
+                      <div className="flex items-center justify-between gap-1">
+                        <div className="flex items-center gap-1.5 text-emerald-800 text-xs font-bold">
+                          <TreePine className="w-4 h-4 text-emerald-600" />
+                          <span>Sentinel-2 NDVI (30m)</span>
+                        </div>
+                        <ProvenanceTag type="Measured" />
                       </div>
                       <div className="mt-2 text-xl font-bold text-stone-900">
-                        {activeCandidate.vegetationContext.ndvi30m !== null ? activeCandidate.vegetationContext.ndvi30m : "No Data"}
+                        {activeCandidate.vegetationContext.ndvi30m !== null ? activeCandidate.vegetationContext.ndvi30m : "Not available"}
                       </div>
                       <p className="text-[11px] text-stone-600 mt-1">
-                        SCL: {activeCandidate.vegetationContext.sclClassName} (Class {activeCandidate.vegetationContext.sclClassId})
+                        SCL: {activeCandidate.vegetationContext.sclClassName || "Not available"} (Class {activeCandidate.vegetationContext.sclClassId})
                       </p>
-                      <p className="text-[10px] text-stone-500 mt-1">
-                        Delta vs Terrestrial Baseline: {activeCandidate.vegetationContext.ndviDeltaToBaseline ?? "N/A"}
+                      <p className="text-[10px] text-stone-500 mt-1 flex items-center justify-between">
+                        <span>Delta vs Baseline: {activeCandidate.vegetationContext.ndviDeltaToBaseline ?? "Not available"}</span>
+                        {activeCandidate.vegetationContext.ndviDeltaToBaseline !== null && (
+                          <ProvenanceTag type="Modelled" />
+                        )}
                       </p>
                     </div>
 
                     {/* Infrastructure Card */}
                     <div className="p-3.5 rounded-xl border border-blue-200 bg-blue-50/40">
-                      <div className="flex items-center gap-1.5 text-blue-800 text-xs font-bold">
-                        <Building2 className="w-4 h-4 text-blue-600" />
-                        <span>Civil Frontage</span>
+                      <div className="flex items-center justify-between gap-1">
+                        <div className="flex items-center gap-1.5 text-blue-800 text-xs font-bold">
+                          <Building2 className="w-4 h-4 text-blue-600" />
+                          <span>Civil Frontage</span>
+                        </div>
+                        <ProvenanceTag type="Modelled" />
                       </div>
                       <div className="mt-2 text-sm font-bold text-stone-900 truncate">
                         {activeCandidate.infrastructureContext.nearestRoadName}
                       </div>
-                      <p className="text-[11px] text-stone-600 mt-1">
-                        Road setback: {activeCandidate.infrastructureContext.nearestRoadDistanceM}m
+                      <p className="text-[11px] text-stone-600 mt-1 flex items-center justify-between">
+                        <span>Road setback: {activeCandidate.infrastructureContext.nearestRoadDistanceM !== null ? `${activeCandidate.infrastructureContext.nearestRoadDistanceM}m` : "Not available"}</span>
+                        <ProvenanceTag type="Modelled" />
                       </p>
                       {activeCandidate.infrastructureContext.nearestSubstationName && (
-                        <p className="text-[10px] text-stone-500 mt-1 truncate">
-                          Substation: {activeCandidate.infrastructureContext.nearestSubstationName} ({activeCandidate.infrastructureContext.nearestSubstationDistanceM}m)
+                        <p className="text-[10px] text-stone-500 mt-1 flex items-center justify-between truncate">
+                          <span className="truncate">Substation: {activeCandidate.infrastructureContext.nearestSubstationName} ({activeCandidate.infrastructureContext.nearestSubstationDistanceM}m)</span>
+                          <ProvenanceTag type="Modelled" />
                         </p>
                       )}
                     </div>
@@ -881,22 +922,35 @@ export const InterventionPlanningWorkspace: React.FC<InterventionWorkspaceProps>
                         <thead className="bg-stone-100 text-stone-700 font-semibold border-b border-stone-200 sticky top-0">
                           <tr>
                             <th className="px-3 py-2">Parameter</th>
+                            <th className="px-3 py-2">Provenance</th>
                             <th className="px-3 py-2">Observed Value</th>
                             <th className="px-3 py-2">Source Dataset / Standard</th>
                             <th className="px-3 py-2">Uncertainty / Disclaimer</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-stone-200 text-[11px]">
-                          {activeCandidate.evidenceLedger.map((e) => (
-                            <tr key={e.id} className="hover:bg-stone-50">
-                              <td className="px-3 py-2 font-medium text-stone-900">{e.parameterName}</td>
-                              <td className="px-3 py-2 font-mono font-bold text-stone-800">
-                                {e.observedValue !== null ? String(e.observedValue) : "NoData"} {e.unit || ""}
-                              </td>
-                              <td className="px-3 py-2 text-stone-600">{e.sourceDataset}</td>
-                              <td className="px-3 py-2 text-stone-500 text-[10px]">{e.uncertaintyOrDisclaimer}</td>
-                            </tr>
-                          ))}
+                          {activeCandidate.evidenceLedger.map((e) => {
+                            const provType: "Measured" | "Modelled" | "Assumed" =
+                              e.category === "SATELLITE_OBSERVATION"
+                                ? "Measured"
+                                : e.category === "DETERMINISTIC_CALCULATION"
+                                ? "Modelled"
+                                : "Assumed";
+
+                            return (
+                              <tr key={e.id} className="hover:bg-stone-50">
+                                <td className="px-3 py-2 font-medium text-stone-900">{e.parameterName}</td>
+                                <td className="px-3 py-2">
+                                  <ProvenanceTag type={provType} />
+                                </td>
+                                <td className="px-3 py-2 font-mono font-bold text-stone-800">
+                                  {e.observedValue !== null ? String(e.observedValue) : "Not available"} {e.unit || ""}
+                                </td>
+                                <td className="px-3 py-2 text-stone-600">{e.sourceDataset}</td>
+                                <td className="px-3 py-2 text-stone-500 text-[10px]">{e.uncertaintyOrDisclaimer}</td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
