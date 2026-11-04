@@ -3,7 +3,10 @@ import path from 'path';
 import { 
   PriorityCell, 
   PriorityModelCard, 
-  EnsembleStats 
+  EnsembleStats,
+  GreenLossDataset,
+  GreenLossCell,
+  WardGreenLossAggregate
 } from './types';
 
 export * from './types';
@@ -30,6 +33,7 @@ export const PRIORITY_DATA_DIR = path.join(process.cwd(), 'public', 'data', 'pri
 export const CELLS_FILE = path.join(PRIORITY_DATA_DIR, 'cells.json');
 export const ENSEMBLE_FILE = path.join(PRIORITY_DATA_DIR, 'ensemble_effects.bin');
 export const MODEL_CARD_FILE = path.join(PRIORITY_DATA_DIR, 'model_card.json');
+export const GREEN_LOSS_FILE = path.join(PRIORITY_DATA_DIR, 'green_loss.json');
 
 /**
  * Number of Monte Carlo / physical ensemble members per 250m cell
@@ -40,6 +44,7 @@ export const ENSEMBLE_MEMBERS_PER_CELL = 30;
 let cachedCells: PriorityCell[] | null = null;
 let cachedModelCard: PriorityModelCard | null = null;
 let cachedEnsembleBuffer: Float32Array | null = null;
+let cachedGreenLoss: GreenLossDataset | null = null;
 
 /**
  * Reset server-side memory caches (useful during tests or hot-reloading)
@@ -48,6 +53,7 @@ export function clearPriorityCache(): void {
   cachedCells = null;
   cachedModelCard = null;
   cachedEnsembleBuffer = null;
+  cachedGreenLoss = null;
 }
 
 /**
@@ -325,3 +331,54 @@ export function getPriorityCellsByWard(ward: string): PriorityCell[] {
 // Convenient export aliases
 export const getModelCardSync = getPriorityModelCardSync;
 export const getPriorityCellByIdSync = getPriorityCellById;
+
+/**
+ * Check whether the Green Loss artifact file exists on disk
+ */
+export function isGreenLossDataAvailable(): boolean {
+  try {
+    return fs.existsSync(GREEN_LOSS_FILE);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Synchronously load and cache the Green Loss Watch dataset
+ */
+export function getGreenLossDataSync(): GreenLossDataset {
+  if (cachedGreenLoss) {
+    return cachedGreenLoss;
+  }
+
+  if (!fs.existsSync(GREEN_LOSS_FILE)) {
+    throw new Error(
+      `Green Loss dataset not found at ${GREEN_LOSS_FILE}. Please run scripts/pipeline/green_loss.py first.`
+    );
+  }
+
+  try {
+    const raw = fs.readFileSync(GREEN_LOSS_FILE, 'utf-8');
+    const parsed = JSON.parse(raw) as GreenLossDataset;
+    cachedGreenLoss = parsed;
+    return parsed;
+  } catch (err: any) {
+    throw new Error(`Failed to parse Green Loss dataset: ${err.message}`);
+  }
+}
+
+/**
+ * Query a green loss cell by its unique ID
+ */
+export function getGreenLossCellById(id: string): GreenLossCell | null {
+  const data = getGreenLossDataSync();
+  return data.cells.find((c: GreenLossCell) => c.id === id) || null;
+}
+
+/**
+ * Get ward-level green loss aggregates sorted by total loss area descending
+ */
+export function getGreenLossWardAggregatesSync(): WardGreenLossAggregate[] {
+  const data = getGreenLossDataSync();
+  return data.ward_aggregates;
+}

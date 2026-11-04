@@ -1,7 +1,11 @@
 import React from "react";
-import { getSessionUser } from "@/server/auth/session";
 import { prisma } from "@/server/db/prisma";
-import { getPriorityCellsSync } from "@/server/priority/loader";
+import { getSessionUser } from "@/server/auth/session";
+import { 
+  getPriorityCellsSync, 
+  isGreenLossDataAvailable, 
+  getGreenLossDataSync 
+} from "@/server/priority/loader";
 import { optimizeInterventionBudget } from "@/server/priority/optimizer";
 import { MainWorkspace } from "@/components/layout/MainWorkspace";
 
@@ -10,6 +14,9 @@ export const dynamic = "force-dynamic";
 export default async function HomePage() {
   // Load authentic 250m priority cells from the server cache / disk
   const initialCells = getPriorityCellsSync();
+
+  // Load Green Loss Watch dataset if available
+  const initialGreenLoss = isGreenLossDataAvailable() ? getGreenLossDataSync() : null;
 
   // Precompute initial baseline optimization on server for instant hydration
   const initialOptimization = optimizeInterventionBudget({
@@ -64,6 +71,7 @@ export default async function HomePage() {
     <MainWorkspace
       initialCells={initialCells}
       initialOptimization={initialOptimization}
+      initialGreenLoss={initialGreenLoss}
       user={user}
       initialScenarios={scenarios}
     />

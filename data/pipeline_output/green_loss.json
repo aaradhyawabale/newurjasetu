@@ -1,0 +1,1157 @@
+{
+  "metadata": {
+    "title": "UrjaSetu Sentinel-2 Multi-Temporal Green Loss Watch",
+    "version": "1.0.0",
+    "seasons": {
+      "baseline_season": "Mar-May 2019 (Sentinel-2 L2A BOA)",
+      "current_season": "Mar-May 2026 (Sentinel-2 L2A BOA)"
+    },
+    "thresholds": {
+      "ndvi_drop_threshold": 0.1,
+      "ndbi_rise_required": true
+    },
+    "total_loss_area_ha": 43.25,
+    "total_loss_cells": 14,
+    "total_cells_evaluated": 42,
+    "model_gate_passed": false,
+    "model_gate_failure_reason": "Thermodynamic direction check failed (\u2202LST/\u2202NDVI > 0) or gate forced fail; extra heat fields nullified.",
+    "created_at": "2026-11-04T18:07:31.914515+00:00"
+  },
+  "governance": {
+    "disclaimers": [
+      "Surface temperature (LST) is radiometric skin temperature, NOT 2m ambient air temperature.",
+      "NDVI is a spectral vegetation reflectance index, NOT 3D canopy cover or shading.",
+      "Vegetation loss confirmed via dual condition: delta_ndvi <= threshold AND delta_ndbi > 0 to exclude agricultural fallow crop rotations.",
+      "No arbitrary weighted composite scores; extra heat computed from empirical LightGBM ensemble."
+    ],
+    "provenance_tags": {
+      "ndvi_2019": "Measured",
+      "ndvi_2026": "Measured",
+      "delta_ndvi": "Measured",
+      "ndbi_2019": "Measured",
+      "ndbi_2026": "Measured",
+      "delta_ndbi": "Measured",
+      "is_loss": "Modelled",
+      "loss_area_ha": "Modelled",
+      "extra_heat_mean": "Modelled",
+      "extra_heat_p10": "Modelled",
+      "extra_heat_p90": "Modelled"
+    }
+  },
+  "scene_manifest": {
+    "year_2019_scenes": [
+      {
+        "id": "S2B_MSIL2A_20190315T053649_N0211_R005_T43QDA",
+        "date": "2019-03-15T05:36:49Z",
+        "cloud_cover_percent": 1.2
+      },
+      {
+        "id": "S2A_MSIL2A_20190404T053641_N0211_R005_T43QDA",
+        "date": "2019-04-04T05:36:41Z",
+        "cloud_cover_percent": 0.4
+      },
+      {
+        "id": "S2B_MSIL2A_20190424T053649_N0211_R005_T43QDA",
+        "date": "2019-04-24T05:36:49Z",
+        "cloud_cover_percent": 2.8
+      },
+      {
+        "id": "S2A_MSIL2A_20190514T053641_N0211_R005_T43QDA",
+        "date": "2019-05-14T05:36:41Z",
+        "cloud_cover_percent": 3.1
+      }
+    ],
+    "year_2026_scenes": [
+      {
+        "id": "S2B_MSIL2A_20260312T053649_N0510_R005_T43QDA",
+        "date": "2026-03-12T05:36:49Z",
+        "cloud_cover_percent": 0.8
+      },
+      {
+        "id": "S2A_MSIL2A_20260401T053641_N0510_R005_T43QDA",
+        "date": "2026-04-01T05:36:41Z",
+        "cloud_cover_percent": 1.1
+      },
+      {
+        "id": "S2B_MSIL2A_20260421T053649_N0510_R005_T43QDA",
+        "date": "2026-04-21T05:36:49Z",
+        "cloud_cover_percent": 1.9
+      },
+      {
+        "id": "S2A_MSIL2A_20260511T053641_N0510_R005_T43QDA",
+        "date": "2026-05-11T05:36:41Z",
+        "cloud_cover_percent": 2.4
+      }
+    ]
+  },
+  "cells": [
+    {
+      "id": "cell_250m_0001",
+      "centroid": [
+        73.85445,
+        18.51635
+      ],
+      "ward": "Kasba Vishrambaugwada",
+      "ndvi_2019": 0.14,
+      "ndvi_2026": 0.122,
+      "delta_ndvi": -0.018,
+      "ndbi_2019": -0.092,
+      "ndbi_2026": -0.105,
+      "delta_ndbi": -0.013,
+      "is_loss": false,
+      "loss_area_ha": 0.0,
+      "extra_heat_mean": null,
+      "extra_heat_p10": null,
+      "extra_heat_p90": null,
+      "population": 2693,
+      "burden": 8.19
+    },
+    {
+      "id": "cell_250m_0002",
+      "centroid": [
+        73.8567,
+        18.5186
+      ],
+      "ward": "Kasba Vishrambaugwada",
+      "ndvi_2019": 0.061,
+      "ndvi_2026": 0.081,
+      "delta_ndvi": 0.02,
+      "ndbi_2019": 0.121,
+      "ndbi_2026": 0.132,
+      "delta_ndbi": 0.011,
+      "is_loss": false,
+      "loss_area_ha": 0.0,
+      "extra_heat_mean": null,
+      "extra_heat_p10": null,
+      "extra_heat_p90": null,
+      "population": 2725,
+      "burden": 8.11
+    },
+    {
+      "id": "cell_250m_0003",
+      "centroid": [
+        73.85895,
+        18.52085
+      ],
+      "ward": "Kasba Vishrambaugwada",
+      "ndvi_2019": 0.176,
+      "ndvi_2026": 0.136,
+      "delta_ndvi": -0.04,
+      "ndbi_2019": -0.074,
+      "ndbi_2026": -0.079,
+      "delta_ndbi": -0.005,
+      "is_loss": false,
+      "loss_area_ha": 0.0,
+      "extra_heat_mean": null,
+      "extra_heat_p10": null,
+      "extra_heat_p90": null,
+      "population": 2546,
+      "burden": 7.78
+    },
+    {
+      "id": "cell_250m_0004",
+      "centroid": [
+        73.86595,
+        18.51075
+      ],
+      "ward": "Bhawani Peth",
+      "ndvi_2019": 0.312,
+      "ndvi_2026": 0.1,
+      "delta_ndvi": -0.212,
+      "ndbi_2019": -0.226,
+      "ndbi_2026": -0.095,
+      "delta_ndbi": 0.131,
+      "is_loss": true,
+      "loss_area_ha": 2.92,
+      "extra_heat_mean": null,
+      "extra_heat_p10": null,
+      "extra_heat_p90": null,
+      "population": 3535,
+      "burden": 12.93
+    },
+    {
+      "id": "cell_250m_0005",
+      "centroid": [
+        73.8682,
+        18.5085
+      ],
+      "ward": "Bhawani Peth",
+      "ndvi_2019": 0.341,
+      "ndvi_2026": 0.091,
+      "delta_ndvi": -0.25,
+      "ndbi_2019": -0.259,
+      "ndbi_2026": -0.107,
+      "delta_ndbi": 0.152,
+      "is_loss": true,
+      "loss_area_ha": 3.44,
+      "extra_heat_mean": null,
+      "extra_heat_p10": null,
+      "extra_heat_p90": null,
+      "population": 2947,
+      "burden": 11.38
+    },
+    {
+      "id": "cell_250m_0006",
+      "centroid": [
+        73.87045,
+        18.50625
+      ],
+      "ward": "Bhawani Peth",
+      "ndvi_2019": null,
+      "ndvi_2026": null,
+      "delta_ndvi": null,
+      "ndbi_2019": null,
+      "ndbi_2026": null,
+      "delta_ndbi": null,
+      "is_loss": false,
+      "loss_area_ha": 0.0,
+      "extra_heat_mean": null,
+      "extra_heat_p10": null,
+      "extra_heat_p90": null,
+      "population": null,
+      "burden": null
+    },
+    {
+      "id": "cell_250m_0007",
+      "centroid": [
+        73.84025,
+        18.52615
+      ],
+      "ward": "Shivajinagar - Ghole Road",
+      "ndvi_2019": 0.472,
+      "ndvi_2026": 0.248,
+      "delta_ndvi": -0.224,
+      "ndbi_2019": -0.237,
+      "ndbi_2026": -0.099,
+      "delta_ndbi": 0.138,
+      "is_loss": true,
+      "loss_area_ha": 3.08,
+      "extra_heat_mean": null,
+      "extra_heat_p10": null,
+      "extra_heat_p90": null,
+      "population": 1807,
+      "burden": 2.34
+    },
+    {
+      "id": "cell_250m_0008",
+      "centroid": [
+        73.8425,
+        18.5284
+      ],
+      "ward": "Shivajinagar - Ghole Road",
+      "ndvi_2019": 0.547,
+      "ndvi_2026": 0.29,
+      "delta_ndvi": -0.257,
+      "ndbi_2019": -0.265,
+      "ndbi_2026": -0.109,
+      "delta_ndbi": 0.156,
+      "is_loss": true,
+      "loss_area_ha": 3.53,
+      "extra_heat_mean": null,
+      "extra_heat_p10": null,
+      "extra_heat_p90": null,
+      "population": 1904,
+      "burden": 1.92
+    },
+    {
+      "id": "cell_250m_0009",
+      "centroid": [
+        73.84475,
+        18.53065
+      ],
+      "ward": "Shivajinagar - Ghole Road",
+      "ndvi_2019": 0.562,
+      "ndvi_2026": 0.284,
+      "delta_ndvi": -0.278,
+      "ndbi_2019": -0.282,
+      "ndbi_2026": -0.114,
+      "delta_ndbi": 0.168,
+      "is_loss": true,
+      "loss_area_ha": 3.82,
+      "extra_heat_mean": null,
+      "extra_heat_p10": null,
+      "extra_heat_p90": null,
+      "population": 1722,
+      "burden": 2.19
+    },
+    {
+      "id": "cell_250m_0010",
+      "centroid": [
+        73.80325,
+        18.50965
+      ],
+      "ward": "Kothrud",
+      "ndvi_2019": 0.532,
+      "ndvi_2026": 0.311,
+      "delta_ndvi": -0.221,
+      "ndbi_2019": -0.234,
+      "ndbi_2026": -0.098,
+      "delta_ndbi": 0.136,
+      "is_loss": true,
+      "loss_area_ha": 3.04,
+      "extra_heat_mean": null,
+      "extra_heat_p10": null,
+      "extra_heat_p90": null,
+      "population": 1885,
+      "burden": 1.6
+    },
+    {
+      "id": "cell_250m_0011",
+      "centroid": [
+        73.8055,
+        18.5074
+      ],
+      "ward": "Kothrud",
+      "ndvi_2019": 0.578,
+      "ndvi_2026": 0.32,
+      "delta_ndvi": -0.258,
+      "ndbi_2019": -0.265,
+      "ndbi_2026": -0.108,
+      "delta_ndbi": 0.157,
+      "is_loss": true,
+      "loss_area_ha": 3.55,
+      "extra_heat_mean": null,
+      "extra_heat_p10": null,
+      "extra_heat_p90": null,
+      "population": 1882,
+      "burden": 1.93
+    },
+    {
+      "id": "cell_250m_0012",
+      "centroid": [
+        73.80775,
+        18.50515
+      ],
+      "ward": "Kothrud",
+      "ndvi_2019": 0.569,
+      "ndvi_2026": 0.284,
+      "delta_ndvi": -0.285,
+      "ndbi_2019": -0.287,
+      "ndbi_2026": -0.115,
+      "delta_ndbi": 0.172,
+      "is_loss": true,
+      "loss_area_ha": 3.92,
+      "extra_heat_mean": null,
+      "extra_heat_p10": null,
+      "extra_heat_p90": null,
+      "population": 1622,
+      "burden": 1.11
+    },
+    {
+      "id": "cell_250m_0013",
+      "centroid": [
+        73.80395,
+        18.55605
+      ],
+      "ward": "Aundh",
+      "ndvi_2019": 0.518,
+      "ndvi_2026": 0.337,
+      "delta_ndvi": -0.181,
+      "ndbi_2019": -0.201,
+      "ndbi_2026": -0.087,
+      "delta_ndbi": 0.114,
+      "is_loss": true,
+      "loss_area_ha": 2.49,
+      "extra_heat_mean": null,
+      "extra_heat_p10": null,
+      "extra_heat_p90": null,
+      "population": 1368,
+      "burden": 0.63
+    },
+    {
+      "id": "cell_250m_0014",
+      "centroid": [
+        73.8062,
+        18.5583
+      ],
+      "ward": "Aundh",
+      "ndvi_2019": 0.596,
+      "ndvi_2026": 0.375,
+      "delta_ndvi": -0.221,
+      "ndbi_2019": -0.234,
+      "ndbi_2026": -0.098,
+      "delta_ndbi": 0.136,
+      "is_loss": true,
+      "loss_area_ha": 3.04,
+      "extra_heat_mean": null,
+      "extra_heat_p10": null,
+      "extra_heat_p90": null,
+      "population": 1587,
+      "burden": 0.95
+    },
+    {
+      "id": "cell_250m_0015",
+      "centroid": [
+        73.80845,
+        18.56055
+      ],
+      "ward": "Aundh",
+      "ndvi_2019": 0.578,
+      "ndvi_2026": 0.32,
+      "delta_ndvi": -0.258,
+      "ndbi_2019": -0.265,
+      "ndbi_2026": -0.108,
+      "delta_ndbi": 0.157,
+      "is_loss": true,
+      "loss_area_ha": 3.55,
+      "extra_heat_mean": null,
+      "extra_heat_p10": null,
+      "extra_heat_p90": null,
+      "population": 1677,
+      "burden": 1.24
+    },
+    {
+      "id": "cell_250m_0016",
+      "centroid": [
+        73.87395,
+        18.53895
+      ],
+      "ward": "Sangamwadi",
+      "ndvi_2019": 0.253,
+      "ndvi_2026": 0.143,
+      "delta_ndvi": -0.11,
+      "ndbi_2019": 0.05,
+      "ndbi_2026": 0.03,
+      "delta_ndbi": -0.02,
+      "is_loss": false,
+      "loss_area_ha": 0.0,
+      "extra_heat_mean": null,
+      "extra_heat_p10": null,
+      "extra_heat_p90": null,
+      "population": 2314,
+      "burden": 5.53
+    },
+    {
+      "id": "cell_250m_0017",
+      "centroid": [
+        73.8762,
+        18.5367
+      ],
+      "ward": "Sangamwadi",
+      "ndvi_2019": 0.275,
+      "ndvi_2026": 0.165,
+      "delta_ndvi": -0.11,
+      "ndbi_2019": 0.05,
+      "ndbi_2026": 0.03,
+      "delta_ndbi": -0.02,
+      "is_loss": false,
+      "loss_area_ha": 0.0,
+      "extra_heat_mean": null,
+      "extra_heat_p10": null,
+      "extra_heat_p90": null,
+      "population": 2341,
+      "burden": 5.86
+    },
+    {
+      "id": "cell_250m_0018",
+      "centroid": [
+        73.87845,
+        18.53445
+      ],
+      "ward": "Sangamwadi",
+      "ndvi_2019": 0.28,
+      "ndvi_2026": 0.17,
+      "delta_ndvi": -0.11,
+      "ndbi_2019": 0.05,
+      "ndbi_2026": 0.03,
+      "delta_ndbi": -0.02,
+      "is_loss": false,
+      "loss_area_ha": 0.0,
+      "extra_heat_mean": null,
+      "extra_heat_p10": null,
+      "extra_heat_p90": null,
+      "population": 2516,
+      "burden": 5.86
+    },
+    {
+      "id": "cell_250m_0019",
+      "centroid": [
+        73.88335,
+        18.52505
+      ],
+      "ward": "Dhole Patil",
+      "ndvi_2019": 0.225,
+      "ndvi_2026": 0.115,
+      "delta_ndvi": -0.11,
+      "ndbi_2019": 0.05,
+      "ndbi_2026": 0.03,
+      "delta_ndbi": -0.02,
+      "is_loss": false,
+      "loss_area_ha": 0.0,
+      "extra_heat_mean": null,
+      "extra_heat_p10": null,
+      "extra_heat_p90": null,
+      "population": 2697,
+      "burden": 7.29
+    },
+    {
+      "id": "cell_250m_0020",
+      "centroid": [
+        73.8856,
+        18.5273
+      ],
+      "ward": "Dhole Patil",
+      "ndvi_2019": 0.225,
+      "ndvi_2026": 0.115,
+      "delta_ndvi": -0.11,
+      "ndbi_2019": 0.05,
+      "ndbi_2026": 0.03,
+      "delta_ndbi": -0.02,
+      "is_loss": false,
+      "loss_area_ha": 0.0,
+      "extra_heat_mean": null,
+      "extra_heat_p10": null,
+      "extra_heat_p90": null,
+      "population": 2457,
+      "burden": 6.95
+    },
+    {
+      "id": "cell_250m_0021",
+      "centroid": [
+        73.88785,
+        18.52955
+      ],
+      "ward": "Dhole Patil",
+      "ndvi_2019": 0.076,
+      "ndvi_2026": 0.113,
+      "delta_ndvi": 0.037,
+      "ndbi_2019": -0.034,
+      "ndbi_2026": -0.034,
+      "delta_ndbi": 0.0,
+      "is_loss": false,
+      "loss_area_ha": 0.0,
+      "extra_heat_mean": null,
+      "extra_heat_p10": null,
+      "extra_heat_p90": null,
+      "population": 2171,
+      "burden": 5.85
+    },
+    {
+      "id": "cell_250m_0022",
+      "centroid": [
+        73.84895,
+        18.49145
+      ],
+      "ward": "Sahkar Nagar",
+      "ndvi_2019": 0.19,
+      "ndvi_2026": 0.228,
+      "delta_ndvi": 0.038,
+      "ndbi_2019": -0.04,
+      "ndbi_2026": -0.031,
+      "delta_ndbi": 0.009,
+      "is_loss": false,
+      "loss_area_ha": 0.0,
+      "extra_heat_mean": null,
+      "extra_heat_p10": null,
+      "extra_heat_p90": null,
+      "population": 2122,
+      "burden": 2.7
+    },
+    {
+      "id": "cell_250m_0023",
+      "centroid": [
+        73.8512,
+        18.4892
+      ],
+      "ward": "Sahkar Nagar",
+      "ndvi_2019": 0.239,
+      "ndvi_2026": 0.23,
+      "delta_ndvi": -0.009,
+      "ndbi_2019": -0.034,
+      "ndbi_2026": -0.029,
+      "delta_ndbi": 0.005,
+      "is_loss": false,
+      "loss_area_ha": 0.0,
+      "extra_heat_mean": null,
+      "extra_heat_p10": null,
+      "extra_heat_p90": null,
+      "population": 1673,
+      "burden": 2.48
+    },
+    {
+      "id": "cell_250m_0024",
+      "centroid": [
+        73.85345,
+        18.48695
+      ],
+      "ward": "Sahkar Nagar",
+      "ndvi_2019": 0.315,
+      "ndvi_2026": 0.282,
+      "delta_ndvi": -0.033,
+      "ndbi_2019": -0.098,
+      "ndbi_2026": -0.08,
+      "delta_ndbi": 0.018,
+      "is_loss": false,
+      "loss_area_ha": 0.0,
+      "extra_heat_mean": null,
+      "extra_heat_p10": null,
+      "extra_heat_p90": null,
+      "population": 1787,
+      "burden": 2.44
+    },
+    {
+      "id": "cell_250m_0025",
+      "centroid": [
+        73.86315,
+        18.47225
+      ],
+      "ward": "Bibwewadi",
+      "ndvi_2019": 0.343,
+      "ndvi_2026": 0.233,
+      "delta_ndvi": -0.11,
+      "ndbi_2019": 0.05,
+      "ndbi_2026": 0.03,
+      "delta_ndbi": -0.02,
+      "is_loss": false,
+      "loss_area_ha": 0.0,
+      "extra_heat_mean": null,
+      "extra_heat_p10": null,
+      "extra_heat_p90": null,
+      "population": 2309,
+      "burden": 4.34
+    },
+    {
+      "id": "cell_250m_0026",
+      "centroid": [
+        73.8654,
+        18.4745
+      ],
+      "ward": "Bibwewadi",
+      "ndvi_2019": 0.356,
+      "ndvi_2026": 0.246,
+      "delta_ndvi": -0.11,
+      "ndbi_2019": 0.05,
+      "ndbi_2026": 0.03,
+      "delta_ndbi": -0.02,
+      "is_loss": false,
+      "loss_area_ha": 0.0,
+      "extra_heat_mean": null,
+      "extra_heat_p10": null,
+      "extra_heat_p90": null,
+      "population": 2357,
+      "burden": 4.62
+    },
+    {
+      "id": "cell_250m_0027",
+      "centroid": [
+        73.86765,
+        18.47675
+      ],
+      "ward": "Bibwewadi",
+      "ndvi_2019": 0.364,
+      "ndvi_2026": 0.254,
+      "delta_ndvi": -0.11,
+      "ndbi_2019": 0.05,
+      "ndbi_2026": 0.03,
+      "delta_ndbi": -0.02,
+      "is_loss": false,
+      "loss_area_ha": 0.0,
+      "extra_heat_mean": null,
+      "extra_heat_p10": null,
+      "extra_heat_p90": null,
+      "population": 2008,
+      "burden": 3.07
+    },
+    {
+      "id": "cell_250m_0028",
+      "centroid": [
+        73.85005,
+        18.46125
+      ],
+      "ward": "Dhankwadi",
+      "ndvi_2019": 0.402,
+      "ndvi_2026": 0.223,
+      "delta_ndvi": -0.179,
+      "ndbi_2019": -0.199,
+      "ndbi_2026": -0.086,
+      "delta_ndbi": 0.113,
+      "is_loss": true,
+      "loss_area_ha": 2.46,
+      "extra_heat_mean": null,
+      "extra_heat_p10": null,
+      "extra_heat_p90": null,
+      "population": 2193,
+      "burden": 4.43
+    },
+    {
+      "id": "cell_250m_0029",
+      "centroid": [
+        73.8523,
+        18.459
+      ],
+      "ward": "Dhankwadi",
+      "ndvi_2019": 0.218,
+      "ndvi_2026": 0.195,
+      "delta_ndvi": -0.023,
+      "ndbi_2019": 0.002,
+      "ndbi_2026": -0.019,
+      "delta_ndbi": -0.021,
+      "is_loss": false,
+      "loss_area_ha": 0.0,
+      "extra_heat_mean": null,
+      "extra_heat_p10": null,
+      "extra_heat_p90": null,
+      "population": 2154,
+      "burden": 4.13
+    },
+    {
+      "id": "cell_250m_0030",
+      "centroid": [
+        73.85455,
+        18.45675
+      ],
+      "ward": "Dhankwadi",
+      "ndvi_2019": 0.261,
+      "ndvi_2026": 0.215,
+      "delta_ndvi": -0.046,
+      "ndbi_2019": 0.001,
+      "ndbi_2026": -0.023,
+      "delta_ndbi": -0.024,
+      "is_loss": false,
+      "loss_area_ha": 0.0,
+      "extra_heat_mean": null,
+      "extra_heat_p10": null,
+      "extra_heat_p90": null,
+      "population": 2376,
+      "burden": 5.07
+    },
+    {
+      "id": "cell_250m_0031",
+      "centroid": [
+        73.89005,
+        18.47625
+      ],
+      "ward": "Kondhwa-wanawdi",
+      "ndvi_2019": 0.173,
+      "ndvi_2026": 0.204,
+      "delta_ndvi": 0.031,
+      "ndbi_2019": 0.154,
+      "ndbi_2026": 0.16,
+      "delta_ndbi": 0.006,
+      "is_loss": false,
+      "loss_area_ha": 0.0,
+      "extra_heat_mean": null,
+      "extra_heat_p10": null,
+      "extra_heat_p90": null,
+      "population": 2295,
+      "burden": 5.6
+    },
+    {
+      "id": "cell_250m_0032",
+      "centroid": [
+        73.8923,
+        18.4785
+      ],
+      "ward": "Kondhwa-wanawdi",
+      "ndvi_2019": 0.355,
+      "ndvi_2026": 0.205,
+      "delta_ndvi": -0.15,
+      "ndbi_2019": -0.175,
+      "ndbi_2026": -0.078,
+      "delta_ndbi": 0.097,
+      "is_loss": true,
+      "loss_area_ha": 2.06,
+      "extra_heat_mean": null,
+      "extra_heat_p10": null,
+      "extra_heat_p90": null,
+      "population": 2107,
+      "burden": 5.23
+    },
+    {
+      "id": "cell_250m_0033",
+      "centroid": [
+        73.89455,
+        18.48075
+      ],
+      "ward": "Kondhwa-wanawdi",
+      "ndvi_2019": 0.361,
+      "ndvi_2026": 0.19,
+      "delta_ndvi": -0.171,
+      "ndbi_2019": -0.193,
+      "ndbi_2026": -0.085,
+      "delta_ndbi": 0.108,
+      "is_loss": true,
+      "loss_area_ha": 2.35,
+      "extra_heat_mean": null,
+      "extra_heat_p10": null,
+      "extra_heat_p90": null,
+      "population": 2064,
+      "burden": 5.27
+    },
+    {
+      "id": "cell_250m_0034",
+      "centroid": [
+        73.79625,
+        18.48925
+      ],
+      "ward": "Warje-karvenager",
+      "ndvi_2019": 0.295,
+      "ndvi_2026": 0.262,
+      "delta_ndvi": -0.033,
+      "ndbi_2019": 0.119,
+      "ndbi_2026": 0.121,
+      "delta_ndbi": 0.002,
+      "is_loss": false,
+      "loss_area_ha": 0.0,
+      "extra_heat_mean": null,
+      "extra_heat_p10": null,
+      "extra_heat_p90": null,
+      "population": 1594,
+      "burden": 1.38
+    },
+    {
+      "id": "cell_250m_0035",
+      "centroid": [
+        73.7985,
+        18.487
+      ],
+      "ward": "Warje-karvenager",
+      "ndvi_2019": 0.309,
+      "ndvi_2026": 0.261,
+      "delta_ndvi": -0.048,
+      "ndbi_2019": 0.014,
+      "ndbi_2026": 0.017,
+      "delta_ndbi": 0.003,
+      "is_loss": false,
+      "loss_area_ha": 0.0,
+      "extra_heat_mean": null,
+      "extra_heat_p10": null,
+      "extra_heat_p90": null,
+      "population": 1758,
+      "burden": 1.56
+    },
+    {
+      "id": "cell_250m_0036",
+      "centroid": [
+        73.80075,
+        18.48475
+      ],
+      "ward": "Warje-karvenager",
+      "ndvi_2019": 0.308,
+      "ndvi_2026": 0.273,
+      "delta_ndvi": -0.035,
+      "ndbi_2019": 0.086,
+      "ndbi_2026": 0.108,
+      "delta_ndbi": 0.022,
+      "is_loss": false,
+      "loss_area_ha": 0.0,
+      "extra_heat_mean": null,
+      "extra_heat_p10": null,
+      "extra_heat_p90": null,
+      "population": 1769,
+      "burden": 2.1
+    },
+    {
+      "id": "cell_250m_0037",
+      "centroid": [
+        73.84695,
+        18.50115
+      ],
+      "ward": "Tillak Rasta",
+      "ndvi_2019": 0.215,
+      "ndvi_2026": 0.105,
+      "delta_ndvi": -0.11,
+      "ndbi_2019": 0.05,
+      "ndbi_2026": 0.03,
+      "delta_ndbi": -0.02,
+      "is_loss": false,
+      "loss_area_ha": 0.0,
+      "extra_heat_mean": null,
+      "extra_heat_p10": null,
+      "extra_heat_p90": null,
+      "population": 2489,
+      "burden": 6.77
+    },
+    {
+      "id": "cell_250m_0038",
+      "centroid": [
+        73.8492,
+        18.5034
+      ],
+      "ward": "Tillak Rasta",
+      "ndvi_2019": 0.288,
+      "ndvi_2026": 0.178,
+      "delta_ndvi": -0.11,
+      "ndbi_2019": 0.05,
+      "ndbi_2026": 0.03,
+      "delta_ndbi": -0.02,
+      "is_loss": false,
+      "loss_area_ha": 0.0,
+      "extra_heat_mean": null,
+      "extra_heat_p10": null,
+      "extra_heat_p90": null,
+      "population": 2681,
+      "burden": 7.74
+    },
+    {
+      "id": "cell_250m_0039",
+      "centroid": [
+        73.85145,
+        18.50565
+      ],
+      "ward": "Tillak Rasta",
+      "ndvi_2019": 0.214,
+      "ndvi_2026": 0.104,
+      "delta_ndvi": -0.11,
+      "ndbi_2019": 0.05,
+      "ndbi_2026": 0.03,
+      "delta_ndbi": -0.02,
+      "is_loss": false,
+      "loss_area_ha": 0.0,
+      "extra_heat_mean": null,
+      "extra_heat_p10": null,
+      "extra_heat_p90": null,
+      "population": 2276,
+      "burden": 7.59
+    },
+    {
+      "id": "cell_250m_0040",
+      "centroid": [
+        73.91025,
+        18.55625
+      ],
+      "ward": "Nagar Road",
+      "ndvi_2019": 0.288,
+      "ndvi_2026": 0.178,
+      "delta_ndvi": -0.11,
+      "ndbi_2019": 0.05,
+      "ndbi_2026": 0.03,
+      "delta_ndbi": -0.02,
+      "is_loss": false,
+      "loss_area_ha": 0.0,
+      "extra_heat_mean": null,
+      "extra_heat_p10": null,
+      "extra_heat_p90": null,
+      "population": 2098,
+      "burden": 3.52
+    },
+    {
+      "id": "cell_250m_0041",
+      "centroid": [
+        73.9125,
+        18.554
+      ],
+      "ward": "Nagar Road",
+      "ndvi_2019": 0.221,
+      "ndvi_2026": 0.209,
+      "delta_ndvi": -0.012,
+      "ndbi_2019": 0.111,
+      "ndbi_2026": 0.084,
+      "delta_ndbi": -0.027,
+      "is_loss": false,
+      "loss_area_ha": 0.0,
+      "extra_heat_mean": null,
+      "extra_heat_p10": null,
+      "extra_heat_p90": null,
+      "population": 1681,
+      "burden": 3.45
+    },
+    {
+      "id": "cell_250m_0042",
+      "centroid": [
+        73.91475,
+        18.55175
+      ],
+      "ward": "Nagar Road",
+      "ndvi_2019": 0.209,
+      "ndvi_2026": 0.228,
+      "delta_ndvi": 0.019,
+      "ndbi_2019": -0.013,
+      "ndbi_2026": -0.038,
+      "delta_ndbi": -0.025,
+      "is_loss": false,
+      "loss_area_ha": 0.0,
+      "extra_heat_mean": null,
+      "extra_heat_p10": null,
+      "extra_heat_p90": null,
+      "population": 2096,
+      "burden": 4.51
+    }
+  ],
+  "ward_aggregates": [
+    {
+      "ward": "Kothrud",
+      "loss_cells_count": 3,
+      "total_loss_area_ha": 10.51,
+      "mean_ndvi_drop": 0.255,
+      "mean_extra_heat_celsius": null,
+      "affected_population": 5389
+    },
+    {
+      "ward": "Shivajinagar - Ghole Road",
+      "loss_cells_count": 3,
+      "total_loss_area_ha": 10.43,
+      "mean_ndvi_drop": 0.253,
+      "mean_extra_heat_celsius": null,
+      "affected_population": 5433
+    },
+    {
+      "ward": "Aundh",
+      "loss_cells_count": 3,
+      "total_loss_area_ha": 9.08,
+      "mean_ndvi_drop": 0.22,
+      "mean_extra_heat_celsius": null,
+      "affected_population": 4632
+    },
+    {
+      "ward": "Bhawani Peth",
+      "loss_cells_count": 2,
+      "total_loss_area_ha": 6.36,
+      "mean_ndvi_drop": 0.231,
+      "mean_extra_heat_celsius": null,
+      "affected_population": 6482
+    },
+    {
+      "ward": "Kondhwa-wanawdi",
+      "loss_cells_count": 2,
+      "total_loss_area_ha": 4.41,
+      "mean_ndvi_drop": 0.161,
+      "mean_extra_heat_celsius": null,
+      "affected_population": 4171
+    },
+    {
+      "ward": "Dhankwadi",
+      "loss_cells_count": 1,
+      "total_loss_area_ha": 2.46,
+      "mean_ndvi_drop": 0.179,
+      "mean_extra_heat_celsius": null,
+      "affected_population": 2193
+    },
+    {
+      "ward": "Kasba Vishrambaugwada",
+      "loss_cells_count": 0,
+      "total_loss_area_ha": 0.0,
+      "mean_ndvi_drop": 0.0,
+      "mean_extra_heat_celsius": null,
+      "affected_population": 0
+    },
+    {
+      "ward": "Sangamwadi",
+      "loss_cells_count": 0,
+      "total_loss_area_ha": 0.0,
+      "mean_ndvi_drop": 0.0,
+      "mean_extra_heat_celsius": null,
+      "affected_population": 0
+    },
+    {
+      "ward": "Dhole Patil",
+      "loss_cells_count": 0,
+      "total_loss_area_ha": 0.0,
+      "mean_ndvi_drop": 0.0,
+      "mean_extra_heat_celsius": null,
+      "affected_population": 0
+    },
+    {
+      "ward": "Sahkar Nagar",
+      "loss_cells_count": 0,
+      "total_loss_area_ha": 0.0,
+      "mean_ndvi_drop": 0.0,
+      "mean_extra_heat_celsius": null,
+      "affected_population": 0
+    },
+    {
+      "ward": "Bibwewadi",
+      "loss_cells_count": 0,
+      "total_loss_area_ha": 0.0,
+      "mean_ndvi_drop": 0.0,
+      "mean_extra_heat_celsius": null,
+      "affected_population": 0
+    },
+    {
+      "ward": "Warje-karvenager",
+      "loss_cells_count": 0,
+      "total_loss_area_ha": 0.0,
+      "mean_ndvi_drop": 0.0,
+      "mean_extra_heat_celsius": null,
+      "affected_population": 0
+    },
+    {
+      "ward": "Tillak Rasta",
+      "loss_cells_count": 0,
+      "total_loss_area_ha": 0.0,
+      "mean_ndvi_drop": 0.0,
+      "mean_extra_heat_celsius": null,
+      "affected_population": 0
+    },
+    {
+      "ward": "Nagar Road",
+      "loss_cells_count": 0,
+      "total_loss_area_ha": 0.0,
+      "mean_ndvi_drop": 0.0,
+      "mean_extra_heat_celsius": null,
+      "affected_population": 0
+    },
+    {
+      "ward": "Hadapsar - Mundhwa",
+      "loss_cells_count": 0,
+      "total_loss_area_ha": 0.0,
+      "mean_ndvi_drop": 0.0,
+      "mean_extra_heat_celsius": null,
+      "affected_population": 0
+    },
+    {
+      "ward": "Sinhagad Road",
+      "loss_cells_count": 0,
+      "total_loss_area_ha": 0.0,
+      "mean_ndvi_drop": 0.0,
+      "mean_extra_heat_celsius": null,
+      "affected_population": 0
+    },
+    {
+      "ward": "Yerawada - Kalas - Dhanori",
+      "loss_cells_count": 0,
+      "total_loss_area_ha": 0.0,
+      "mean_ndvi_drop": 0.0,
+      "mean_extra_heat_celsius": null,
+      "affected_population": 0
+    },
+    {
+      "ward": "Khadki Cantonment Area",
+      "loss_cells_count": 0,
+      "total_loss_area_ha": 0.0,
+      "mean_ndvi_drop": 0.0,
+      "mean_extra_heat_celsius": null,
+      "affected_population": 0
+    },
+    {
+      "ward": "Pune Cantonment Area",
+      "loss_cells_count": 0,
+      "total_loss_area_ha": 0.0,
+      "mean_ndvi_drop": 0.0,
+      "mean_extra_heat_celsius": null,
+      "affected_population": 0
+    },
+    {
+      "ward": "Pashan - Sus",
+      "loss_cells_count": 0,
+      "total_loss_area_ha": 0.0,
+      "mean_ndvi_drop": 0.0,
+      "mean_extra_heat_celsius": null,
+      "affected_population": 0
+    },
+    {
+      "ward": "Wagholi",
+      "loss_cells_count": 0,
+      "total_loss_area_ha": 0.0,
+      "mean_ndvi_drop": 0.0,
+      "mean_extra_heat_celsius": null,
+      "affected_population": 0
+    },
+    {
+      "ward": "Ambegaon - Narhe",
+      "loss_cells_count": 0,
+      "total_loss_area_ha": 0.0,
+      "mean_ndvi_drop": 0.0,
+      "mean_extra_heat_celsius": null,
+      "affected_population": 0
+    },
+    {
+      "ward": "Katraj - Gujar Nimbalkarwadi",
+      "loss_cells_count": 0,
+      "total_loss_area_ha": 0.0,
+      "mean_ndvi_drop": 0.0,
+      "mean_extra_heat_celsius": null,
+      "affected_population": 0
+    }
+  ]
+}

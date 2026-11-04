@@ -139,3 +139,71 @@ export interface PriorityModelCard {
     [key: string]: any;
   };
 }
+
+/**
+ * Green Loss Watch: Individual 250m cell vegetation loss and extra heat evaluation
+ */
+export interface GreenLossCell {
+  id: string;
+  centroid: [number, number];
+  ward: string;
+  ndvi_2019: number | null;
+  ndvi_2026: number | null;
+  delta_ndvi: number | null;
+  ndbi_2019: number | null;
+  ndbi_2026: number | null;
+  delta_ndbi: number | null;
+  is_loss: boolean;
+  loss_area_ha: number;
+  extra_heat_mean: number | null;
+  extra_heat_p10: number | null;
+  extra_heat_p90: number | null;
+  population: number | null;
+  burden: number | null;
+}
+
+/**
+ * Ward-level aggregate for Green Loss Watch (23 PMC Wards)
+ */
+export interface WardGreenLossAggregate {
+  ward: string;
+  loss_cells_count: number;
+  total_loss_area_ha: number;
+  mean_ndvi_drop: number;
+  mean_extra_heat_celsius: number | null;
+  affected_population: number;
+}
+
+/**
+ * Complete Green Loss Watch Dataset
+ */
+export interface GreenLossDataset {
+  metadata: {
+    title: string;
+    version: string;
+    seasons: {
+      baseline_season: string;
+      current_season: string;
+    };
+    thresholds: {
+      ndvi_drop_threshold: number;
+      ndbi_rise_required: boolean;
+    };
+    total_loss_area_ha: number;
+    total_loss_cells: number;
+    total_cells_evaluated: number;
+    model_gate_passed: boolean;
+    created_at: string;
+  };
+  governance: {
+    disclaimers: string[];
+    provenance_tags: Record<string, ProvenanceCategory>;
+  };
+  scene_manifest: {
+    year_2019_scenes: Array<{ id: string; date: string; cloud_cover_percent: number }>;
+    year_2026_scenes: Array<{ id: string; date: string; cloud_cover_percent: number }>;
+  };
+  cells: GreenLossCell[];
+  ward_aggregates: WardGreenLossAggregate[];
+}
+

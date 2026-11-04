@@ -30,10 +30,14 @@ import {
   Compass,
   Building,
   GitCompare,
-  BookOpen
+  BookOpen,
+  ShieldAlert,
+  RotateCcw,
+  History,
+  ArrowUpDown
 } from "lucide-react";
 import { SelectedCellResult, OptimizeResult } from "@/server/priority/optimizer";
-import { PriorityCell } from "@/server/priority/types";
+import { PriorityCell, GreenLossDataset, GreenLossCell } from "@/server/priority/types";
 import { ZoneEvidenceDrawer, ZoneDetail } from "./ZoneEvidenceDrawer";
 import { TwoScenarioComparisonModal } from "./TwoScenarioComparisonModal";
 import { HeatIntelligenceDashboard } from "@/components/heat/HeatIntelligenceDashboard";
@@ -55,11 +59,12 @@ export const VIRIDIS_PALETTE = {
   colors: ["#440154", "#3b528b", "#21918c", "#5ec962", "#fde725"]
 };
 
-type ActiveLayerType = "burden" | "lst" | "ndvi" | "population" | "selected";
+type ActiveLayerType = "burden" | "lst" | "ndvi" | "population" | "selected" | "green_loss";
 
 interface HeatPriorityScreenProps {
   initialCells?: PriorityCell[];
   initialOptimization?: OptimizeResult | null;
+  initialGreenLoss?: GreenLossDataset | null;
   onOpenLegacyManualSiting?: () => void;
   onOpenLegacyReportDrawer?: () => void;
   onOpenLegacyShadowSimulator?: () => void;
@@ -72,6 +77,7 @@ interface HeatPriorityScreenProps {
 export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
   initialCells = [],
   initialOptimization = null,
+  initialGreenLoss = null,
   onOpenLegacyManualSiting,
   onOpenLegacyReportDrawer,
   onOpenLegacyShadowSimulator,
@@ -86,6 +92,10 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
   const [uncertaintyQuantile, setUncertaintyQuantile] = useState<"p10" | "mean" | "p90">("mean");
   const [objective, setObjective] = useState<"cooling" | "population_weighted">("cooling");
   const [selectedWard, setSelectedWard] = useState<string>("All");
+
+  // Panel Tabs: "scenario" | "green_loss" | "restore"
+  const [panelTab, setPanelTab] = useState<"scenario" | "green_loss" | "restore">("scenario");
+  const [restoreBudgetHa, setRestoreBudgetHa] = useState<number>(10.0);
 
   // Map & Visualization State
   const [activeLayer, setActiveLayer] = useState<ActiveLayerType>("burden");
@@ -108,6 +118,7 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
   // Data State
   const [cells, setCells] = useState<PriorityCell[]>(initialCells);
   const [optimizationResult, setOptimizationResult] = useState<OptimizeResult | null>(initialOptimization || null);
+  const [greenLossData, setGreenLossData] = useState<GreenLossDataset | null>(initialGreenLoss || null);
 
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -151,18 +162,38 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
     };
   }, []);
 
+  // Fetch Green Loss dataset if not pre-seeded
+  useEffect(() => {
+    if (initialGreenLoss) return;
+    let isMounted = true;
+
+    fetch("/api/green-loss")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.dataset && isMounted) {
+          setGreenLossData(data.dataset);
+        }
+      })
+      .catch((err) => console.error("Error loading green loss dataset:", err));
+
+    return () => {
+      isMounted = false;
+    };
+  }, [initialGreenLoss]);
+
   // Re-run optimization when scenario parameters change
-  const runOptimization = useCallback(async () => {
+  const runOptimization = useCallback(async (customOpts?: { candidate_cell_ids?: string[]; budget_ha?: number }) => {
     try {
       setIsOptimizing(true);
       const res = await fetch("/api/optimize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          budget_ha: budgetHa,
+          budget_ha: customOpts?.budget_ha ?? budgetHa,
           objective,
           target_ndvi: targetNdvi,
-          ward: selectedWard === "All" ? undefined : selectedWard
+          ward: selectedWard === "All" ? undefined : selectedWard,
+          candidate_cell_ids: customOpts?.candidate_cell_ids
         })
       });
 
@@ -177,13 +208,21 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
     }
   }, [budgetHa, objective, targetNdvi, selectedWard]);
 
+  // Handler for Protect / Restore First optimization
+  const handleRunRestoreOptimization = useCallback(() => {
+    const lossIds = (greenLossData?.cells || []).filter((c) => c.is_loss).map((c) => c.id);
+    runOptimization({ candidate_cell_ids: lossIds, budget_ha: restoreBudgetHa });
+    setActiveLayer("selected");
+  }, [greenLossData, restoreBudgetHa, runOptimization]);
+
   // Debounced auto-recalculate on slider changes (60ms latency, well below 200ms)
   useEffect(() => {
+    if (panelTab !== "scenario") return;
     const timer = setTimeout(() => {
       runOptimization();
     }, 60);
     return () => clearTimeout(timer);
-  }, [budgetHa, targetNdvi, objective, selectedWard, runOptimization]);
+  }, [budgetHa, targetNdvi, objective, selectedWard, panelTab, runOptimization]);
 
   // Precompute static 250m polygon geometries once to eliminate GC & re-allocation (<1ms update)
   const basePolygonsMap = useMemo(() => {
@@ -206,6 +245,11 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
     return map;
   }, [cells]);
 
+  // In-memory green loss lookup map (< 1ms lookup)
+  const greenLossCellMap = useMemo(() => {
+    return new Map((greenLossData?.cells || []).map((c) => [c.id, c]));
+  }, [greenLossData]);
+
   // Fast GeoJSON feature collection creation (<2ms per slider change)
   const cellsGeoJson = useMemo(() => {
     const rawList = cells.length > 0 ? cells : optimizationResult?.selected_cells || [];
@@ -217,6 +261,7 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
       const isSelected = selectedIdSet.has(cell.id);
       const rank = selectedRankMap.get(cell.id) || 0;
       const freq = selectedFreqMap.get(cell.id) || 0;
+      const lossCell = greenLossCellMap.get(cell.id);
       const polygonCoords = basePolygonsMap.get(cell.id) || [
         [
           [73.8567 - 0.001186, 18.5204 - 0.001129],
@@ -241,6 +286,11 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
           cooling_mean: cell.cooling_mean !== null ? cell.cooling_mean : 0,
           cooling_p10: cell.cooling_p10 !== null ? cell.cooling_p10 : 0,
           cooling_p90: cell.cooling_p90 !== null ? cell.cooling_p90 : 0,
+          is_loss: lossCell?.is_loss ? 1 : 0,
+          delta_ndvi: lossCell?.delta_ndvi ?? 0,
+          delta_ndbi: lossCell?.delta_ndbi ?? 0,
+          loss_area_ha: lossCell?.loss_area_ha ?? 0,
+          extra_heat_mean: lossCell?.extra_heat_mean ?? 0,
           isSelected: isSelected ? 1 : 0,
           rank,
           selection_frequency: freq,
@@ -256,7 +306,7 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
       type: "FeatureCollection" as const,
       features,
     };
-  }, [cells, optimizationResult, basePolygonsMap]);
+  }, [cells, optimizationResult, basePolygonsMap, greenLossCellMap]);
 
   // Initialize MapLibre
   useEffect(() => {
@@ -483,6 +533,20 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
         2000, "#21918c",
         2600, "#5ec962",
         3400, "#fde725"
+      ];
+    } else if (activeLayer === "green_loss") {
+      fillColorExpr = [
+        "case",
+        ["==", ["get", "is_loss"], 1],
+        [
+          "interpolate",
+          ["linear"],
+          ["get", "delta_ndvi"],
+          -0.30, "#7f1d1d",
+          -0.20, "#dc2626",
+          -0.10, "#ea580c"
+        ],
+        "#1e293b"
       ];
     } else {
       // Selected zones focus
@@ -734,22 +798,30 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
       {/* 2. MAIN WORKSPACE: SCENARIO PANEL + MAPLIBRE CANVAS + ZONE CARD           */}
       {/* ========================================================================= */}
       <div className="flex-1 relative flex overflow-hidden">
-        {/* Left Scenario Panel */}
+        {/* Left Scenario & Green Loss Panel */}
         <aside
-          className={`absolute top-3 left-3 z-20 w-84 bg-stone-900/95 backdrop-blur-md rounded-lg border border-stone-800 shadow-2xl transition-all duration-300 flex flex-col max-h-[calc(100vh-140px)] ${
+          className={`absolute top-3 left-3 z-20 w-88 sm:w-[410px] bg-stone-900/95 backdrop-blur-md rounded-lg border border-stone-800 shadow-2xl transition-all duration-300 flex flex-col max-h-[calc(100vh-140px)] ${
             isScenarioPanelOpen ? "translate-x-0 opacity-100" : "-translate-x-96 opacity-0 pointer-events-none"
           }`}
         >
-          {/* Scenario Panel Header */}
-          <div className="p-3.5 border-b border-stone-800 flex items-center justify-between">
+          {/* Panel Header */}
+          <div className="p-3 border-b border-stone-800 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Sliders className="w-4 h-4 text-emerald-400" />
+              {panelTab === "scenario" ? (
+                <Sliders className="w-4 h-4 text-emerald-400" />
+              ) : panelTab === "green_loss" ? (
+                <ShieldAlert className="w-4 h-4 text-rose-400" />
+              ) : (
+                <RotateCcw className="w-4 h-4 text-teal-400" />
+              )}
               <h2 className="text-xs font-bold text-white tracking-wide uppercase">
-                Intervention Scenario
+                {panelTab === "scenario" ? "Intervention Scenario" :
+                 panelTab === "green_loss" ? "Green Loss Watch" :
+                 "Protect / Restore First"}
               </h2>
             </div>
             <div className="flex items-center gap-2">
-              <ProvenanceTag type="Assumed" />
+              <ProvenanceTag type={panelTab === "scenario" ? "Assumed" : panelTab === "green_loss" ? "Measured" : "Modelled"} />
               <button
                 type="button"
                 onClick={() => setIsScenarioPanelOpen(false)}
@@ -761,188 +833,435 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
             </div>
           </div>
 
-          {/* Scenario Sliders & Controls */}
-          <div className="p-4 flex flex-col gap-5 overflow-y-auto custom-scrollbar">
-            {/* 1. Hectare Budget Slider */}
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold text-stone-200 flex items-center gap-1.5">
-                  <span>Hectare Budget</span>
-                  <ProvenanceTag type="Assumed" />
-                </label>
-                <span className="text-xs font-mono font-bold text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-800">
-                  {budgetHa.toFixed(1)} ha
-                </span>
-              </div>
-              <input
-                type="range"
-                min={1.0}
-                max={40.0}
-                step={0.5}
-                value={budgetHa}
-                onChange={(e) => setBudgetHa(parseFloat(e.target.value))}
-                className="w-full h-1.5 bg-stone-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
-              />
-              <div className="flex justify-between text-[10px] text-stone-500 font-mono">
-                <span>1.0 ha</span>
-                <span>Max: 40.0 ha (~6.4 cells)</span>
-              </div>
-            </div>
-
-            {/* 2. Greening Target Slider (NDVI) */}
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold text-stone-200 flex items-center gap-1.5">
-                  <span>Target Vegetation (NDVI)</span>
-                  <ProvenanceTag type="Assumed" />
-                </label>
-                <span className="text-xs font-mono font-bold text-teal-400 bg-teal-950/80 px-2 py-0.5 rounded border border-teal-800">
-                  {targetNdvi.toFixed(2)}
-                </span>
-              </div>
-              <input
-                type="range"
-                min={0.40}
-                max={0.85}
-                step={0.05}
-                value={targetNdvi}
-                onChange={(e) => setTargetNdvi(parseFloat(e.target.value))}
-                className="w-full h-1.5 bg-stone-700 rounded-lg appearance-none cursor-pointer accent-teal-500"
-              />
-              <div className="flex justify-between text-[10px] text-stone-500 font-mono">
-                <span>0.40 (Light shrubs)</span>
-                <span>0.85 (Dense canopy)</span>
-              </div>
-            </div>
-
-            {/* 3. Uncertainty Toggle (Monte Carlo 30 Members) */}
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold text-stone-200 flex items-center gap-1.5">
-                  <span>Ensemble Quantile</span>
-                  <ProvenanceTag type="Modelled" />
-                </label>
-                <span className="text-[10px] text-stone-400 font-mono">30 members</span>
-              </div>
-              <div className="grid grid-cols-3 gap-1 bg-stone-950 p-1 rounded-md border border-stone-800">
-                <button
-                  type="button"
-                  onClick={() => setUncertaintyQuantile("p10")}
-                  className={`py-1 text-center rounded text-xs font-mono font-medium transition-colors ${
-                    uncertaintyQuantile === "p10"
-                      ? "bg-amber-600 text-white font-bold shadow-xs"
-                      : "text-stone-400 hover:text-stone-200"
-                  }`}
-                  title="P10: Conservative cooling threshold (90% chance of exceeding)"
-                >
-                  P10 (Cons.)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setUncertaintyQuantile("mean")}
-                  className={`py-1 text-center rounded text-xs font-mono font-medium transition-colors ${
-                    uncertaintyQuantile === "mean"
-                      ? "bg-emerald-600 text-white font-bold shadow-xs"
-                      : "text-stone-400 hover:text-stone-200"
-                  }`}
-                  title="Mean: Expected ensemble cooling outcome"
-                >
-                  Mean
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setUncertaintyQuantile("p90")}
-                  className={`py-1 text-center rounded text-xs font-mono font-medium transition-colors ${
-                    uncertaintyQuantile === "p90"
-                      ? "bg-sky-600 text-white font-bold shadow-xs"
-                      : "text-stone-400 hover:text-stone-200"
-                  }`}
-                  title="P90: Optimistic cooling potential (10% chance of exceeding)"
-                >
-                  P90 (Opt.)
-                </button>
-              </div>
-            </div>
-
-            {/* 4. Optimization Objective Toggle */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-stone-200 flex items-center gap-1.5">
-                <span>Objective Function</span>
-                <ProvenanceTag type="Modelled" />
-              </label>
-              <div className="grid grid-cols-2 gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setObjective("cooling")}
-                  className={`p-2 rounded border text-left transition-colors ${
-                    objective === "cooling"
-                      ? "bg-emerald-950/60 border-emerald-600 text-emerald-200"
-                      : "bg-stone-950 border-stone-800 text-stone-400 hover:text-stone-200"
-                  }`}
-                >
-                  <div className="text-[11px] font-bold">Pure Cooling</div>
-                  <div className="text-[9px] text-stone-500 font-mono">°C reduction / ha</div>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setObjective("population_weighted")}
-                  className={`p-2 rounded border text-left transition-colors ${
-                    objective === "population_weighted"
-                      ? "bg-emerald-950/60 border-emerald-600 text-emerald-200"
-                      : "bg-stone-950 border-stone-800 text-stone-400 hover:text-stone-200"
-                  }`}
-                >
-                  <div className="text-[11px] font-bold">Pop-Weighted</div>
-                  <div className="text-[9px] text-stone-500 font-mono">Resident exposure</div>
-                </button>
-              </div>
-            </div>
-
-            {/* 5. Ward Filter */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-stone-200 flex items-center gap-1.5">
-                <span>Administrative Ward</span>
-                <ProvenanceTag type="Measured" />
-              </label>
-              <select
-                value={selectedWard}
-                onChange={(e) => setSelectedWard(e.target.value)}
-                className="w-full bg-stone-950 border border-stone-800 rounded px-2.5 py-1.5 text-xs text-stone-200 font-sans focus:outline-none focus:border-emerald-500"
-              >
-                <option value="All">All Pune Municipal Wards</option>
-                <option value="Kasba Vishrambaugwada">Kasba Vishrambaugwada</option>
-                <option value="Shivajinagar - Ghole Road">Shivajinagar - Ghole Road</option>
-                <option value="Bhawani Peth">Bhawani Peth</option>
-                <option value="Kothrud">Kothrud</option>
-                <option value="Aundh">Aundh</option>
-                <option value="Sangamwadi">Sangamwadi</option>
-                <option value="Sahkar Nagar">Sahkar Nagar</option>
-                <option value="Bibwewadi">Bibwewadi</option>
-                <option value="Dhankwadi">Dhankwadi</option>
-              </select>
-            </div>
-
-            {/* Recalculate Trigger */}
+          {/* Navigation Tabs */}
+          <div className="flex border-b border-stone-800 bg-stone-950/70 p-1 gap-1 text-[11px] font-semibold">
             <button
               type="button"
-              onClick={runOptimization}
-              disabled={isOptimizing}
-              className="w-full py-2 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white text-xs font-bold rounded flex items-center justify-center gap-2 transition-colors shadow-sm"
+              onClick={() => setPanelTab("scenario")}
+              className={`flex-1 py-1.5 px-2 rounded flex items-center justify-center gap-1.5 transition-colors ${
+                panelTab === "scenario"
+                  ? "bg-stone-800 text-emerald-400 font-bold border border-stone-700 shadow-xs"
+                  : "text-stone-400 hover:text-stone-200"
+              }`}
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${isOptimizing ? "animate-spin" : ""}`} />
-              <span>{isOptimizing ? "Optimizing Portfolio..." : "Recalculate Priorities"}</span>
+              <Sliders className="w-3.5 h-3.5" />
+              <span>Scenario</span>
             </button>
-
-            {/* Two-Scenario Comparison Button */}
             <button
               type="button"
-              onClick={() => setIsTwoScenarioModalOpen(true)}
-              className="w-full py-2 bg-stone-900 hover:bg-stone-800 text-sky-300 text-xs font-semibold rounded flex items-center justify-center gap-2 border border-sky-900/60 transition-colors shadow-xs"
+              onClick={() => {
+                setPanelTab("green_loss");
+                setActiveLayer("green_loss");
+              }}
+              className={`flex-1 py-1.5 px-2 rounded flex items-center justify-center gap-1.5 transition-colors ${
+                panelTab === "green_loss"
+                  ? "bg-rose-950/80 text-rose-300 font-bold border border-rose-800 shadow-xs"
+                  : "text-stone-400 hover:text-stone-200"
+              }`}
             >
-              <GitCompare className="w-3.5 h-3.5 text-sky-400" />
-              <span>Two-Scenario Comparison</span>
+              <ShieldAlert className="w-3.5 h-3.5 text-rose-400" />
+              <span>Green Loss</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setPanelTab("restore")}
+              className={`flex-1 py-1.5 px-2 rounded flex items-center justify-center gap-1.5 transition-colors ${
+                panelTab === "restore"
+                  ? "bg-teal-950/80 text-teal-300 font-bold border border-teal-800 shadow-xs"
+                  : "text-stone-400 hover:text-stone-200"
+              }`}
+            >
+              <RotateCcw className="w-3.5 h-3.5 text-teal-400" />
+              <span>Restore First</span>
             </button>
           </div>
+
+          {/* Tab 1: Scenario Controls */}
+          {panelTab === "scenario" && (
+            <div className="p-4 flex flex-col gap-4 overflow-y-auto custom-scrollbar">
+              {/* 1. Hectare Budget Slider */}
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-stone-200 flex items-center gap-1.5">
+                    <span>Hectare Budget</span>
+                    <ProvenanceTag type="Assumed" />
+                  </label>
+                  <span className="text-xs font-mono font-bold text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-800">
+                    {budgetHa.toFixed(1)} ha
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={1.0}
+                  max={40.0}
+                  step={0.5}
+                  value={budgetHa}
+                  onChange={(e) => setBudgetHa(parseFloat(e.target.value))}
+                  className="w-full h-1.5 bg-stone-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                />
+                <div className="flex justify-between text-[10px] text-stone-500 font-mono">
+                  <span>1.0 ha</span>
+                  <span>Max: 40.0 ha (~6.4 cells)</span>
+                </div>
+              </div>
+
+              {/* 2. Greening Target Slider (NDVI) */}
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-stone-200 flex items-center gap-1.5">
+                    <span>Target Vegetation (NDVI)</span>
+                    <ProvenanceTag type="Assumed" />
+                  </label>
+                  <span className="text-xs font-mono font-bold text-teal-400 bg-teal-950/80 px-2 py-0.5 rounded border border-teal-800">
+                    {targetNdvi.toFixed(2)}
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={0.40}
+                  max={0.85}
+                  step={0.05}
+                  value={targetNdvi}
+                  onChange={(e) => setTargetNdvi(parseFloat(e.target.value))}
+                  className="w-full h-1.5 bg-stone-700 rounded-lg appearance-none cursor-pointer accent-teal-500"
+                />
+                <div className="flex justify-between text-[10px] text-stone-500 font-mono">
+                  <span>0.40 (Light shrubs)</span>
+                  <span>0.85 (Dense canopy)</span>
+                </div>
+              </div>
+
+              {/* 3. Uncertainty Toggle (Monte Carlo 30 Members) */}
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-stone-200 flex items-center gap-1.5">
+                    <span>Ensemble Quantile</span>
+                    <ProvenanceTag type="Modelled" />
+                  </label>
+                  <span className="text-[10px] text-stone-400 font-mono">30 members</span>
+                </div>
+                <div className="grid grid-cols-3 gap-1 bg-stone-950 p-1 rounded-md border border-stone-800">
+                  <button
+                    type="button"
+                    onClick={() => setUncertaintyQuantile("p10")}
+                    className={`py-1 text-center rounded text-xs font-mono font-medium transition-colors ${
+                      uncertaintyQuantile === "p10"
+                        ? "bg-amber-600 text-white font-bold shadow-xs"
+                        : "text-stone-400 hover:text-stone-200"
+                    }`}
+                    title="P10: Conservative cooling threshold (90% chance of exceeding)"
+                  >
+                    P10 (Cons.)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setUncertaintyQuantile("mean")}
+                    className={`py-1 text-center rounded text-xs font-mono font-medium transition-colors ${
+                      uncertaintyQuantile === "mean"
+                        ? "bg-emerald-600 text-white font-bold shadow-xs"
+                        : "text-stone-400 hover:text-stone-200"
+                    }`}
+                    title="Mean: Expected ensemble cooling outcome"
+                  >
+                    Mean
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setUncertaintyQuantile("p90")}
+                    className={`py-1 text-center rounded text-xs font-mono font-medium transition-colors ${
+                      uncertaintyQuantile === "p90"
+                        ? "bg-sky-600 text-white font-bold shadow-xs"
+                        : "text-stone-400 hover:text-stone-200"
+                    }`}
+                    title="P90: Optimistic cooling potential (10% chance of exceeding)"
+                  >
+                    P90 (Opt.)
+                  </button>
+                </div>
+              </div>
+
+              {/* 4. Optimization Objective Toggle */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-stone-200 flex items-center gap-1.5">
+                  <span>Objective Function</span>
+                  <ProvenanceTag type="Modelled" />
+                </label>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setObjective("cooling")}
+                    className={`p-2 rounded border text-left transition-colors ${
+                      objective === "cooling"
+                        ? "bg-emerald-950/60 border-emerald-600 text-emerald-200"
+                        : "bg-stone-950 border-stone-800 text-stone-400 hover:text-stone-200"
+                    }`}
+                  >
+                    <div className="text-[11px] font-bold">Pure Cooling</div>
+                    <div className="text-[9px] text-stone-500 font-mono">°C reduction / ha</div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setObjective("population_weighted")}
+                    className={`p-2 rounded border text-left transition-colors ${
+                      objective === "population_weighted"
+                        ? "bg-emerald-950/60 border-emerald-600 text-emerald-200"
+                        : "bg-stone-950 border-stone-800 text-stone-400 hover:text-stone-200"
+                    }`}
+                  >
+                    <div className="text-[11px] font-bold">Pop-Weighted</div>
+                    <div className="text-[9px] text-stone-500 font-mono">Resident exposure</div>
+                  </button>
+                </div>
+              </div>
+
+              {/* 5. Ward Filter */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-stone-200 flex items-center gap-1.5">
+                  <span>Administrative Ward</span>
+                  <ProvenanceTag type="Measured" />
+                </label>
+                <select
+                  value={selectedWard}
+                  onChange={(e) => setSelectedWard(e.target.value)}
+                  className="w-full bg-stone-950 border border-stone-800 rounded px-2.5 py-1.5 text-xs text-stone-200 font-sans focus:outline-none focus:border-emerald-500"
+                >
+                  <option value="All">All Pune Municipal Wards</option>
+                  <option value="Kasba Vishrambaugwada">Kasba Vishrambaugwada</option>
+                  <option value="Shivajinagar - Ghole Road">Shivajinagar - Ghole Road</option>
+                  <option value="Bhawani Peth">Bhawani Peth</option>
+                  <option value="Kothrud">Kothrud</option>
+                  <option value="Aundh">Aundh</option>
+                  <option value="Sangamwadi">Sangamwadi</option>
+                  <option value="Sahkar Nagar">Sahkar Nagar</option>
+                  <option value="Bibwewadi">Bibwewadi</option>
+                  <option value="Dhankwadi">Dhankwadi</option>
+                </select>
+              </div>
+
+              {/* Recalculate Trigger */}
+              <button
+                type="button"
+                onClick={() => runOptimization()}
+                disabled={isOptimizing}
+                className="w-full py-2 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white text-xs font-bold rounded flex items-center justify-center gap-2 transition-colors shadow-sm"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isOptimizing ? "animate-spin" : ""}`} />
+                <span>{isOptimizing ? "Optimizing Portfolio..." : "Recalculate Priorities"}</span>
+              </button>
+
+              {/* Two-Scenario Comparison Button */}
+              <button
+                type="button"
+                onClick={() => setIsTwoScenarioModalOpen(true)}
+                className="w-full py-2 bg-stone-900 hover:bg-stone-800 text-sky-300 text-xs font-semibold rounded flex items-center justify-center gap-2 border border-sky-900/60 transition-colors shadow-xs"
+              >
+                <GitCompare className="w-3.5 h-3.5 text-sky-400" />
+                <span>Two-Scenario Comparison</span>
+              </button>
+            </div>
+          )}
+
+          {/* Tab 2: Green Loss Watch & Ward Table */}
+          {panelTab === "green_loss" && (
+            <div className="p-3.5 flex flex-col gap-3.5 overflow-y-auto custom-scrollbar">
+              {/* Summary Metrics */}
+              <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+                <div className="bg-stone-950 p-2.5 rounded border border-rose-900/40">
+                  <div className="flex items-center justify-between text-[10px] text-stone-400">
+                    <span>Total Loss Area</span>
+                    <ProvenanceTag type="Modelled" />
+                  </div>
+                  <div className="text-base font-extrabold text-rose-400 mt-0.5">
+                    {greenLossData?.metadata.total_loss_area_ha !== undefined
+                      ? `${greenLossData.metadata.total_loss_area_ha.toFixed(2)} ha`
+                      : "Not available"}
+                  </div>
+                  <div className="text-[10px] text-stone-500">2019–2026 pre-monsoon</div>
+                </div>
+                <div className="bg-stone-950 p-2.5 rounded border border-rose-900/40">
+                  <div className="flex items-center justify-between text-[10px] text-stone-400">
+                    <span>Flagged Cells</span>
+                    <ProvenanceTag type="Modelled" />
+                  </div>
+                  <div className="text-base font-extrabold text-amber-400 mt-0.5">
+                    {greenLossData?.metadata.total_loss_cells !== undefined
+                      ? `${greenLossData.metadata.total_loss_cells} cells`
+                      : "Not available"}
+                  </div>
+                  <div className="text-[10px] text-stone-500">ΔNDVI ≤ -0.10 & ΔNDBI &gt; 0</div>
+                </div>
+              </div>
+
+              {/* Model Gate Status */}
+              <div className="flex items-center justify-between text-[10px] font-mono bg-stone-950 px-2.5 py-1.5 rounded border border-stone-800">
+                <span className="text-stone-400">Model Gate Direction Check:</span>
+                <span className={`font-bold ${greenLossData?.metadata.model_gate_passed ? "text-emerald-400" : "text-amber-400"}`}>
+                  {greenLossData?.metadata.model_gate_passed ? "PASSED (∂LST/∂NDVI ≤ 0)" : "FAILED (Heat Nullified)"}
+                </span>
+              </div>
+
+              {/* Ward Table sorted by loss area */}
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-stone-200 uppercase tracking-wider flex items-center gap-1.5">
+                    <span>23 PMC Wards by Loss Area</span>
+                    <ProvenanceTag type="Measured" />
+                  </h3>
+                  <span className="text-[10px] text-stone-500 font-mono">Sorted by loss ha</span>
+                </div>
+
+                <div className="border border-stone-800 rounded overflow-hidden max-h-60 overflow-y-auto custom-scrollbar">
+                  <table className="w-full text-left text-[11px] font-mono">
+                    <thead className="bg-stone-950 text-stone-400 text-[10px] uppercase sticky top-0 border-b border-stone-800">
+                      <tr>
+                        <th className="py-1.5 px-2">Ward</th>
+                        <th className="py-1.5 px-2 text-right">Loss (ha)</th>
+                        <th className="py-1.5 px-2 text-right">Cells</th>
+                        <th className="py-1.5 px-2 text-right">Extra Heat</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-stone-800/60 bg-stone-900/60 text-stone-300">
+                      {(greenLossData?.ward_aggregates || []).map((w) => (
+                        <tr
+                          key={w.ward}
+                          onClick={() => {
+                            setSelectedWard(w.ward);
+                            setActiveLayer("green_loss");
+                          }}
+                          className={`hover:bg-rose-950/30 cursor-pointer transition-colors ${
+                            selectedWard === w.ward ? "bg-rose-950/50 text-white font-bold" : ""
+                          }`}
+                          title="Click to filter to this ward"
+                        >
+                          <td className="py-1.5 px-2 truncate max-w-[130px] font-sans font-medium text-stone-200">
+                            {w.ward}
+                          </td>
+                          <td className="py-1.5 px-2 text-right font-bold text-rose-300">
+                            {w.total_loss_area_ha > 0 ? `${w.total_loss_area_ha.toFixed(2)}` : "0.00"}
+                          </td>
+                          <td className="py-1.5 px-2 text-right text-stone-400">
+                            {w.loss_cells_count}
+                          </td>
+                          <td className="py-1.5 px-2 text-right text-amber-300 font-semibold">
+                            {w.mean_extra_heat_celsius !== null && w.mean_extra_heat_celsius !== undefined
+                              ? `+${w.mean_extra_heat_celsius.toFixed(2)}°C`
+                              : "Not available"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setActiveLayer("green_loss")}
+                  className="flex-1 py-2 bg-rose-900/80 hover:bg-rose-800 text-rose-200 text-xs font-semibold rounded flex items-center justify-center gap-1.5 border border-rose-700/60 transition-colors shadow-xs"
+                >
+                  <ShieldAlert className="w-3.5 h-3.5 text-rose-400" />
+                  <span>Show Loss Layer</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPanelTab("restore")}
+                  className="flex-1 py-2 bg-teal-900/80 hover:bg-teal-800 text-teal-200 text-xs font-semibold rounded flex items-center justify-center gap-1.5 border border-teal-700/60 transition-colors shadow-xs"
+                >
+                  <RotateCcw className="w-3.5 h-3.5 text-teal-400" />
+                  <span>Restore Tab</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Tab 3: Protect / Restore First */}
+          {panelTab === "restore" && (
+            <div className="p-4 flex flex-col gap-4 overflow-y-auto custom-scrollbar">
+              {/* Policy Explanation */}
+              <div className="bg-stone-950 p-3 rounded-lg border border-teal-900/60 space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <RotateCcw className="w-4 h-4 text-teal-400" />
+                  <span className="text-xs font-bold text-teal-300 uppercase tracking-wide">
+                    Protect / Restore First
+                  </span>
+                </div>
+                <p className="text-[11px] text-stone-300 leading-relaxed font-sans">
+                  Reuses the Priority Optimizer to greedily allocate restoration budget strictly among the{" "}
+                  <strong>{greenLossData?.metadata.total_loss_cells ?? 0} parcels</strong> that suffered confirmed green loss between 2019 and 2026.
+                </p>
+              </div>
+
+              {/* Restoration Budget Slider */}
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-stone-200 flex items-center gap-1.5">
+                    <span>Restoration Budget</span>
+                    <ProvenanceTag type="Assumed" />
+                  </label>
+                  <span className="text-xs font-mono font-bold text-teal-400 bg-teal-950/80 px-2 py-0.5 rounded border border-teal-800">
+                    {restoreBudgetHa.toFixed(1)} ha
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={1.0}
+                  max={Math.max(10.0, greenLossData?.metadata.total_loss_area_ha ?? 40.0)}
+                  step={0.5}
+                  value={restoreBudgetHa}
+                  onChange={(e) => setRestoreBudgetHa(parseFloat(e.target.value))}
+                  className="w-full h-1.5 bg-stone-700 rounded-lg appearance-none cursor-pointer accent-teal-500"
+                />
+                <div className="flex justify-between text-[10px] text-stone-500 font-mono">
+                  <span>1.0 ha</span>
+                  <span>Total Loss: {(greenLossData?.metadata.total_loss_area_ha ?? 40.0).toFixed(1)} ha</span>
+                </div>
+              </div>
+
+              {/* Target NDVI Slider */}
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-stone-200 flex items-center gap-1.5">
+                    <span>Target Restored NDVI</span>
+                    <ProvenanceTag type="Assumed" />
+                  </label>
+                  <span className="text-xs font-mono font-bold text-teal-400 bg-teal-950/80 px-2 py-0.5 rounded border border-teal-800">
+                    {targetNdvi.toFixed(2)}
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={0.40}
+                  max={0.85}
+                  step={0.05}
+                  value={targetNdvi}
+                  onChange={(e) => setTargetNdvi(parseFloat(e.target.value))}
+                  className="w-full h-1.5 bg-stone-700 rounded-lg appearance-none cursor-pointer accent-teal-500"
+                />
+                <div className="flex justify-between text-[10px] text-stone-500 font-mono">
+                  <span>0.40 (Light shrubs)</span>
+                  <span>0.85 (Full canopy)</span>
+                </div>
+              </div>
+
+              {/* Run Restoration Optimizer Button */}
+              <button
+                type="button"
+                onClick={handleRunRestoreOptimization}
+                disabled={isOptimizing}
+                className="w-full py-2.5 bg-teal-700 hover:bg-teal-600 disabled:opacity-50 text-white text-xs font-bold rounded flex items-center justify-center gap-2 transition-colors shadow-md"
+              >
+                <RotateCcw className={`w-3.5 h-3.5 ${isOptimizing ? "animate-spin" : ""}`} />
+                <span>{isOptimizing ? "Optimizing Restoration..." : "Prioritize Loss Parcels to Restore"}</span>
+              </button>
+
+              <div className="text-[10px] text-stone-400 font-mono bg-stone-950 p-2.5 rounded border border-stone-800">
+                <span className="text-teal-400 font-bold block mb-0.5">Optimizer Policy:</span>
+                Parcels are greedily ranked by thermal cooling relief per hectare. Selected parcels are highlighted on the map and updated in the portfolio strip.
+              </div>
+            </div>
+          )}
         </aside>
 
         {/* Toggle button if scenario panel is collapsed */}
@@ -1020,34 +1339,68 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
           >
             Selected Zones
           </button>
+          <button
+            type="button"
+            onClick={() => setActiveLayer("green_loss")}
+            className={`px-2.5 py-1 rounded font-medium transition-colors ${
+              activeLayer === "green_loss"
+                ? "bg-rose-600 text-white font-bold shadow-xs"
+                : "text-stone-400 hover:text-stone-200"
+            }`}
+          >
+            Green Loss
+          </button>
         </div>
 
-        {/* Floating Colour-Blind-Safe Viridis Palette Legend */}
+        {/* Floating Colour-Blind-Safe Sequential Palette Legend */}
         <div className="absolute bottom-24 right-3 z-20 bg-stone-900/90 backdrop-blur-md p-2.5 rounded-lg border border-stone-800 shadow-xl flex flex-col gap-1.5 w-60">
           <div className="flex items-center justify-between text-[10px] font-mono text-stone-300">
             <span className="font-bold uppercase tracking-wider">
               {activeLayer === "burden" ? "Heat Burden (Viridis)" :
                activeLayer === "lst" ? "LST Radiometric (°C)" :
                activeLayer === "ndvi" ? "Sentinel-2 NDVI" :
-               activeLayer === "population" ? "Resident Density" : "Selected Zones"}
+               activeLayer === "population" ? "Resident Density" :
+               activeLayer === "green_loss" ? "Vegetation Loss (ΔNDVI)" : "Selected Zones"}
             </span>
-            <ProvenanceTag type="Modelled" />
+            <ProvenanceTag
+              type={activeLayer === "lst" || activeLayer === "ndvi" ? "Measured" : "Modelled"}
+            />
           </div>
 
-          {/* Sequential Viridis Bar */}
-          <div className="w-full h-3 rounded overflow-hidden flex border border-stone-700">
-            {VIRIDIS_PALETTE.colors.map((c, i) => (
-              <div key={i} className="flex-1 h-full" style={{ backgroundColor: c }} />
-            ))}
-          </div>
+          {/* Sequential Color Bar */}
+          {activeLayer === "green_loss" ? (
+            <div className="w-full h-3 rounded overflow-hidden flex border border-stone-700">
+              <div className="flex-1 h-full bg-slate-800" title="Stable (ΔNDVI > -0.10)" />
+              <div className="flex-1 h-full bg-orange-600" title="Moderate Loss (ΔNDVI -0.10 to -0.20)" />
+              <div className="flex-1 h-full bg-red-600" title="High Loss (ΔNDVI -0.20 to -0.30)" />
+              <div className="flex-1 h-full bg-red-900" title="Severe Loss (ΔNDVI ≤ -0.30)" />
+            </div>
+          ) : (
+            <div className="w-full h-3 rounded overflow-hidden flex border border-stone-700">
+              {VIRIDIS_PALETTE.colors.map((c, i) => (
+                <div key={i} className="flex-1 h-full" style={{ backgroundColor: c }} />
+              ))}
+            </div>
+          )}
 
           <div className="flex justify-between text-[9px] text-stone-400 font-mono">
-            <span>Low Exposure</span>
-            <span>Severe Burden</span>
+            {activeLayer === "green_loss" ? (
+              <>
+                <span>Stable (Δ ≥ -0.10)</span>
+                <span>Severe Loss (≤ -0.30)</span>
+              </>
+            ) : (
+              <>
+                <span>Low Exposure</span>
+                <span>Severe Burden</span>
+              </>
+            )}
           </div>
 
           <span className="text-[8px] text-stone-500 leading-tight">
-            Colour-blind-safe sequential Viridis palette (Deuteranopia & Protanopia compliant).
+            {activeLayer === "green_loss"
+              ? "Sentinel-2 2019 vs 2026 pre-monsoon (ΔNDVI ≤ -0.10 & ΔNDBI > 0)."
+              : "Colour-blind-safe sequential Viridis palette (Deuteranopia & Protanopia compliant)."}
           </span>
         </div>
 

@@ -3,13 +3,14 @@
 import React, { useState } from "react";
 import { HeatPriorityScreen } from "@/components/priority/HeatPriorityScreen";
 import { AppShell } from "@/components/layout/AppShell";
-import { PriorityCell } from "@/server/priority/types";
+import { PriorityCell, GreenLossDataset } from "@/server/priority/types";
 import { OptimizeResult } from "@/server/priority/optimizer";
 import { ArrowLeft, Compass, Flame } from "lucide-react";
 
 interface MainWorkspaceProps {
   initialCells: PriorityCell[];
   initialOptimization?: OptimizeResult | null;
+  initialGreenLoss?: GreenLossDataset | null;
   user: {
     id: string;
     email: string;
@@ -21,6 +22,7 @@ interface MainWorkspaceProps {
 export const MainWorkspace: React.FC<MainWorkspaceProps> = ({
   initialCells,
   initialOptimization,
+  initialGreenLoss,
   user,
   initialScenarios,
 }) => {
@@ -54,6 +56,7 @@ export const MainWorkspace: React.FC<MainWorkspaceProps> = ({
     <HeatPriorityScreen
       initialCells={initialCells}
       initialOptimization={initialOptimization}
+      initialGreenLoss={initialGreenLoss}
       onOpenLegacyManualSiting={() => setViewMode("legacy_siting")}
     />
   );

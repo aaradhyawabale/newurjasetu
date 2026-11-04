@@ -16,6 +16,9 @@ export interface OptimizeOptions {
   /** Optional filter by PMC administrative ward */
   ward?: string;
 
+  /** Optional filter for specific candidate cell IDs (e.g. Green Loss Watch: Protect / Restore First mode) */
+  candidate_cell_ids?: string[];
+
   /** Minimum greenable land in hectares required to consider a cell (default: 0.1 ha) */
   min_greenable_ha?: number;
 
@@ -108,6 +111,12 @@ export function optimizeInterventionBudget(
   let candidates = cells;
   if (wardFilter) {
     candidates = candidates.filter(c => c.ward.trim().toLowerCase() === wardFilter);
+  }
+
+  // Filter by candidate cell IDs if provided (e.g. Green Loss Watch: Protect / Restore First mode)
+  if (options.candidate_cell_ids && options.candidate_cell_ids.length > 0) {
+    const targetIdSet = new Set(options.candidate_cell_ids);
+    candidates = candidates.filter(c => targetIdSet.has(c.id));
   }
 
   // Filter by minimum greenable land

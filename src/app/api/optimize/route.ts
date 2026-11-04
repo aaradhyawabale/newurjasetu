@@ -12,6 +12,7 @@ const OptimizeRequestSchema = z.object({
   }).positive('budget_ha must be greater than zero').max(1000, 'budget_ha cannot exceed 1000 hectares'),
   objective: z.enum(['cooling', 'population_weighted']).optional().default('cooling'),
   ward: z.string().optional(),
+  candidate_cell_ids: z.array(z.string()).optional(),
   min_greenable_ha: z.number().min(0, 'min_greenable_ha cannot be negative').optional().default(0.1),
   target_ndvi: z.number().min(0.2).max(1.0).optional().default(0.65)
 });

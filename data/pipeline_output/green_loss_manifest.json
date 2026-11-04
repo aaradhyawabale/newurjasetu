@@ -1,0 +1,57 @@
+{
+  "seasons": {
+    "baseline_season": "Mar-May 2019 (Sentinel-2 L2A BOA)",
+    "current_season": "Mar-May 2026 (Sentinel-2 L2A BOA)"
+  },
+  "scene_manifest": {
+    "year_2019_scenes": [
+      {
+        "id": "S2B_MSIL2A_20190315T053649_N0211_R005_T43QDA",
+        "date": "2019-03-15T05:36:49Z",
+        "cloud_cover_percent": 1.2
+      },
+      {
+        "id": "S2A_MSIL2A_20190404T053641_N0211_R005_T43QDA",
+        "date": "2019-04-04T05:36:41Z",
+        "cloud_cover_percent": 0.4
+      },
+      {
+        "id": "S2B_MSIL2A_20190424T053649_N0211_R005_T43QDA",
+        "date": "2019-04-24T05:36:49Z",
+        "cloud_cover_percent": 2.8
+      },
+      {
+        "id": "S2A_MSIL2A_20190514T053641_N0211_R005_T43QDA",
+        "date": "2019-05-14T05:36:41Z",
+        "cloud_cover_percent": 3.1
+      }
+    ],
+    "year_2026_scenes": [
+      {
+        "id": "S2B_MSIL2A_20260312T053649_N0510_R005_T43QDA",
+        "date": "2026-03-12T05:36:49Z",
+        "cloud_cover_percent": 0.8
+      },
+      {
+        "id": "S2A_MSIL2A_20260401T053641_N0510_R005_T43QDA",
+        "date": "2026-04-01T05:36:41Z",
+        "cloud_cover_percent": 1.1
+      },
+      {
+        "id": "S2B_MSIL2A_20260421T053649_N0510_R005_T43QDA",
+        "date": "2026-04-21T05:36:49Z",
+        "cloud_cover_percent": 1.9
+      },
+      {
+        "id": "S2A_MSIL2A_20260511T053641_N0510_R005_T43QDA",
+        "date": "2026-05-11T05:36:41Z",
+        "cloud_cover_percent": 2.4
+      }
+    ]
+  },
+  "thresholds": {
+    "ndvi_drop_threshold": 0.1,
+    "ndbi_rise_required": true
+  },
+  "timestamp": "2026-11-04T18:07:31.914515+00:00"
+}
