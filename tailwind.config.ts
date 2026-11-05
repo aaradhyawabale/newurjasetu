@@ -38,9 +38,19 @@ const config: Config = {
           "fail-bg": "#FEF2F2",
           "fail-border": "#FECACA",
         },
+        primary: {
+          DEFAULT: "#0F5C63",
+          dark: "#0A3E43",
+          light: "#167C85",
+        },
+        ink: "#14212B",
+        canvas: "#FAFAF7",
+        "heat-amber": "#F5A524",
+        "heat-red": "#D64530",
       },
       fontFamily: {
-        sans: ["Inter", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "sans-serif"],
+        sans: ["DM Sans", "Inter", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
+        display: ["Plus Jakarta Sans", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
         mono: ["JetBrains Mono", "SFMono-Regular", "Menlo", "Monaco", "monospace"],
       },
       borderRadius: {

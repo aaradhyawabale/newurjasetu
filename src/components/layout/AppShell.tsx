@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import * as turf from "@turf/turf";
 import { TopBar } from "./TopBar";
 import { ToolSidebar } from "./ToolSidebar";
-import { MapView, StudyAreaBounds } from "../map/MapView";
+import { LegacyMapView, StudyAreaBounds } from "../map/LegacyMapView";
 import { PlacementPanel } from "../panels/PlacementPanel";
 import { ReportDrawer } from "../reports/ReportDrawer";
 import { HistoryDrawer, HistoryItem } from "../history/HistoryDrawer";
@@ -1296,7 +1296,7 @@ export const AppShell: React.FC<AppShellProps> = ({
 
         {/* Center Map View */}
         <main className="flex-1 h-full min-h-[260px] relative overflow-hidden bg-stone-100">
-          <MapView
+          <LegacyMapView
             centerLat={mapCenter.lat}
             centerLng={mapCenter.lng}
             activeCity={
@@ -1320,7 +1320,7 @@ export const AppShell: React.FC<AppShellProps> = ({
             onMapClick={handleMapClick}
             onPlacementChange={handlePlacementChangeFromMap}
             onStudyAreaChange={handleStudyAreaChange}
-            onMapLoaded={(exportFn) => {
+            onMapLoaded={(exportFn: () => string | null) => {
               mapCanvasExportRef.current = exportFn;
             }}
           />
