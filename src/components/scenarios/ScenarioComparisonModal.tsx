@@ -227,7 +227,7 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
                 <h2 className="text-base font-bold text-stone-900 tracking-tight">
                   Scenario Simulator & Multi-Candidate Comparison
                 </h2>
-                <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold border border-emerald-200">
+                <span className="text-[11px] font-mono uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold border border-emerald-200">
                   Decision Support
                 </span>
               </div>
@@ -461,7 +461,7 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
                         <h4 className="text-xs font-bold font-mono uppercase tracking-wider text-emerald-950">
                           Executive Recommendation
                         </h4>
-                        <span className="text-[10px] font-mono bg-emerald-100/80 text-emerald-900 px-2 py-0.5 rounded border border-emerald-300 font-semibold">
+                        <span className="text-[11px] font-mono bg-emerald-100/80 text-emerald-900 px-2 py-0.5 rounded border border-emerald-300 font-semibold">
                           Top Site: {comparison.ranking[0]?.label || "N/A"} ({comparison.ranking[0]?.overallScore}/100)
                         </span>
                       </div>
@@ -481,7 +481,7 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
                             <BarChart3 className="w-4 h-4 text-emerald-700" />
                             <span>Head-to-Head Candidate Siting Scores</span>
                           </span>
-                          <span className="text-[10px] font-mono text-stone-400">
+                          <span className="text-[11px] font-mono text-stone-400">
                             Evaluated across Indian Town Planning Norms (URDPFI & IRC)
                           </span>
                         </div>
@@ -504,7 +504,7 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
                                 <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
                                   <div className="flex items-center gap-2">
                                     <span
-                                      className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full uppercase ${
+                                      className={`text-[11px] font-mono font-bold px-2 py-0.5 rounded-full uppercase ${
                                         isWinner
                                           ? "bg-emerald-700 text-white"
                                           : "bg-stone-200 text-stone-700"
@@ -513,12 +513,12 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
                                       Rank #{rank.rank}
                                     </span>
                                     <span className="text-xs font-bold text-stone-900">{rank.label}</span>
-                                    <span className="text-[10px] font-mono text-stone-400">({rank.type})</span>
+                                    <span className="text-[11px] font-mono text-stone-400">({rank.type})</span>
                                   </div>
 
                                   <div className="flex items-center gap-2">
                                     {delta !== 0 && (
-                                      <span className="text-[10px] font-mono font-bold text-stone-500">
+                                      <span className="text-[11px] font-mono font-bold text-stone-500">
                                         {delta > 0 ? `+${delta}` : delta} pts vs leader
                                       </span>
                                     )}
@@ -527,7 +527,7 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
                                       style={{ color: getScoreColor(rank.overallScore) }}
                                     >
                                       {rank.overallScore}
-                                      <span className="text-[10px] text-stone-400 font-normal"> / 100</span>
+                                      <span className="text-[11px] text-stone-400 font-normal"> / 100</span>
                                     </span>
                                   </div>
                                 </div>
@@ -585,7 +585,7 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
                             <Activity className="w-4 h-4 text-emerald-700" />
                             <span>Town Planning Pillars Breakdown</span>
                           </span>
-                          <span className="text-[10px] font-mono text-stone-400">
+                          <span className="text-[11px] font-mono text-stone-400">
                             Performance across 4 core master-planning pillars
                           </span>
                         </div>
@@ -654,7 +654,7 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
                               <div>
                                 <div className="flex items-center justify-between mb-2">
                                   <span
-                                    className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded uppercase ${
+                                    className={`text-[11px] font-mono font-bold px-2 py-0.5 rounded uppercase ${
                                       isWinner ? "bg-emerald-700 text-white" : "bg-stone-100 text-stone-700"
                                     }`}
                                   >
@@ -671,7 +671,7 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
                                 {/* 1 Key Strength */}
                                 {rank.topAdvantages[0] && (
                                   <div className="p-2 rounded bg-emerald-50/60 border border-emerald-100 mb-2">
-                                    <span className="text-[10px] font-mono font-bold uppercase text-emerald-800 block mb-0.5 flex items-center gap-1">
+                                    <span className="text-[11px] font-mono font-bold uppercase text-emerald-800 block mb-0.5 flex items-center gap-1">
                                       <Check className="w-3 h-3" /> Core Strength
                                     </span>
                                     <p className="text-xs text-stone-800 line-clamp-2">
@@ -683,7 +683,7 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
                                 {/* 1 Key Bottleneck */}
                                 {rank.topDisadvantages[0] ? (
                                   <div className="p-2 rounded bg-amber-50/60 border border-amber-200 mb-2">
-                                    <span className="text-[10px] font-mono font-bold uppercase text-amber-800 block mb-0.5 flex items-center gap-1">
+                                    <span className="text-[11px] font-mono font-bold uppercase text-amber-800 block mb-0.5 flex items-center gap-1">
                                       <AlertTriangle className="w-3 h-3" /> Critical Watchout
                                     </span>
                                     <p className="text-xs text-stone-800 line-clamp-2">
@@ -750,7 +750,7 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
                               {/* Card Header */}
                               <div className="flex items-center justify-between mb-2">
                                 <span
-                                  className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full uppercase ${
+                                  className={`text-[11px] font-mono font-bold px-2 py-0.5 rounded-full uppercase ${
                                     isWinner
                                       ? "bg-emerald-700 text-white"
                                       : "bg-stone-100 text-stone-600 border border-stone-200"
@@ -758,7 +758,7 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
                                 >
                                   Rank #{rank.rank}
                                 </span>
-                                <span className="text-[10px] font-mono text-stone-400 truncate">
+                                <span className="text-[11px] font-mono text-stone-400 truncate">
                                   {rank.type}
                                 </span>
                               </div>
@@ -811,7 +811,7 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
                               {/* Top Advantages */}
                               {rank.topAdvantages.length > 0 && (
                                 <div className="mt-3">
-                                  <div className="text-[10px] font-mono uppercase tracking-wider text-stone-400 font-bold mb-1">
+                                  <div className="text-[11px] font-mono uppercase tracking-wider text-stone-400 font-bold mb-1">
                                     Key Strengths ({rank.winningCriteriaCount} criteria won)
                                   </div>
                                   <ul className="text-xs text-stone-700 space-y-1">
@@ -828,7 +828,7 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
                               {/* Top Disadvantages */}
                               {rank.topDisadvantages.length > 0 && (
                                 <div className="mt-2.5">
-                                  <div className="text-[10px] font-mono uppercase tracking-wider text-stone-400 font-bold mb-1">
+                                  <div className="text-[11px] font-mono uppercase tracking-wider text-stone-400 font-bold mb-1">
                                     Constraints & Penalties
                                   </div>
                                   <ul className="text-xs text-red-700 space-y-1">
@@ -879,7 +879,7 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
                             <GitCompare className="w-4 h-4 text-emerald-700" />
                             <span>Pivotal Siting Differentiators (Top Decisive Criteria)</span>
                           </h4>
-                          <span className="text-[10px] font-mono text-stone-500">
+                          <span className="text-[11px] font-mono text-stone-500">
                             Criteria with the highest score divergence (Δ)
                           </span>
                         </div>
@@ -901,15 +901,15 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
                               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-stone-100 pb-2">
                                 <div>
                                   <h4 className="text-xs font-bold text-stone-900">{crit.label}</h4>
-                                  <span className="text-[10px] font-mono text-stone-400">
+                                  <span className="text-[11px] font-mono text-stone-400">
                                     Benchmark: {crit.benchmark}
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-stone-100 text-stone-700 font-semibold border border-stone-200">
+                                  <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-stone-100 text-stone-700 font-semibold border border-stone-200">
                                     Weight: {crit.weight}%
                                   </span>
-                                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold border border-emerald-200">
+                                  <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold border border-emerald-200">
                                     Δ {crit.deltaScore} pts
                                   </span>
                                 </div>
@@ -928,7 +928,7 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
                                         <div className="flex items-center gap-2">
                                           <span className="font-semibold text-stone-900">{cand.label}</span>
                                           {isLeader && (
-                                            <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 font-bold">
+                                            <span className="text-[11px] font-mono px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 font-bold">
                                               LEAD
                                             </span>
                                           )}
@@ -1012,7 +1012,7 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
                                 {/* Criterion Label & Benchmark */}
                                 <td className="py-3 px-4">
                                   <div className="font-bold text-stone-900">{crit.label}</div>
-                                  <div className="text-[10px] text-stone-500 font-mono mt-0.5 line-clamp-1">
+                                  <div className="text-[11px] text-stone-500 font-mono mt-0.5 line-clamp-1">
                                     Benchmark: {crit.benchmark}
                                   </div>
                                 </td>
@@ -1041,7 +1041,7 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
                                               {val.score !== null ? `${val.score}/100` : "--"}
                                             </span>
                                             {isWinner && (
-                                              <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-emerald-100 text-emerald-800 font-bold">
+                                              <span className="text-[11px] font-mono px-1 py-0.2 rounded bg-emerald-100 text-emerald-800 font-bold">
                                                 LEAD
                                               </span>
                                             )}
@@ -1122,7 +1122,7 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
                             <div className="flex items-center justify-between border-b border-stone-100 pb-2">
                               <div className="flex items-center gap-2">
                                 <span
-                                  className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded uppercase ${
+                                  className={`text-[11px] font-mono font-bold px-2 py-0.5 rounded uppercase ${
                                     isWinner ? "bg-emerald-700 text-white" : "bg-stone-100 text-stone-700"
                                   }`}
                                 >
@@ -1145,7 +1145,7 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
                                   : "bg-stone-50 text-stone-800 border border-stone-200"
                               }`}
                             >
-                              <span className="font-bold block text-[10px] font-mono uppercase text-stone-500 mb-0.5">
+                              <span className="font-bold block text-[11px] font-mono uppercase text-stone-500 mb-0.5">
                                 Trade-off Rationale
                               </span>
                               {item.criticalTradeoffSummary}
@@ -1156,7 +1156,7 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
                               <div className="p-2.5 rounded bg-emerald-50/50 border border-emerald-200 flex items-start gap-2">
                                 <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
                                 <div>
-                                  <span className="font-bold text-[10px] uppercase font-mono text-emerald-800 block">
+                                  <span className="font-bold text-[11px] uppercase font-mono text-emerald-800 block">
                                     Primary Advantage
                                   </span>
                                   <span className="text-stone-800 leading-snug">{item.primaryAdvantage}</span>
@@ -1166,7 +1166,7 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
                               <div className="p-2.5 rounded bg-amber-50/50 border border-amber-200 flex items-start gap-2">
                                 <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
                                 <div>
-                                  <span className="font-bold text-[10px] uppercase font-mono text-amber-800 block">
+                                  <span className="font-bold text-[11px] uppercase font-mono text-amber-800 block">
                                     Primary Disadvantage / Constraint
                                   </span>
                                   <span className="text-stone-800 leading-snug">{item.primaryDisadvantage}</span>
@@ -1176,7 +1176,7 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
 
                             {/* Differentiating Factors */}
                             <div className="mt-3">
-                              <span className="text-[10px] font-mono uppercase font-bold text-stone-400 block mb-1">
+                              <span className="text-[11px] font-mono uppercase font-bold text-stone-400 block mb-1">
                                 Differentiating Siting Metrics
                               </span>
                               <div className="flex flex-wrap gap-1.5">
@@ -1195,10 +1195,10 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
                           {/* Epistemic Limitations (Deep Analysis Only) */}
                           {viewMode === "deep" ? (
                             <div className="mt-2 pt-2 border-t border-stone-100">
-                              <span className="text-[10px] font-mono uppercase font-bold text-stone-400 block mb-1">
+                              <span className="text-[11px] font-mono uppercase font-bold text-stone-400 block mb-1">
                                 Methodological Boundaries & Unknowns
                               </span>
-                              <div className="space-y-0.5 text-[10px] text-stone-500 font-mono">
+                              <div className="space-y-0.5 text-[11px] text-stone-500 font-mono">
                                 {item.epistemicLimitations.map((lim, idx) => (
                                   <div key={idx}>• {lim}</div>
                                 ))}
@@ -1239,7 +1239,7 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3 text-xs">
                       <div className="p-2.5 rounded bg-stone-50 border border-stone-200">
-                        <span className="text-[10px] font-mono uppercase text-stone-500 font-bold block">
+                        <span className="text-[11px] font-mono uppercase text-stone-500 font-bold block">
                           Baseline 1: Status Quo State
                         </span>
                         <div className="font-semibold text-stone-800 mt-0.5">
@@ -1251,7 +1251,7 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
                       </div>
 
                       <div className="p-2.5 rounded bg-stone-50 border border-stone-200">
-                        <span className="text-[10px] font-mono uppercase text-stone-500 font-bold block">
+                        <span className="text-[11px] font-mono uppercase text-stone-500 font-bold block">
                           Baseline 2: Naive Siting Standard
                         </span>
                         <div className="font-semibold text-stone-800 mt-0.5">
@@ -1273,7 +1273,7 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
                           <span className="text-xs font-mono uppercase tracking-wider font-bold text-stone-800">
                             Performance Gain Over Neutral Planning Baselines
                           </span>
-                          <span className="text-[10px] font-mono text-stone-400">
+                          <span className="text-[11px] font-mono text-stone-400">
                             Status Quo (0 pts) vs Naive (50 pts) vs Candidates
                           </span>
                         </div>
@@ -1301,7 +1301,7 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
                                 <div className="flex items-center justify-between text-xs">
                                   <div className="flex items-center gap-2">
                                     <span className="font-bold text-stone-900">{cand.label}</span>
-                                    <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 font-bold">
+                                    <span className="text-[11px] font-mono px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 font-bold">
                                       +{lift} pts lift over naive
                                     </span>
                                   </div>
@@ -1343,7 +1343,7 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
 
                             <div className="grid grid-cols-2 gap-2 text-xs">
                               <div className="p-2 bg-stone-50 rounded border border-stone-100">
-                                <span className="text-[10px] font-mono text-stone-400 uppercase block">
+                                <span className="text-[11px] font-mono text-stone-400 uppercase block">
                                   Footprint Added
                                 </span>
                                 <span className="font-bold font-mono text-stone-900">
@@ -1351,7 +1351,7 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
                                 </span>
                               </div>
                               <div className="p-2 bg-stone-50 rounded border border-stone-100">
-                                <span className="text-[10px] font-mono text-stone-400 uppercase block">
+                                <span className="text-[11px] font-mono text-stone-400 uppercase block">
                                   Corridor Proximity
                                 </span>
                                 <span className="font-bold font-mono text-stone-900">
@@ -1361,7 +1361,7 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
                                 </span>
                               </div>
                               <div className="p-2 bg-stone-50 rounded border border-stone-100">
-                                <span className="text-[10px] font-mono text-stone-400 uppercase block">
+                                <span className="text-[11px] font-mono text-stone-400 uppercase block">
                                   Civic Amenities Reach
                                 </span>
                                 <span className="font-bold font-mono text-stone-900">
@@ -1369,7 +1369,7 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
                                 </span>
                               </div>
                               <div className="p-2 bg-stone-50 rounded border border-stone-100">
-                                <span className="text-[10px] font-mono text-stone-400 uppercase block">
+                                <span className="text-[11px] font-mono text-stone-400 uppercase block">
                                   Environmental Conflicts
                                 </span>
                                 <span className="font-bold font-mono text-emerald-700">
@@ -1410,7 +1410,7 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
                             <div className="px-4 py-2.5 bg-stone-50/80 border-b border-stone-200 flex items-center justify-between">
                               <div className="flex items-center gap-2">
                                 <span className="text-xs font-bold text-stone-900">{cand.label}</span>
-                                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-stone-200/70 text-stone-700">
+                                <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-stone-200/70 text-stone-700">
                                   {cand.type}
                                 </span>
                               </div>
@@ -1422,7 +1422,7 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
                             <div className="overflow-x-auto">
                               <table className="w-full text-left text-xs border-collapse">
                                 <thead>
-                                  <tr className="border-b border-stone-200 bg-stone-100/50 text-[10px] font-mono text-stone-500 uppercase">
+                                  <tr className="border-b border-stone-200 bg-stone-100/50 text-[11px] font-mono text-stone-500 uppercase">
                                     <th className="py-2 px-3 font-semibold">Evaluation Metric</th>
                                     <th className="py-2 px-3 font-semibold">Reference Baseline</th>
                                     <th className="py-2 px-3 font-semibold">Baseline Value</th>
@@ -1477,14 +1477,14 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
                                               : `${m.percentageChange}%`}
                                           </span>
                                         ) : (
-                                          <span className="text-[10px] text-stone-400 font-mono">
+                                          <span className="text-[11px] text-stone-400 font-mono">
                                             Net Addition
                                           </span>
                                         )}
                                       </td>
                                       <td className="py-2.5 px-3 text-stone-600 text-[11px] max-w-xs">
                                         <div>{m.interpretation}</div>
-                                        <div className="text-[10px] text-stone-400 font-mono mt-0.5">
+                                        <div className="text-[11px] text-stone-400 font-mono mt-0.5">
                                           {m.limitations}
                                         </div>
                                       </td>
@@ -1523,13 +1523,13 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
                             >
                               <div className="flex items-center justify-between border-b border-stone-100 pb-2">
                                 <div>
-                                  <span className="text-[10px] font-mono text-stone-400 uppercase">
+                                  <span className="text-[11px] font-mono text-stone-400 uppercase">
                                     Citizen Service Reach
                                   </span>
                                   <h4 className="text-xs font-bold text-stone-900">{cand.label}</h4>
                                 </div>
                                 <span
-                                  className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded uppercase ${
+                                  className={`text-[11px] font-mono font-bold px-2 py-0.5 rounded uppercase ${
                                     accessTier === "High Access"
                                       ? "bg-emerald-100 text-emerald-800"
                                       : accessTier === "Moderate Access"
@@ -1574,7 +1574,7 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
                                       d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                                     />
                                   </svg>
-                                  <span className="absolute text-[10px] font-mono font-extrabold text-stone-800">
+                                  <span className="absolute text-[11px] font-mono font-extrabold text-stone-800">
                                     500m
                                   </span>
                                 </div>
@@ -1628,7 +1628,7 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
                               <Ruler className="w-4 h-4 text-emerald-700" />
                               <span>Inter-Site Separation & Cannibalization Guard</span>
                             </span>
-                            <span className="text-[10px] font-mono text-stone-400">
+                            <span className="text-[11px] font-mono text-stone-400">
                               Target distance: &gt; 300m to prevent service redundancy
                             </span>
                           </div>
@@ -1649,7 +1649,7 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
                                       {sep.distanceMeters.toLocaleString()} meters
                                     </span>
                                     <span
-                                      className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold ${
+                                      className={`text-[11px] font-mono px-2 py-0.5 rounded font-bold ${
                                         isSafe
                                           ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
                                           : "bg-amber-100 text-amber-800 border border-amber-200"
@@ -1684,7 +1684,7 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
                       <div className="p-3.5 rounded-panel bg-amber-50/80 border border-amber-200/80 flex items-start gap-3 text-xs text-amber-950">
                         <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
                         <div className="leading-relaxed">
-                          <span className="font-bold block uppercase text-[10px] font-mono text-amber-800">
+                          <span className="font-bold block uppercase text-[11px] font-mono text-amber-800">
                             Equity & Accessibility Geographic Disclosures
                           </span>
                           Service catchments are geometric approximations calculated using a standard 500m Euclidean radial buffer (0.79 km²). They do NOT calculate census population figures, demographic distributions, or transit network routing. Inferences regarding underserved communities are based strictly on observed absence of mapped OpenStreetMap civic and transit nodes.
@@ -1704,13 +1704,13 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
                             >
                               <div className="flex items-center justify-between border-b border-stone-100 pb-2">
                                 <div>
-                                  <span className="text-[10px] font-mono text-stone-400 uppercase">
+                                  <span className="text-[11px] font-mono text-stone-400 uppercase">
                                     Accessibility Catchment
                                   </span>
                                   <h4 className="text-xs font-bold text-stone-900">{cand.label}</h4>
                                 </div>
                                 <span
-                                  className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded uppercase ${
+                                  className={`text-[11px] font-mono font-bold px-2 py-0.5 rounded uppercase ${
                                     eq?.accessibilityTier === "High Access"
                                       ? "bg-emerald-100 text-emerald-800"
                                       : eq?.accessibilityTier === "Moderate Access"
@@ -1724,31 +1724,31 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
 
                               <div className="grid grid-cols-2 gap-2 text-xs">
                                 <div className="p-2.5 rounded bg-stone-50 border border-stone-100">
-                                  <span className="text-[10px] font-mono text-stone-400 uppercase block">
+                                  <span className="text-[11px] font-mono text-stone-400 uppercase block">
                                     Catchment Area (500m)
                                   </span>
                                   <span className="text-sm font-bold font-mono text-stone-900">
                                     {eq?.catchmentAreaKm2 ?? 0.79} km²
                                   </span>
-                                  <span className="text-[10px] font-mono text-stone-500 block mt-0.5">
+                                  <span className="text-[11px] font-mono text-stone-500 block mt-0.5">
                                     Euclidean radial boundary
                                   </span>
                                 </div>
 
                                 <div className="p-2.5 rounded bg-stone-50 border border-stone-100">
-                                  <span className="text-[10px] font-mono text-stone-400 uppercase block">
+                                  <span className="text-[11px] font-mono text-stone-400 uppercase block">
                                     Connected Arterials
                                   </span>
                                   <span className="text-sm font-bold font-mono text-stone-900">
                                     {eq?.connectedArterialsCount ?? 0}
                                   </span>
-                                  <span className="text-[10px] font-mono text-stone-500 block mt-0.5">
+                                  <span className="text-[11px] font-mono text-stone-500 block mt-0.5">
                                     Arterial within 300m
                                   </span>
                                 </div>
 
                                 <div className="p-2.5 rounded bg-stone-50 border border-stone-100 col-span-2">
-                                  <span className="text-[10px] font-mono text-stone-400 uppercase block">
+                                  <span className="text-[11px] font-mono text-stone-400 uppercase block">
                                     Service Zone Status
                                   </span>
                                   <div className="font-semibold text-stone-800 mt-0.5">
@@ -1764,7 +1764,7 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
                                       </span>
                                     )}
                                   </div>
-                                  <p className="text-[10px] text-stone-500 font-mono mt-1">
+                                  <p className="text-[11px] text-stone-500 font-mono mt-1">
                                     {cand.impacts.serviceCatchmentProxy.nearbyAmenitiesCount} civic amenities observed in immediate 500m radius.
                                   </p>
                                 </div>
@@ -1852,7 +1852,7 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
                                     title="Screening Proxies"
                                   />
                                 </div>
-                                <div className="flex items-center justify-between text-[10px] font-mono text-stone-500 mt-1">
+                                <div className="flex items-center justify-between text-[11px] font-mono text-stone-500 mt-1">
                                   <span className="flex items-center gap-1">
                                     <span className="w-2 h-2 rounded-full bg-emerald-600" /> Confirmed
                                   </span>
@@ -1867,14 +1867,14 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
 
                               {/* Verified Sources Chips */}
                               <div className="pt-2 border-t border-stone-100">
-                                <span className="text-[10px] font-mono text-stone-400 uppercase font-bold block mb-1">
+                                <span className="text-[11px] font-mono text-stone-400 uppercase font-bold block mb-1">
                                   Authoritative GIS Providers
                                 </span>
                                 <div className="flex flex-wrap gap-1.5">
                                   {cand.dataSources.map((ds, idx) => (
                                     <span
                                       key={idx}
-                                      className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 font-medium"
+                                      className="text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 font-medium"
                                     >
                                       ✓ {ds.provider}
                                     </span>
@@ -1956,14 +1956,14 @@ export const ScenarioComparisonModal: React.FC<ScenarioComparisonModalProps> = (
 
                               {/* Data Sources Provenance */}
                               <div className="mt-2 pt-2 border-t border-stone-100">
-                                <span className="text-[10px] font-mono text-stone-400 uppercase font-bold block mb-1">
+                                <span className="text-[11px] font-mono text-stone-400 uppercase font-bold block mb-1">
                                   Authoritative Sources Polled
                                 </span>
                                 <div className="flex flex-wrap gap-1.5">
                                   {cand.dataSources.map((ds, idx) => (
                                     <span
                                       key={idx}
-                                      className="text-[10px] font-mono px-2 py-0.5 rounded bg-stone-100 text-stone-700 border border-stone-200"
+                                      className="text-[11px] font-mono px-2 py-0.5 rounded bg-stone-100 text-stone-700 border border-stone-200"
                                     >
                                       {ds.provider} ({ds.status})
                                     </span>

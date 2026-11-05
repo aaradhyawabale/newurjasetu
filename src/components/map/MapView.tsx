@@ -978,7 +978,7 @@ export const MapView: React.FC<MapViewProps> = ({
       const severity = props.severity ? ` [${String(props.severity).toUpperCase()}]` : "";
 
       featureTooltipEl.innerHTML = `
-        <div class="text-[10px] text-teal-400 font-bold uppercase tracking-wider">${cat}${sub}${severity}</div>
+        <div class="text-[11px] text-teal-400 font-bold uppercase tracking-wider">${cat}${sub}${severity}</div>
         <div class="text-xs text-stone-100 font-medium truncate">${label}</div>
       `;
       featureTooltipEl.style.display = "block";
@@ -2300,7 +2300,7 @@ export const MapView: React.FC<MapViewProps> = ({
           <span>
             Sun: Azimuth {solarShadingData.sunAzimuthDeg}°, Elevation {solarShadingData.sunElevationDeg}°
           </span>
-          <span className="text-[10px] text-amber-700 bg-amber-100 px-1.5 py-0.2 rounded font-sans font-bold">
+          <span className="text-[11px] text-amber-700 bg-amber-100 px-1.5 py-0.2 rounded font-sans font-bold">
             Shading Active
           </span>
         </div>
@@ -2324,7 +2324,7 @@ export const MapView: React.FC<MapViewProps> = ({
             <button
               type="button"
               onClick={() => setShowAnalyzedOverlay((prev) => !prev)}
-              className={`px-2 py-0.5 rounded border text-[10px] font-mono transition-colors ${
+              className={`px-2 py-0.5 rounded border text-[11px] font-mono transition-colors ${
                 showAnalyzedOverlay
                   ? "bg-teal-50 border-teal-300 text-teal-800 font-semibold"
                   : "bg-stone-100 border-stone-200 text-stone-500"

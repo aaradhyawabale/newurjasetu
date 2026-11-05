@@ -91,7 +91,7 @@ export const HeatIntelligenceDashboard: React.FC<HeatIntelligenceDashboardProps>
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-base font-bold text-stone-900">Pune Urban Heat & Vegetation Intelligence</h2>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-rose-100 text-rose-800 border border-rose-200 font-semibold">
+                <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-rose-100 text-rose-800 border border-rose-200 font-semibold">
                   Landsat 9 + Sentinel-2
                 </span>
               </div>
@@ -188,7 +188,7 @@ export const HeatIntelligenceDashboard: React.FC<HeatIntelligenceDashboardProps>
             <span>• No arbitrary weighted composite scores</span>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
-            <span className="text-stone-500 text-[10px]">Data Provenance:</span>
+            <span className="text-stone-500 text-[11px]">Data Provenance:</span>
             <ProvenanceTag type="Measured" />
             <ProvenanceTag type="Modelled" />
             <ProvenanceTag type="Assumed" />
@@ -219,7 +219,7 @@ export const HeatIntelligenceDashboard: React.FC<HeatIntelligenceDashboardProps>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <div className="p-3.5 rounded-panel bg-rose-50/70 border border-rose-200 flex flex-col gap-1">
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-mono text-rose-700 font-semibold uppercase">Mean LST (°C)</span>
+                        <span className="text-[11px] font-mono text-rose-700 font-semibold uppercase">Mean LST (°C)</span>
                         <ProvenanceTag type="Measured" />
                       </div>
                       <span className="text-2xl font-bold font-mono text-rose-950">
@@ -227,14 +227,14 @@ export const HeatIntelligenceDashboard: React.FC<HeatIntelligenceDashboardProps>
                           ? `${landsat.calibratedLSTCelsius.mean.toFixed(1)}°C`
                           : "Not available"}
                       </span>
-                      <span className="text-[10px] text-stone-500">
+                      <span className="text-[11px] text-stone-500">
                         Range: {landsat?.calibratedLSTCelsius?.min !== null && landsat?.calibratedLSTCelsius?.min !== undefined ? `${landsat.calibratedLSTCelsius.min.toFixed(1)}°C` : "Not available"} – {landsat?.calibratedLSTCelsius?.max !== null && landsat?.calibratedLSTCelsius?.max !== undefined ? `${landsat.calibratedLSTCelsius.max.toFixed(1)}°C` : "Not available"}
                       </span>
                     </div>
 
                     <div className="p-3.5 rounded-panel bg-emerald-50/70 border border-emerald-200 flex flex-col gap-1">
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-mono text-emerald-700 font-semibold uppercase">Mean NDVI (30m)</span>
+                        <span className="text-[11px] font-mono text-emerald-700 font-semibold uppercase">Mean NDVI (30m)</span>
                         <ProvenanceTag type="Measured" />
                       </div>
                       <span className="text-2xl font-bold font-mono text-emerald-950">
@@ -242,14 +242,14 @@ export const HeatIntelligenceDashboard: React.FC<HeatIntelligenceDashboardProps>
                           ? sentinel.ndvi30mDistribution.mean.toFixed(3)
                           : "Not available"}
                       </span>
-                      <span className="text-[10px] text-stone-500">
+                      <span className="text-[11px] text-stone-500">
                         Median: {sentinel?.ndvi30mDistribution?.median !== null && sentinel?.ndvi30mDistribution?.median !== undefined ? sentinel.ndvi30mDistribution.median.toFixed(3) : "Not available"} (±{sentinel?.ndvi30mDistribution?.std !== null && sentinel?.ndvi30mDistribution?.std !== undefined ? sentinel.ndvi30mDistribution.std.toFixed(3) : "Not available"})
                       </span>
                     </div>
 
                     <div className="p-3.5 rounded-panel bg-blue-50/70 border border-blue-200 flex flex-col gap-1">
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-mono text-blue-700 font-semibold uppercase">Study Area Extent</span>
+                        <span className="text-[11px] font-mono text-blue-700 font-semibold uppercase">Study Area Extent</span>
                         <ProvenanceTag type="Modelled" />
                       </div>
                       <span className="text-2xl font-bold font-mono text-blue-950">
@@ -257,14 +257,14 @@ export const HeatIntelligenceDashboard: React.FC<HeatIntelligenceDashboardProps>
                           ? `${metadata.candidateBoundaryAreaKm2.toFixed(1)} km²`
                           : "Not available"}
                       </span>
-                      <span className="text-[10px] text-stone-500">
+                      <span className="text-[11px] text-stone-500">
                         577,304 boundary cells (30m)
                       </span>
                     </div>
 
                     <div className="p-3.5 rounded-panel bg-purple-50/70 border border-purple-200 flex flex-col gap-1">
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-mono text-purple-700 font-semibold uppercase">Clear-Sky Validity</span>
+                        <span className="text-[11px] font-mono text-purple-700 font-semibold uppercase">Clear-Sky Validity</span>
                         <ProvenanceTag type="Measured" />
                       </div>
                       <span className="text-2xl font-bold font-mono text-purple-950">
@@ -272,7 +272,7 @@ export const HeatIntelligenceDashboard: React.FC<HeatIntelligenceDashboardProps>
                           ? `${landsat.qaPixelBreakdown.clearPercentage.toFixed(2)}%`
                           : "Not available"}
                       </span>
-                      <span className="text-[10px] text-stone-500">
+                      <span className="text-[11px] text-stone-500">
                         Uncertainty: ±{landsat?.surfaceTemperatureQA?.meanUncertaintyK !== null && landsat?.surfaceTemperatureQA?.meanUncertaintyK !== undefined ? `${landsat.surfaceTemperatureQA.meanUncertaintyK.toFixed(2)} K` : "Not available"}
                       </span>
                     </div>
@@ -286,7 +286,7 @@ export const HeatIntelligenceDashboard: React.FC<HeatIntelligenceDashboardProps>
                           <Flame className="w-4 h-4 text-rose-600" />
                           <span>Thermal Infrared Instrument</span>
                         </div>
-                        <span className="px-2 py-0.5 rounded bg-rose-50 text-rose-800 text-[10px] font-mono font-semibold">
+                        <span className="px-2 py-0.5 rounded bg-rose-50 text-rose-800 text-[11px] font-mono font-semibold">
                           Landsat 9 TIRS-2
                         </span>
                       </div>
@@ -323,7 +323,7 @@ export const HeatIntelligenceDashboard: React.FC<HeatIntelligenceDashboardProps>
                           <Trees className="w-4 h-4 text-emerald-600" />
                           <span>Multispectral Optical Instrument</span>
                         </div>
-                        <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 text-[10px] font-mono font-semibold">
+                        <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 text-[11px] font-mono font-semibold">
                           Sentinel-2B MSI
                         </span>
                       </div>
@@ -385,7 +385,7 @@ export const HeatIntelligenceDashboard: React.FC<HeatIntelligenceDashboardProps>
                         <Flame className="w-4 h-4 text-rose-600" />
                         <span>Landsat 9 Calibrated Land Surface Temperature Distribution</span>
                       </h3>
-                      <span className="font-mono text-[10px] text-rose-800 font-semibold bg-rose-100 px-2 py-0.5 rounded">
+                      <span className="font-mono text-[11px] text-rose-800 font-semibold bg-rose-100 px-2 py-0.5 rounded">
                         Unit: °C (Celsius)
                       </span>
                     </div>
@@ -393,7 +393,7 @@ export const HeatIntelligenceDashboard: React.FC<HeatIntelligenceDashboardProps>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 font-mono text-[11px]">
                       <div className="p-2.5 rounded bg-white border border-rose-200 flex flex-col">
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] text-stone-400">Mean Temperature</span>
+                          <span className="text-[11px] text-stone-400">Mean Temperature</span>
                           <ProvenanceTag type="Measured" />
                         </div>
                         <span className="text-base font-bold text-rose-900">
@@ -404,7 +404,7 @@ export const HeatIntelligenceDashboard: React.FC<HeatIntelligenceDashboardProps>
                       </div>
                       <div className="p-2.5 rounded bg-white border border-rose-200 flex flex-col">
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] text-stone-400">Median (P50)</span>
+                          <span className="text-[11px] text-stone-400">Median (P50)</span>
                           <ProvenanceTag type="Measured" />
                         </div>
                         <span className="text-base font-bold text-rose-900">
@@ -415,7 +415,7 @@ export const HeatIntelligenceDashboard: React.FC<HeatIntelligenceDashboardProps>
                       </div>
                       <div className="p-2.5 rounded bg-white border border-rose-200 flex flex-col">
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] text-stone-400">Std Deviation</span>
+                          <span className="text-[11px] text-stone-400">Std Deviation</span>
                           <ProvenanceTag type="Measured" />
                         </div>
                         <span className="text-base font-bold text-stone-700">
@@ -426,7 +426,7 @@ export const HeatIntelligenceDashboard: React.FC<HeatIntelligenceDashboardProps>
                       </div>
                       <div className="p-2.5 rounded bg-white border border-rose-200 flex flex-col">
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] text-stone-400">Range (Min–Max)</span>
+                          <span className="text-[11px] text-stone-400">Range (Min–Max)</span>
                           <ProvenanceTag type="Measured" />
                         </div>
                         <span className="text-base font-bold text-stone-700">
@@ -439,7 +439,7 @@ export const HeatIntelligenceDashboard: React.FC<HeatIntelligenceDashboardProps>
 
                     {/* Quantile Breakdown Bar */}
                     <div className="space-y-1.5 pt-2">
-                      <div className="flex justify-between text-[10px] font-mono text-stone-500">
+                      <div className="flex justify-between text-[11px] font-mono text-stone-500">
                         <span>P10: {landsat?.calibratedLSTCelsius?.p10 !== null && landsat?.calibratedLSTCelsius?.p10 !== undefined ? `${landsat.calibratedLSTCelsius.p10.toFixed(1)}°C` : "Not available"}</span>
                         <span>Median: {landsat?.calibratedLSTCelsius?.median !== null && landsat?.calibratedLSTCelsius?.median !== undefined ? `${landsat.calibratedLSTCelsius.median.toFixed(1)}°C` : "Not available"}</span>
                         <span>P90: {landsat?.calibratedLSTCelsius?.p90 !== null && landsat?.calibratedLSTCelsius?.p90 !== undefined ? `${landsat.calibratedLSTCelsius.p90.toFixed(1)}°C` : "Not available"}</span>
@@ -461,7 +461,7 @@ export const HeatIntelligenceDashboard: React.FC<HeatIntelligenceDashboardProps>
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 font-mono text-[11px]">
                       <div className="p-3 rounded bg-stone-50 border border-stone-200 space-y-1">
-                        <span className="text-[10px] text-stone-500 font-bold uppercase">Raw Digital Numbers (DN)</span>
+                        <span className="text-[11px] text-stone-500 font-bold uppercase">Raw Digital Numbers (DN)</span>
                         <div className="flex justify-between">
                           <span>DN 0 (Fill):</span>
                           <span className="font-bold">{landsat.rawDigitalNumbers.dnZeroFillCount}</span>
@@ -477,7 +477,7 @@ export const HeatIntelligenceDashboard: React.FC<HeatIntelligenceDashboardProps>
                       </div>
 
                       <div className="p-3 rounded bg-stone-50 border border-stone-200 space-y-1">
-                        <span className="text-[10px] text-stone-500 font-bold uppercase">QA_PIXEL Classification</span>
+                        <span className="text-[11px] text-stone-500 font-bold uppercase">QA_PIXEL Classification</span>
                         <div className="flex justify-between">
                           <span>Clear-Sky Pixels:</span>
                           <span className="font-bold text-emerald-700">
@@ -497,7 +497,7 @@ export const HeatIntelligenceDashboard: React.FC<HeatIntelligenceDashboardProps>
                       </div>
 
                       <div className="p-3 rounded bg-stone-50 border border-stone-200 space-y-1">
-                        <span className="text-[10px] text-stone-500 font-bold uppercase">ST_QA Uncertainty</span>
+                        <span className="text-[11px] text-stone-500 font-bold uppercase">ST_QA Uncertainty</span>
                         <div className="flex justify-between">
                           <span>Mean Uncertainty:</span>
                           <span className="font-bold">±{landsat.surfaceTemperatureQA.meanUncertaintyK.toFixed(2)} K</span>
@@ -525,7 +525,7 @@ export const HeatIntelligenceDashboard: React.FC<HeatIntelligenceDashboardProps>
                         <Trees className="w-4 h-4 text-emerald-600" />
                         <span>Sentinel-2B Surface Vegetation Index (NDVI 30m)</span>
                       </h3>
-                      <span className="font-mono text-[10px] text-emerald-800 font-semibold bg-emerald-100 px-2 py-0.5 rounded">
+                      <span className="font-mono text-[11px] text-emerald-800 font-semibold bg-emerald-100 px-2 py-0.5 rounded">
                         Unit: Unitless [-1.0, 1.0]
                       </span>
                     </div>
@@ -533,7 +533,7 @@ export const HeatIntelligenceDashboard: React.FC<HeatIntelligenceDashboardProps>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 font-mono text-[11px]">
                       <div className="p-2.5 rounded bg-white border border-emerald-200 flex flex-col">
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] text-stone-400">Mean NDVI</span>
+                          <span className="text-[11px] text-stone-400">Mean NDVI</span>
                           <ProvenanceTag type="Measured" />
                         </div>
                         <span className="text-base font-bold text-emerald-900">
@@ -544,7 +544,7 @@ export const HeatIntelligenceDashboard: React.FC<HeatIntelligenceDashboardProps>
                       </div>
                       <div className="p-2.5 rounded bg-white border border-emerald-200 flex flex-col">
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] text-stone-400">Median (P50)</span>
+                          <span className="text-[11px] text-stone-400">Median (P50)</span>
                           <ProvenanceTag type="Measured" />
                         </div>
                         <span className="text-base font-bold text-emerald-900">
@@ -555,7 +555,7 @@ export const HeatIntelligenceDashboard: React.FC<HeatIntelligenceDashboardProps>
                       </div>
                       <div className="p-2.5 rounded bg-white border border-emerald-200 flex flex-col">
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] text-stone-400">Std Deviation</span>
+                          <span className="text-[11px] text-stone-400">Std Deviation</span>
                           <ProvenanceTag type="Measured" />
                         </div>
                         <span className="text-base font-bold text-stone-700">
@@ -566,7 +566,7 @@ export const HeatIntelligenceDashboard: React.FC<HeatIntelligenceDashboardProps>
                       </div>
                       <div className="p-2.5 rounded bg-white border border-emerald-200 flex flex-col">
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] text-stone-400">Valid Pixel Count</span>
+                          <span className="text-[11px] text-stone-400">Valid Pixel Count</span>
                           <ProvenanceTag type="Measured" />
                         </div>
                         <span className="text-base font-bold text-stone-700">
@@ -579,7 +579,7 @@ export const HeatIntelligenceDashboard: React.FC<HeatIntelligenceDashboardProps>
 
                     {/* Gradient Bar */}
                     <div className="space-y-1.5 pt-2">
-                      <div className="flex justify-between text-[10px] font-mono text-stone-500">
+                      <div className="flex justify-between text-[11px] font-mono text-stone-500">
                         <span>Min: {sentinel?.ndvi30mDistribution?.min !== null && sentinel?.ndvi30mDistribution?.min !== undefined ? sentinel.ndvi30mDistribution.min.toFixed(3) : "Not available"}</span>
                         <span>Median: {sentinel?.ndvi30mDistribution?.median !== null && sentinel?.ndvi30mDistribution?.median !== undefined ? sentinel.ndvi30mDistribution.median.toFixed(3) : "Not available"}</span>
                         <span>Max: {sentinel?.ndvi30mDistribution?.max !== null && sentinel?.ndvi30mDistribution?.max !== undefined ? sentinel.ndvi30mDistribution.max.toFixed(3) : "Not available"}</span>
@@ -608,7 +608,7 @@ export const HeatIntelligenceDashboard: React.FC<HeatIntelligenceDashboardProps>
                           <span className="font-bold text-purple-950">99.98% Clear-Sky Ratio</span>
                           <ProvenanceTag type="Measured" />
                         </div>
-                        <div className="text-stone-600 text-[10px]">
+                        <div className="text-stone-600 text-[11px]">
                           <strong>Scale:</strong> Landsat 9 30m grid<br />
                           <strong>Numerator:</strong> 577,208 clear cells<br />
                           <strong>Denominator:</strong> 577,304 boundary cells<br />
@@ -621,7 +621,7 @@ export const HeatIntelligenceDashboard: React.FC<HeatIntelligenceDashboardProps>
                           <span className="font-bold text-emerald-950">89.84% Valid Target Cells</span>
                           <ProvenanceTag type="Modelled" />
                         </div>
-                        <div className="text-stone-600 text-[10px]">
+                        <div className="text-stone-600 text-[11px]">
                           <strong>Scale:</strong> Aggregated 30m target cells<br />
                           <strong>Numerator:</strong> 518,651 valid cells<br />
                           <strong>Denominator:</strong> 577,304 boundary cells<br />
@@ -634,7 +634,7 @@ export const HeatIntelligenceDashboard: React.FC<HeatIntelligenceDashboardProps>
                           <span className="font-bold text-blue-950">70.20% Mean Valid Footprint</span>
                           <ProvenanceTag type="Modelled" />
                         </div>
-                        <div className="text-stone-600 text-[10px]">
+                        <div className="text-stone-600 text-[11px]">
                           <strong>Scale:</strong> Sub-pixel 10m area density<br />
                           <strong>Numerator:</strong> Sum of valid 10m sub-pixel areas<br />
                           <strong>Denominator:</strong> 900 m² (total cell footprint)<br />
@@ -660,7 +660,7 @@ export const HeatIntelligenceDashboard: React.FC<HeatIntelligenceDashboardProps>
                       ))}
                     </div>
 
-                    <div className="p-3 bg-stone-50 rounded border border-stone-200 text-[10px] text-stone-600 space-y-1">
+                    <div className="p-3 bg-stone-50 rounded border border-stone-200 text-[11px] text-stone-600 space-y-1">
                       <div className="font-semibold text-stone-800">Negative Reflectance Preservation:</div>
                       <p>
                         Preserved <strong>{sentinel.reflectanceDiagnostics.b04NegativeReflectancePixels.toLocaleString()}</strong> negative B04 pixels in diagnostic records without synthetic zero-clipping or artificial epsilon flooring.
@@ -682,7 +682,7 @@ export const HeatIntelligenceDashboard: React.FC<HeatIntelligenceDashboardProps>
                     <div className="space-y-2 font-mono text-[11px]">
                       <div className="p-3 rounded bg-emerald-50/70 border border-emerald-200 space-y-1">
                         <span className="font-bold text-emerald-900">1. SATELLITE OBSERVATIONS (Earth Observation Radiometry)</span>
-                        <ul className="list-disc pl-4 text-emerald-800 text-[10px] space-y-0.5 font-sans">
+                        <ul className="list-disc pl-4 text-emerald-800 text-[11px] space-y-0.5 font-sans">
                           <li>USGS Landsat 9 TIRS-2 Band 10 Level-2 Collection 2 Science Product (100m native thermal resampled to 30m grid).</li>
                           <li>Copernicus Sentinel-2B MSI Level-2A Bottom-Of-Atmosphere (BOA) Reflectance (10m native optical).</li>
                           <li>Instantaneous morning overpass (~10:57 AM local solar time).</li>
@@ -691,7 +691,7 @@ export const HeatIntelligenceDashboard: React.FC<HeatIntelligenceDashboardProps>
 
                       <div className="p-3 rounded bg-blue-50/70 border border-blue-200 space-y-1">
                         <span className="font-bold text-blue-900">2. DETERMINISTIC CALCULATIONS (Exact Mathematical Transformations)</span>
-                        <ul className="list-disc pl-4 text-blue-800 text-[10px] space-y-0.5 font-sans">
+                        <ul className="list-disc pl-4 text-blue-800 text-[11px] space-y-0.5 font-sans">
                           <li>Landsat scaling equation: LST (°C) = DN × 0.00341802 - 124.15.</li>
                           <li>Sentinel-2B scaling: Reflectance = (DN - 1000) / 10000.</li>
                           <li>4×4 matrix exact area-weighted overlap aggregation to 30m target grid.</li>
@@ -701,7 +701,7 @@ export const HeatIntelligenceDashboard: React.FC<HeatIntelligenceDashboardProps>
 
                       <div className="p-3 rounded bg-indigo-50/70 border border-indigo-200 space-y-1">
                         <span className="font-bold text-indigo-900">3. VERIFIED TECHNICAL REFERENCES (Statutory Building Codes & Engineering Standards)</span>
-                        <ul className="list-disc pl-4 text-indigo-800 text-[10px] space-y-0.5 font-sans">
+                        <ul className="list-disc pl-4 text-indigo-800 text-[11px] space-y-0.5 font-sans">
                           <li>BEE Energy Conservation Building Code (ECBC 2017) Section 4.3.1.1: Cool Roof minimum Initial Solar Reflectance ≥ 0.70, Emittance ≥ 0.75, SRI ≥ 78.</li>
                           <li>IEC 61215:2021 / Sandia PV Array Performance Model: Monocrystalline PV module temperature coefficient γ_Pmp between -0.35%/°C and -0.45%/°C above 25°C STC.</li>
                           <li>EPRI Report 3002016335 / SAE J1772: DC fast charging thermal management and equipment thermal cycling principles.</li>
@@ -710,7 +710,7 @@ export const HeatIntelligenceDashboard: React.FC<HeatIntelligenceDashboardProps>
 
                       <div className="p-3 rounded bg-amber-50/70 border border-amber-200 space-y-1">
                         <span className="font-bold text-amber-900">4. GENERAL ENGINEERING GUIDANCE (Industry Best Practices)</span>
-                        <ul className="list-disc pl-4 text-amber-800 text-[10px] space-y-0.5 font-sans">
+                        <ul className="list-disc pl-4 text-amber-800 text-[11px] space-y-0.5 font-sans">
                           <li>Elevated open racking (≥ 0.8m ground clearance) for natural sub-panel convective cooling.</li>
                           <li>Solar canopy shading over EV charging bays to limit pre-charging solar heat soaking.</li>
                           <li>High-SRI permeable concrete pavers for charging station aprons.</li>
@@ -720,7 +720,7 @@ export const HeatIntelligenceDashboard: React.FC<HeatIntelligenceDashboardProps>
 
                       <div className="p-3 rounded bg-rose-50/70 border border-rose-200 space-y-1">
                         <span className="font-bold text-rose-900">5. UNVERIFIED / REQUIRES ADDITIONAL DATA (Missing Site-Specific Telemetry)</span>
-                        <ul className="list-disc pl-4 text-rose-800 text-[10px] space-y-0.5 font-sans">
+                        <ul className="list-disc pl-4 text-rose-800 text-[11px] space-y-0.5 font-sans">
                           <li>In-situ weather station measurements (2m ambient air temperature, relative humidity, wind speed).</li>
                           <li>Plane-of-array solar irradiance telemetry for actual PV derating calculation.</li>
                           <li>Cadastral 7/12 land revenue extracts and official Development Plan (DP) zoning certificates.</li>
@@ -733,7 +733,7 @@ export const HeatIntelligenceDashboard: React.FC<HeatIntelligenceDashboardProps>
                   <div className="p-4 rounded-panel bg-white border border-stone-200 space-y-2">
                     <h4 className="font-bold text-stone-900">Generated Raster Deliverables (public/data/heat/)</h4>
                     <div className="overflow-x-auto">
-                      <table className="w-full text-left font-mono text-[10px] text-stone-600">
+                      <table className="w-full text-left font-mono text-[11px] text-stone-600">
                         <thead>
                           <tr className="border-b border-stone-200 text-stone-400 uppercase">
                             <th className="py-1">Filename</th>

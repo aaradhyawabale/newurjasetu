@@ -93,8 +93,8 @@ export default function MethodPage() {
 
         <div className="flex items-center gap-2 sm:gap-3">
           {/* Universal Provenance Legend Pill */}
-          <div className="hidden md:flex items-center gap-2 bg-stone-900/90 px-3 py-1 rounded-md border border-stone-800 text-[10px] font-mono">
-            <span className="text-stone-400 font-bold uppercase tracking-wider text-[9px] mr-1">
+          <div className="hidden md:flex items-center gap-2 bg-stone-900/90 px-3 py-1 rounded-md border border-stone-800 text-[11px] font-mono">
+            <span className="text-stone-400 font-bold uppercase tracking-wider text-[11px] mr-1">
               Legend:
             </span>
             <div className="flex items-center gap-1">
@@ -154,24 +154,24 @@ export default function MethodPage() {
           {/* Grid Metadata Chips */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 border-t border-stone-800 text-xs font-mono">
             <div className="bg-stone-950/60 p-3 rounded-lg border border-stone-800/80">
-              <span className="text-[10px] text-stone-400 uppercase tracking-wider block mb-0.5">Spatial Grid Unit</span>
+              <span className="text-[11px] text-stone-400 uppercase tracking-wider block mb-0.5">Spatial Grid Unit</span>
               <span className="text-stone-200 font-bold">{spatial_resolution.cell_size_meters} m × {spatial_resolution.cell_size_meters} m</span>
-              <span className="text-[10px] text-stone-400 block mt-0.5">({spatial_resolution.cell_area_hectares} ha / cell)</span>
+              <span className="text-[11px] text-stone-400 block mt-0.5">({spatial_resolution.cell_area_hectares} ha / cell)</span>
             </div>
             <div className="bg-stone-950/60 p-3 rounded-lg border border-stone-800/80">
-              <span className="text-[10px] text-stone-400 uppercase tracking-wider block mb-0.5">Spatial Autocorrelation</span>
+              <span className="text-[11px] text-stone-400 uppercase tracking-wider block mb-0.5">Spatial Autocorrelation</span>
               <span className="text-stone-200 font-bold">{metrics.spatial_block_size_km} km Block CV</span>
-              <span className="text-[10px] text-stone-400 block mt-0.5">({metrics.spatial_blocks_count} spatial blocks)</span>
+              <span className="text-[11px] text-stone-400 block mt-0.5">({metrics.spatial_blocks_count} spatial blocks)</span>
             </div>
             <div className="bg-stone-950/60 p-3 rounded-lg border border-stone-800/80">
-              <span className="text-[10px] text-stone-400 uppercase tracking-wider block mb-0.5">Monte Carlo Ensemble</span>
+              <span className="text-[11px] text-stone-400 uppercase tracking-wider block mb-0.5">Monte Carlo Ensemble</span>
               <span className="text-stone-200 font-bold">{metrics.ensemble_members} Bootstrap Models</span>
-              <span className="text-[10px] text-stone-400 block mt-0.5">(Spatial-block bootstrap)</span>
+              <span className="text-[11px] text-stone-400 block mt-0.5">(Spatial-block bootstrap)</span>
             </div>
             <div className="bg-stone-950/60 p-3 rounded-lg border border-stone-800/80">
-              <span className="text-[10px] text-stone-400 uppercase tracking-wider block mb-0.5">Projected Coordinate System</span>
+              <span className="text-[11px] text-stone-400 uppercase tracking-wider block mb-0.5">Projected Coordinate System</span>
               <span className="text-stone-200 font-bold truncate block" title={spatial_resolution.crs}>UTM Zone 43N</span>
-              <span className="text-[10px] text-stone-400 block mt-0.5">WGS84 Display</span>
+              <span className="text-[11px] text-stone-400 block mt-0.5">WGS84 Display</span>
             </div>
           </div>
         </div>
@@ -203,7 +203,7 @@ export default function MethodPage() {
                 <div>
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <h3 className="text-sm font-bold text-stone-200 leading-snug">{src.name}</h3>
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-stone-800 text-stone-300 whitespace-nowrap">
+                    <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-stone-800 text-stone-300 whitespace-nowrap">
                       {src.license}
                     </span>
                   </div>
@@ -212,11 +212,11 @@ export default function MethodPage() {
 
                 <div className="pt-3 border-t border-stone-800/80 grid grid-cols-2 gap-2 text-[11px] font-mono text-stone-400">
                   <div>
-                    <span className="text-stone-400 block text-[10px] uppercase">Provider</span>
+                    <span className="text-stone-400 block text-[11px] uppercase">Provider</span>
                     <span className="text-stone-300 truncate block" title={src.provider}>{src.provider}</span>
                   </div>
                   <div>
-                    <span className="text-stone-400 block text-[10px] uppercase">Native Resolution</span>
+                    <span className="text-stone-400 block text-[11px] uppercase">Native Resolution</span>
                     <span className="text-stone-300 truncate block">{src.resolution}</span>
                   </div>
                 </div>
@@ -232,24 +232,24 @@ export default function MethodPage() {
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs font-mono">
               <div className="bg-stone-950 p-2.5 rounded border border-stone-800/80">
-                <span className="text-[10px] text-stone-400 block">Landsat 9 Pre-Monsoon Overpass</span>
+                <span className="text-[11px] text-stone-400 block">Landsat 9 Pre-Monsoon Overpass</span>
                 <span className="font-semibold text-stone-200">{dates.landsat9_overpass ? new Date(dates.landsat9_overpass).toUTCString() : "Not available"}</span>
-                <span className="text-[10px] text-emerald-400 block mt-0.5">Clear-sky LST Skin Temp</span>
+                <span className="text-[11px] text-emerald-400 block mt-0.5">Clear-sky LST Skin Temp</span>
               </div>
               <div className="bg-stone-950 p-2.5 rounded border border-stone-800/80">
-                <span className="text-[10px] text-stone-400 block">Sentinel-2B BOA Overpass</span>
+                <span className="text-[11px] text-stone-400 block">Sentinel-2B BOA Overpass</span>
                 <span className="font-semibold text-stone-200">{dates.sentinel2b_overpass ? new Date(dates.sentinel2b_overpass).toUTCString() : "Not available"}</span>
-                <span className="text-[10px] text-emerald-400 block mt-0.5">~48h Synchronous Baseline</span>
+                <span className="text-[11px] text-emerald-400 block mt-0.5">~48h Synchronous Baseline</span>
               </div>
               <div className="bg-stone-950 p-2.5 rounded border border-stone-800/80">
-                <span className="text-[10px] text-stone-400 block">Held-Out Validation Scene</span>
+                <span className="text-[11px] text-stone-400 block">Held-Out Validation Scene</span>
                 <span className="font-semibold text-stone-200">{dates.held_out_scene_date ? new Date(dates.held_out_scene_date).toUTCString() : "Not available"}</span>
-                <span className="text-[10px] text-sky-400 block mt-0.5">Unseen Scene Evaluation</span>
+                <span className="text-[11px] text-sky-400 block mt-0.5">Unseen Scene Evaluation</span>
               </div>
               <div className="bg-stone-950 p-2.5 rounded border border-stone-800/80">
-                <span className="text-[10px] text-stone-400 block">Demographics & Climatology</span>
+                <span className="text-[11px] text-stone-400 block">Demographics & Climatology</span>
                 <span className="font-semibold text-stone-200">WorldPop {dates.demographics_reference_year || "Not available"}</span>
-                <span className="text-[10px] text-amber-400 block mt-0.5">Window: {dates.baseline_climatology_period || "Not available"}</span>
+                <span className="text-[11px] text-amber-400 block mt-0.5">Window: {dates.baseline_climatology_period || "Not available"}</span>
               </div>
             </div>
           </div>
@@ -271,63 +271,63 @@ export default function MethodPage() {
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             <div className="bg-stone-900 border border-stone-800 rounded-xl p-4 text-center">
-              <span className="text-[10px] font-mono text-stone-400 uppercase tracking-wider block mb-1">
+              <span className="text-[11px] font-mono text-stone-400 uppercase tracking-wider block mb-1">
                 Spatial CV R²
               </span>
               <span className="text-2xl font-black text-emerald-400 font-mono">
                 {metrics.r2_score !== null ? metrics.r2_score : "Not available"}
               </span>
-              <span className="text-[10px] text-stone-400 block mt-1">Variance explained</span>
+              <span className="text-[11px] text-stone-400 block mt-1">Variance explained</span>
             </div>
 
             <div className="bg-stone-900 border border-stone-800 rounded-xl p-4 text-center">
-              <span className="text-[10px] font-mono text-stone-400 uppercase tracking-wider block mb-1">
+              <span className="text-[11px] font-mono text-stone-400 uppercase tracking-wider block mb-1">
                 CV RMSE
               </span>
               <span className="text-2xl font-black text-sky-400 font-mono">
                 {metrics.rmse_celsius !== null ? `±${metrics.rmse_celsius}°C` : "Not available"}
               </span>
-              <span className="text-[10px] text-stone-400 block mt-1">5-fold spatial-block</span>
+              <span className="text-[11px] text-stone-400 block mt-1">5-fold spatial-block</span>
             </div>
 
             <div className="bg-stone-900 border border-stone-800 rounded-xl p-4 text-center">
-              <span className="text-[10px] font-mono text-stone-400 uppercase tracking-wider block mb-1">
+              <span className="text-[11px] font-mono text-stone-400 uppercase tracking-wider block mb-1">
                 CV MAE
               </span>
               <span className="text-2xl font-black text-stone-200 font-mono">
                 {metrics.mae_celsius !== null ? `±${metrics.mae_celsius}°C` : "Not available"}
               </span>
-              <span className="text-[10px] text-stone-400 block mt-1">Mean absolute error</span>
+              <span className="text-[11px] text-stone-400 block mt-1">Mean absolute error</span>
             </div>
 
             <div className="bg-stone-900 border border-stone-800 rounded-xl p-4 text-center">
-              <span className="text-[10px] font-mono text-stone-400 uppercase tracking-wider block mb-1">
+              <span className="text-[11px] font-mono text-stone-400 uppercase tracking-wider block mb-1">
                 Held-Out Scene RMSE
               </span>
               <span className="text-2xl font-black text-amber-400 font-mono">
                 {metrics.held_out_scene_rmse_celsius !== null ? `±${metrics.held_out_scene_rmse_celsius}°C` : "Not available"}
               </span>
-              <span className="text-[10px] text-stone-400 block mt-1">Temporal holdout</span>
+              <span className="text-[11px] text-stone-400 block mt-1">Temporal holdout</span>
             </div>
 
             <div className="bg-stone-900 border border-stone-800 rounded-xl p-4 text-center">
-              <span className="text-[10px] font-mono text-stone-400 uppercase tracking-wider block mb-1">
+              <span className="text-[11px] font-mono text-stone-400 uppercase tracking-wider block mb-1">
                 Bootstrap Ensemble
               </span>
               <span className="text-2xl font-black text-stone-200 font-mono">
                 {metrics.ensemble_members}
               </span>
-              <span className="text-[10px] text-stone-400 block mt-1">Monte Carlo runs</span>
+              <span className="text-[11px] text-stone-400 block mt-1">Monte Carlo runs</span>
             </div>
 
             <div className="bg-stone-900 border border-stone-800 rounded-xl p-4 text-center">
-              <span className="text-[10px] font-mono text-stone-400 uppercase tracking-wider block mb-1">
+              <span className="text-[11px] font-mono text-stone-400 uppercase tracking-wider block mb-1">
                 Spatial Coverage
               </span>
               <span className="text-2xl font-black text-emerald-400 font-mono">
                 {metrics.coverage_percentage !== null ? `${metrics.coverage_percentage}%` : "Not available"}
               </span>
-              <span className="text-[10px] text-stone-400 block mt-1">Valid PMC footprint</span>
+              <span className="text-[11px] text-stone-400 block mt-1">Valid PMC footprint</span>
             </div>
           </div>
 
@@ -376,19 +376,19 @@ export default function MethodPage() {
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono pt-3 border-t border-emerald-900/40">
                 <div>
-                  <span className="text-[10px] text-stone-400 block uppercase">Violations Detected</span>
+                  <span className="text-[11px] text-stone-400 block uppercase">Violations Detected</span>
                   <span className="text-stone-100 font-bold">{direction_check.violations_count ?? 0}</span>
                 </div>
                 <div>
-                  <span className="text-[10px] text-stone-400 block uppercase">Valid Interventions Tested</span>
+                  <span className="text-[11px] text-stone-400 block uppercase">Valid Interventions Tested</span>
                   <span className="text-stone-100 font-bold">{direction_check.valid_interventions_evaluated ?? "Not available"}</span>
                 </div>
                 <div>
-                  <span className="text-[10px] text-stone-400 block uppercase">Target Counterfactual NDVI</span>
+                  <span className="text-[11px] text-stone-400 block uppercase">Target Counterfactual NDVI</span>
                   <span className="text-stone-100 font-bold">{direction_check.target_ndvi_applied ?? "Not available"}</span>
                 </div>
                 <div>
-                  <span className="text-[10px] text-stone-400 block uppercase">Mean Counterfactual Cooling</span>
+                  <span className="text-[11px] text-stone-400 block uppercase">Mean Counterfactual Cooling</span>
                   <span className="text-emerald-400 font-bold">
                     {direction_check.mean_cooling_celsius !== undefined && direction_check.mean_cooling_celsius !== null
                       ? `-${direction_check.mean_cooling_celsius}°C`
@@ -436,7 +436,7 @@ export default function MethodPage() {
                   key={idx}
                   className="bg-stone-900/70 border border-stone-800 rounded-lg p-3.5 flex items-start gap-3"
                 >
-                  <span className="w-5 h-5 rounded-full bg-amber-950/80 border border-amber-800/80 text-amber-400 font-mono text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">
+                  <span className="w-5 h-5 rounded-full bg-amber-950/80 border border-amber-800/80 text-amber-400 font-mono text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5">
                     {idx + 1}
                   </span>
                   <div>
@@ -466,7 +466,7 @@ export default function MethodPage() {
           <div className="bg-stone-900 border border-stone-800 rounded-xl overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs font-mono">
-                <thead className="bg-stone-950 text-stone-400 uppercase text-[10px] border-b border-stone-800">
+                <thead className="bg-stone-950 text-stone-400 uppercase text-[11px] border-b border-stone-800">
                   <tr>
                     <th className="px-4 py-2.5">Variable Identifier</th>
                     <th className="px-4 py-2.5">Role</th>

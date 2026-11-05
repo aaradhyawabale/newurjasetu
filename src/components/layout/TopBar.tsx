@@ -159,7 +159,7 @@ export const TopBar: React.FC<TopBarProps> = ({
             <span className="font-bold text-sm tracking-tight text-stone-900 leading-none">
               UrjaSetu
             </span>
-            <span className="text-[9px] font-mono uppercase tracking-wider text-emerald-700 font-semibold leading-none mt-0.5">
+            <span className="text-[11px] font-mono uppercase tracking-wider text-emerald-700 font-semibold leading-none mt-0.5">
               GIS Siting
             </span>
           </div>
@@ -183,7 +183,7 @@ export const TopBar: React.FC<TopBarProps> = ({
             {isSearching ? (
               <Loader2 className="w-3.5 h-3.5 text-emerald-700 animate-spin absolute right-2.5" />
             ) : (
-              <kbd className="absolute right-2.5 px-1.5 py-0.5 text-[9px] font-mono bg-stone-200/70 text-stone-500 rounded border border-stone-300 pointer-events-none">
+              <kbd className="absolute right-2.5 px-1.5 py-0.5 text-[11px] font-mono bg-stone-200/70 text-stone-500 rounded border border-stone-300 pointer-events-none">
                 ⌘K
               </kbd>
             )}
@@ -279,7 +279,7 @@ export const TopBar: React.FC<TopBarProps> = ({
 
           {showScenarioMenu && (
             <div className="absolute right-0 top-full mt-1.5 w-56 bg-white border border-stone-200 rounded-panel shadow-xl py-1 z-50">
-              <div className="px-3 py-1.5 border-b border-stone-100 text-[10px] font-mono uppercase tracking-wider text-stone-400 font-semibold">
+              <div className="px-3 py-1.5 border-b border-stone-100 text-[11px] font-mono uppercase tracking-wider text-stone-400 font-semibold">
                 Scenarios
               </div>
               <div className="max-h-48 overflow-y-auto">
@@ -410,9 +410,9 @@ export const TopBar: React.FC<TopBarProps> = ({
 
           {showLegacyMenu && (
             <div className="absolute right-0 sm:left-0 top-full mt-1.5 w-64 bg-white border border-stone-200 rounded-panel shadow-xl py-1 z-50">
-              <div className="px-3 py-1.5 border-b border-stone-100 flex items-center justify-between text-[10px] font-mono uppercase tracking-wider text-stone-400 font-semibold">
+              <div className="px-3 py-1.5 border-b border-stone-100 flex items-center justify-between text-[11px] font-mono uppercase tracking-wider text-stone-400 font-semibold">
                 <span>Legacy Modules</span>
-                <span className="text-[9px] px-1 py-0.2 bg-stone-100 rounded text-stone-500">Preserved</span>
+                <span className="text-[11px] px-1 py-0.2 bg-stone-100 rounded text-stone-500">Preserved</span>
               </div>
 
               {onToggleLegacyTools && (
@@ -428,10 +428,10 @@ export const TopBar: React.FC<TopBarProps> = ({
                     <Layers className="w-3.5 h-3.5 text-emerald-700" />
                     <div className="flex flex-col">
                       <span className="font-semibold text-stone-900">Manual Siting Palette</span>
-                      <span className="text-[10px] text-stone-500">11 infrastructure types sidebar</span>
+                      <span className="text-[11px] text-stone-500">11 infrastructure types sidebar</span>
                     </div>
                   </div>
-                  <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded font-bold ${
+                  <span className={`text-[11px] font-mono px-1.5 py-0.5 rounded font-bold ${
                     showLegacyTools ? "bg-emerald-100 text-emerald-800" : "bg-stone-100 text-stone-500"
                   }`}>
                     {showLegacyTools ? "Active" : "Hidden"}
@@ -451,7 +451,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                   <Sun className="w-3.5 h-3.5 text-amber-600" />
                   <div className="flex flex-col">
                     <span className="font-medium text-stone-900">Shadow Simulator</span>
-                    <span className="text-[10px] text-stone-500">3D diurnal building solar shading</span>
+                    <span className="text-[11px] text-stone-500">3D diurnal building solar shading</span>
                   </div>
                 </button>
               )}
@@ -468,7 +468,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                   <Sparkles className="w-3.5 h-3.5 text-amber-500" />
                   <div className="flex flex-col">
                     <span className="font-medium text-stone-900">Solar Reality & Financials</span>
-                    <span className="text-[10px] text-stone-500">PV generation & payback calculations</span>
+                    <span className="text-[11px] text-stone-500">PV generation & payback calculations</span>
                   </div>
                 </button>
               )}
@@ -485,7 +485,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                   <GitCompare className="w-3.5 h-3.5 text-emerald-700" />
                   <div className="flex flex-col">
                     <span className="font-medium text-stone-900">Candidate Comparison</span>
-                    <span className="text-[10px] text-stone-500">Side-by-side scenario simulator</span>
+                    <span className="text-[11px] text-stone-500">Side-by-side scenario simulator</span>
                   </div>
                 </button>
               )}
@@ -502,7 +502,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                   <FileText className="w-3.5 h-3.5 text-stone-500" />
                   <div className="flex flex-col">
                     <span className="font-medium text-stone-900">Siting Assessment Report</span>
-                    <span className="text-[10px] text-stone-500">Multi-criteria analysis drawer</span>
+                    <span className="text-[11px] text-stone-500">Multi-criteria analysis drawer</span>
                   </div>
                 </button>
               )}
@@ -519,7 +519,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                   <History className="w-3.5 h-3.5 text-stone-500" />
                   <span className="font-medium text-stone-900">Placement History</span>
                 </div>
-                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-stone-100 text-stone-600">
+                <span className="text-[11px] font-mono px-1.5 py-0.2 rounded-full bg-stone-100 text-stone-600">
                   {historyCount}
                 </span>
               </button>
@@ -586,7 +586,7 @@ export const TopBar: React.FC<TopBarProps> = ({
         >
           <History className="w-4 h-4 text-stone-600" />
           {historyCount > 0 && (
-            <span className="absolute -top-1 -right-1 px-1 min-w-4 h-4 rounded-full bg-emerald-700 text-white font-mono text-[9px] font-bold flex items-center justify-center">
+            <span className="absolute -top-1 -right-1 px-1 min-w-4 h-4 rounded-full bg-emerald-700 text-white font-mono text-[11px] font-bold flex items-center justify-center">
               {historyCount}
             </span>
           )}
@@ -615,7 +615,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                 className="w-full px-3 py-1.5 text-left text-xs text-stone-700 hover:bg-stone-50 flex items-center justify-between"
               >
                 <span>Export Map image</span>
-                <span className="font-mono text-[10px] text-stone-400">PNG</span>
+                <span className="font-mono text-[11px] text-stone-400">PNG</span>
               </button>
               <button
                 type="button"
@@ -626,7 +626,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                 className="w-full px-3 py-1.5 text-left text-xs text-stone-700 hover:bg-stone-50 flex items-center justify-between"
               >
                 <span>Export Placements</span>
-                <span className="font-mono text-[10px] text-stone-400">GeoJSON</span>
+                <span className="font-mono text-[11px] text-stone-400">GeoJSON</span>
               </button>
             </div>
           )}

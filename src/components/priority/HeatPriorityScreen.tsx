@@ -65,6 +65,11 @@ interface HeatPriorityScreenProps {
   initialCells?: PriorityCell[];
   initialOptimization?: OptimizeResult | null;
   initialGreenLoss?: GreenLossDataset | null;
+  selectedWard?: string;
+  onSelectWard?: (ward: string) => void;
+  initialPanelTab?: "scenario" | "green_loss" | "restore";
+  hideTopBar?: boolean;
+  onOpenTwoScenarioComparison?: () => void;
   onOpenLegacyManualSiting?: () => void;
   onOpenLegacyReportDrawer?: () => void;
   onOpenLegacyShadowSimulator?: () => void;
@@ -78,6 +83,11 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
   initialCells = [],
   initialOptimization = null,
   initialGreenLoss = null,
+  selectedWard: propSelectedWard,
+  onSelectWard,
+  initialPanelTab = "scenario",
+  hideTopBar = false,
+  onOpenTwoScenarioComparison,
   onOpenLegacyManualSiting,
   onOpenLegacyReportDrawer,
   onOpenLegacyShadowSimulator,
@@ -91,10 +101,11 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
   const [targetNdvi, setTargetNdvi] = useState<number>(0.65);
   const [uncertaintyQuantile, setUncertaintyQuantile] = useState<"p10" | "mean" | "p90">("mean");
   const [objective, setObjective] = useState<"cooling" | "population_weighted">("cooling");
-  const [selectedWard, setSelectedWard] = useState<string>("All");
+  const [selectedWard, setSelectedWard] = useState<string>(propSelectedWard || "All");
+  const [showFineTuneSliders, setShowFineTuneSliders] = useState<boolean>(false);
 
   // Panel Tabs: "scenario" | "green_loss" | "restore"
-  const [panelTab, setPanelTab] = useState<"scenario" | "green_loss" | "restore">("scenario");
+  const [panelTab, setPanelTab] = useState<"scenario" | "green_loss" | "restore">(initialPanelTab);
   const [restoreBudgetHa, setRestoreBudgetHa] = useState<number>(10.0);
 
   // Map & Visualization State
@@ -122,6 +133,45 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
 
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
+
+  // Sync prop changes for selectedWard and initialPanelTab
+  useEffect(() => {
+    if (propSelectedWard !== undefined && propSelectedWard !== selectedWard) {
+      setSelectedWard(propSelectedWard);
+      // If a specific ward is selected, fly map to centroid of ward cells
+      if (propSelectedWard !== "All" && mapRef.current) {
+        const wardCells = cells.filter((c) => c.ward === propSelectedWard);
+        if (wardCells.length > 0) {
+          let sumLng = 0;
+          let sumLat = 0;
+          wardCells.forEach((c) => {
+            sumLng += c.centroid[0];
+            sumLat += c.centroid[1];
+          });
+          mapRef.current.flyTo({
+            center: [sumLng / wardCells.length, sumLat / wardCells.length],
+            zoom: 12.8,
+            essential: true,
+          });
+        }
+      } else if (propSelectedWard === "All" && mapRef.current) {
+        mapRef.current.flyTo({
+          center: [73.8567, 18.5204],
+          zoom: 11.5,
+          essential: true,
+        });
+      }
+    }
+  }, [propSelectedWard, cells]);
+
+  useEffect(() => {
+    if (initialPanelTab !== undefined) {
+      setPanelTab(initialPanelTab);
+      if (initialPanelTab === "green_loss") {
+        setActiveLayer("green_loss");
+      }
+    }
+  }, [initialPanelTab]);
 
   // Fetch initial baseline optimization if not pre-seeded
   useEffect(() => {
@@ -631,188 +681,83 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-stone-950 text-stone-100 font-sans select-none">
       {/* ========================================================================= */}
-      {/* 1. TOP BAR WITH PROVENANCE LEGEND & LEGACY TOOLS MENU                     */}
+      {/* 1. TOP BAR WITH PROVENANCE LEGEND (Hidden when mounted inside UnifiedShell) */}
       {/* ========================================================================= */}
-      <header className="h-14 bg-stone-900 border-b border-stone-800 px-4 flex items-center justify-between shrink-0 z-30 shadow-md">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-md bg-gradient-to-br from-emerald-600 to-teal-800 flex items-center justify-center text-white font-black text-sm shadow-sm tracking-tighter">
-            US
-          </div>
-          <div className="flex flex-col">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-extrabold tracking-tight text-white">UrjaSetu</span>
-              <span className="text-[11px] font-semibold text-emerald-400 bg-emerald-950/80 px-2 py-0.2 rounded border border-emerald-800/80">
-                Heat Priority Screen
+      {!hideTopBar && (
+        <header className="h-14 bg-stone-900 border-b border-stone-800 px-4 flex items-center justify-between shrink-0 z-30 shadow-md">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-md bg-gradient-to-br from-emerald-600 to-teal-800 flex items-center justify-center text-white font-black text-sm shadow-sm tracking-tighter">
+              US
+            </div>
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-extrabold tracking-tight text-white">UrjaSetu</span>
+                <span className="text-[11px] font-semibold text-emerald-400 bg-emerald-950/80 px-2 py-0.2 rounded border border-emerald-800/80">
+                  Heat Priority Screen
+                </span>
+              </div>
+              <span className="text-[11px] text-stone-400 font-mono">
+                Pune Municipal Corporation (250m Spatial Grid)
               </span>
             </div>
-            <span className="text-[10px] text-stone-400 font-mono">
-              Pune Municipal Corporation (250m Spatial Grid)
+          </div>
+
+          {/* Universal Provenance Legend Group */}
+          <div className="hidden lg:flex items-center gap-2 bg-stone-950/90 px-3 py-1 rounded-md border border-stone-800 text-[11px] font-mono shadow-inner">
+            <span className="text-stone-400 font-bold uppercase tracking-wider text-[11px] mr-1">
+              Data Legend:
             </span>
+            <div className="flex items-center gap-1.5" title="Direct physical sensor observation or official municipal registry">
+              <ProvenanceTag type="Measured" />
+              <span className="text-stone-300">Sensor / Register</span>
+            </div>
+            <span className="text-stone-700">|</span>
+            <div className="flex items-center gap-1.5" title="Computed deterministically through physical or spatial algorithms">
+              <ProvenanceTag type="Modelled" />
+              <span className="text-stone-300">Thermodynamic Model</span>
+            </div>
+            <span className="text-stone-700">|</span>
+            <div className="flex items-center gap-1.5" title="Indicative planning parameter or scenario screening default">
+              <ProvenanceTag type="Assumed" />
+              <span className="text-stone-300">Planning Threshold</span>
+            </div>
           </div>
-        </div>
 
-        {/* Universal Provenance Legend Group */}
-        <div className="hidden lg:flex items-center gap-2 bg-stone-950/90 px-3 py-1 rounded-md border border-stone-800 text-[10px] font-mono shadow-inner">
-          <span className="text-stone-400 font-bold uppercase tracking-wider text-[9px] mr-1">
-            Data Legend:
-          </span>
-          <div className="flex items-center gap-1.5" title="Direct physical sensor observation or official municipal registry">
-            <ProvenanceTag type="Measured" />
-            <span className="text-stone-300">Sensor / Register</span>
-          </div>
-          <span className="text-stone-700">|</span>
-          <div className="flex items-center gap-1.5" title="Computed deterministically through physical or spatial algorithms">
-            <ProvenanceTag type="Modelled" />
-            <span className="text-stone-300">Thermodynamic Model</span>
-          </div>
-          <span className="text-stone-700">|</span>
-          <div className="flex items-center gap-1.5" title="Indicative planning parameter or scenario screening default">
-            <ProvenanceTag type="Assumed" />
-            <span className="text-stone-300">Planning Threshold</span>
-          </div>
-        </div>
-
-        {/* Right Action Menu: Legacy Tools Dropdown & Documentation */}
-        <div className="flex items-center gap-2.5">
-          {/* Legacy Tools Dropdown */}
-          <div className="relative">
+          {/* Right Action Menu: Legacy Tools Dropdown & Documentation */}
+          <div className="flex items-center gap-2.5">
+            {/* Two-Scenario Comparison Button */}
             <button
               type="button"
-              onClick={() => setIsLegacyMenuOpen(!isLegacyMenuOpen)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-stone-800 hover:bg-stone-700 border border-stone-700 text-xs font-medium text-stone-200 transition-colors shadow-xs"
+              onClick={() => onOpenTwoScenarioComparison ? onOpenTwoScenarioComparison() : setIsTwoScenarioModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-sky-950/80 hover:bg-sky-900 border border-sky-700/80 text-xs font-semibold text-sky-200 transition-colors shadow-xs"
+              title="Open side-by-side Two-Scenario Comparison"
             >
-              <Compass className="w-3.5 h-3.5 text-amber-400" />
-              <span>Legacy tools</span>
-              <ChevronDown className="w-3 h-3 text-stone-400" />
+              <GitCompare className="w-3.5 h-3.5 text-sky-400" />
+              <span className="hidden sm:inline">Compare Scenarios</span>
             </button>
 
-            {isLegacyMenuOpen && (
-              <div className="absolute right-0 mt-1.5 w-64 rounded-md bg-stone-900 border border-stone-700 shadow-xl py-1.5 z-50 text-xs">
-                <div className="px-3 py-1 text-[10px] uppercase tracking-wider font-mono font-bold text-stone-400 border-b border-stone-800">
-                  Existing UrjaSetu Modules
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsLegacyMenuOpen(false);
-                    onOpenLegacyManualSiting?.();
-                  }}
-                  className="w-full text-left px-3 py-2 hover:bg-stone-800 text-stone-200 flex items-center justify-between"
-                >
-                  <span>Manual Siting Palette (11 Types)</span>
-                  <ChevronRight className="w-3 h-3 text-stone-500" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsLegacyMenuOpen(false);
-                    if (onOpenLegacyReportDrawer) onOpenLegacyReportDrawer();
-                    else setIsComparisonOpen(true);
-                  }}
-                  className="w-full text-left px-3 py-2 hover:bg-stone-800 text-stone-200 flex items-center justify-between"
-                >
-                  <span>Siting Assessment Report</span>
-                  <ChevronRight className="w-3 h-3 text-stone-500" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsLegacyMenuOpen(false);
-                    if (onOpenLegacyShadowSimulator) onOpenLegacyShadowSimulator();
-                    else setIsShadowSimulatorOpen(true);
-                  }}
-                  className="w-full text-left px-3 py-2 hover:bg-stone-800 text-stone-200 flex items-center justify-between"
-                >
-                  <span>Shadow Simulator (3D Solar)</span>
-                  <ChevronRight className="w-3 h-3 text-stone-500" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsLegacyMenuOpen(false);
-                    if (onOpenLegacySolarReality) onOpenLegacySolarReality();
-                    else setIsSolarRealityOpen(true);
-                  }}
-                  className="w-full text-left px-3 py-2 hover:bg-stone-800 text-stone-200 flex items-center justify-between"
-                >
-                  <span>Solar Reality & Financials</span>
-                  <ChevronRight className="w-3 h-3 text-stone-500" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsLegacyMenuOpen(false);
-                    if (onOpenLegacyInterventions) onOpenLegacyInterventions();
-                    else setIsInterventionsOpen(true);
-                  }}
-                  className="w-full text-left px-3 py-2 hover:bg-stone-800 text-stone-200 flex items-center justify-between"
-                >
-                  <span>Intervention Planning Workspace</span>
-                  <ChevronRight className="w-3 h-3 text-stone-500" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsLegacyMenuOpen(false);
-                    if (onOpenLegacyHeatDashboard) onOpenLegacyHeatDashboard();
-                    else setIsHeatDashboardOpen(true);
-                  }}
-                  className="w-full text-left px-3 py-2 hover:bg-stone-800 text-stone-200 flex items-center justify-between"
-                >
-                  <span>Heat Intelligence Dashboard</span>
-                  <ChevronRight className="w-3 h-3 text-stone-500" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsLegacyMenuOpen(false);
-                    if (onOpenLegacyCopilot) onOpenLegacyCopilot();
-                    else setIsCopilotOpen(true);
-                  }}
-                  className="w-full text-left px-3 py-2 hover:bg-stone-800 text-stone-200 flex items-center justify-between border-t border-stone-800 mt-1"
-                >
-                  <span className="flex items-center gap-1.5 text-emerald-400">
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>Gemini AI Copilot</span>
-                  </span>
-                  <ChevronRight className="w-3 h-3 text-stone-500" />
-                </button>
-              </div>
-            )}
+            {/* Methodology Documentation Page */}
+            <Link
+              href="/method"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-700/80 text-xs font-semibold text-emerald-200 transition-colors shadow-xs"
+              title="Open Scientific Methodology, Data Sources & Model Card"
+            >
+              <BookOpen className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="hidden sm:inline">Methodology</span>
+            </Link>
+
+            <Link
+              href="/api/model-card"
+              target="_blank"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded bg-stone-800/80 hover:bg-stone-800 text-stone-300 text-xs border border-stone-700/80 transition-colors"
+              title="Inspect Machine-Readable Model Card"
+            >
+              <Info className="w-3.5 h-3.5 text-stone-400" />
+              <span className="hidden sm:inline">Model Card</span>
+            </Link>
           </div>
-
-          {/* Two-Scenario Comparison Button */}
-          <button
-            type="button"
-            onClick={() => setIsTwoScenarioModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-sky-950/80 hover:bg-sky-900 border border-sky-700/80 text-xs font-semibold text-sky-200 transition-colors shadow-xs"
-            title="Open side-by-side Two-Scenario Comparison"
-          >
-            <GitCompare className="w-3.5 h-3.5 text-sky-400" />
-            <span className="hidden sm:inline">Compare Scenarios</span>
-          </button>
-
-          {/* Methodology Documentation Page */}
-          <Link
-            href="/method"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-700/80 text-xs font-semibold text-emerald-200 transition-colors shadow-xs"
-            title="Open Scientific Methodology, Data Sources & Model Card"
-          >
-            <BookOpen className="w-3.5 h-3.5 text-emerald-400" />
-            <span className="hidden sm:inline">Methodology</span>
-          </Link>
-
-          <Link
-            href="/api/model-card"
-            target="_blank"
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded bg-stone-800/80 hover:bg-stone-800 text-stone-300 text-xs border border-stone-700/80 transition-colors"
-            title="Inspect Machine-Readable Model Card"
-          >
-            <Info className="w-3.5 h-3.5 text-stone-400" />
-            <span className="hidden sm:inline">Model Card</span>
-          </Link>
-        </div>
-      </header>
+        </header>
+      )}
 
       {/* ========================================================================= */}
       {/* 2. MAIN WORKSPACE: SCENARIO PANEL + MAPLIBRE CANVAS + ZONE CARD           */}
@@ -899,55 +844,134 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
           {/* Tab 1: Scenario Controls */}
           {panelTab === "scenario" && (
             <div className="p-4 flex flex-col gap-4 overflow-y-auto custom-scrollbar">
-              {/* 1. Hectare Budget Slider */}
-              <div className="flex flex-col gap-1.5">
+              {/* 1. Hectare Budget Presets & Fine-Tune Slider */}
+              <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-semibold text-stone-200 flex items-center gap-1.5">
-                    <span>Hectare Budget</span>
+                    <span>Municipal Budget Scope</span>
                     <ProvenanceTag type="Assumed" />
                   </label>
                   <span className="text-xs font-mono font-bold text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-800">
                     {budgetHa.toFixed(1)} ha
                   </span>
                 </div>
-                <input
-                  type="range"
-                  min={1.0}
-                  max={40.0}
-                  step={0.5}
-                  value={budgetHa}
-                  onChange={(e) => setBudgetHa(parseFloat(e.target.value))}
-                  className="w-full h-1.5 bg-stone-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
-                />
-                <div className="flex justify-between text-[10px] text-stone-500 font-mono">
-                  <span>1.0 ha</span>
-                  <span>Max: 40.0 ha (~6.4 cells)</span>
+
+                {/* Preset Chips */}
+                <div className="grid grid-cols-2 gap-1.5">
+                  {[
+                    { label: "Micro-Pocket", sublabel: "5.0 ha", ha: 5.0 },
+                    { label: "Ward Standard", sublabel: "10.0 ha", ha: 10.0 },
+                    { label: "Priority Corridor", sublabel: "25.0 ha", ha: 25.0 },
+                    { label: "City Sector", sublabel: "40.0 ha", ha: 40.0 },
+                  ].map((preset) => (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      onClick={() => {
+                        setBudgetHa(preset.ha);
+                        runOptimization({ budget_ha: preset.ha });
+                      }}
+                      className={`px-2.5 py-1.5 rounded-lg border text-left transition-all ${
+                        Math.abs(budgetHa - preset.ha) < 0.1
+                          ? "bg-emerald-950/90 border-emerald-500 text-emerald-200 shadow-sm ring-1 ring-emerald-500"
+                          : "bg-stone-950/80 border-stone-800 text-stone-300 hover:bg-stone-850 hover:border-stone-700"
+                      }`}
+                    >
+                      <div className="text-[11px] font-bold">{preset.label}</div>
+                      <div className="text-[11px] font-mono text-stone-400">{preset.sublabel}</div>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Collapsible Fine-Tune Slider */}
+                <div className="mt-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowFineTuneSliders(!showFineTuneSliders)}
+                    className="text-[11px] text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1 focus:outline-none"
+                  >
+                    <span>{showFineTuneSliders ? "Hide Fine-Tune Sliders ▲" : "Fine-Tune Exact Hectares & Target ▼"}</span>
+                  </button>
+
+                  {showFineTuneSliders && (
+                    <div className="mt-2 p-2.5 rounded-lg bg-stone-950 border border-stone-800 space-y-3">
+                      <div className="flex flex-col gap-1">
+                        <div className="flex justify-between text-[11px] font-mono text-stone-300">
+                          <span>Custom Hectares:</span>
+                          <span className="text-emerald-400 font-bold">{budgetHa.toFixed(1)} ha</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={1.0}
+                          max={40.0}
+                          step={0.5}
+                          value={budgetHa}
+                          onChange={(e) => setBudgetHa(parseFloat(e.target.value))}
+                          className="w-full h-1.5 bg-stone-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                        />
+                        <div className="flex justify-between text-[11px] text-stone-500 font-mono">
+                          <span>1.0 ha</span>
+                          <span>Max: 40.0 ha</span>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col gap-1">
+                        <div className="flex justify-between text-[11px] font-mono text-stone-300">
+                          <span>Custom Target NDVI:</span>
+                          <span className="text-teal-400 font-bold">{targetNdvi.toFixed(2)}</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0.40}
+                          max={0.85}
+                          step={0.05}
+                          value={targetNdvi}
+                          onChange={(e) => setTargetNdvi(parseFloat(e.target.value))}
+                          className="w-full h-1.5 bg-stone-700 rounded-lg appearance-none cursor-pointer accent-teal-500"
+                        />
+                        <div className="flex justify-between text-[11px] text-stone-500 font-mono">
+                          <span>0.40 (Light)</span>
+                          <span>0.85 (Dense)</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* 2. Greening Target Slider (NDVI) */}
-              <div className="flex flex-col gap-1.5">
+              {/* 2. Plain Canopy Density Target */}
+              <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-semibold text-stone-200 flex items-center gap-1.5">
-                    <span>Target Vegetation (NDVI)</span>
+                    <span>Canopy Target</span>
                     <ProvenanceTag type="Assumed" />
                   </label>
                   <span className="text-xs font-mono font-bold text-teal-400 bg-teal-950/80 px-2 py-0.5 rounded border border-teal-800">
-                    {targetNdvi.toFixed(2)}
+                    NDVI {targetNdvi.toFixed(2)}
                   </span>
                 </div>
-                <input
-                  type="range"
-                  min={0.40}
-                  max={0.85}
-                  step={0.05}
-                  value={targetNdvi}
-                  onChange={(e) => setTargetNdvi(parseFloat(e.target.value))}
-                  className="w-full h-1.5 bg-stone-700 rounded-lg appearance-none cursor-pointer accent-teal-500"
-                />
-                <div className="flex justify-between text-[10px] text-stone-500 font-mono">
-                  <span>0.40 (Light shrubs)</span>
-                  <span>0.85 (Dense canopy)</span>
+
+                <div className="grid grid-cols-2 gap-1.5">
+                  {[
+                    { label: "Light Canopy", sublabel: "0.45 NDVI", ndvi: 0.45 },
+                    { label: "Moderate Shading", sublabel: "0.55 NDVI", ndvi: 0.55 },
+                    { label: "Dense Canopy", sublabel: "0.65 NDVI (Std)", ndvi: 0.65 },
+                    { label: "Urban Forest", sublabel: "0.75 NDVI", ndvi: 0.75 },
+                  ].map((canopy) => (
+                    <button
+                      key={canopy.label}
+                      type="button"
+                      onClick={() => setTargetNdvi(canopy.ndvi)}
+                      className={`px-2.5 py-1.5 rounded-lg border text-left transition-all ${
+                        Math.abs(targetNdvi - canopy.ndvi) < 0.04
+                          ? "bg-teal-950/90 border-teal-500 text-teal-200 shadow-sm ring-1 ring-teal-500"
+                          : "bg-stone-950/80 border-stone-800 text-stone-300 hover:bg-stone-850 hover:border-stone-700"
+                      }`}
+                    >
+                      <div className="text-[11px] font-bold">{canopy.label}</div>
+                      <div className="text-[11px] font-mono text-stone-400">{canopy.sublabel}</div>
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -958,7 +982,7 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
                     <span>Ensemble Quantile</span>
                     <ProvenanceTag type="Modelled" />
                   </label>
-                  <span className="text-[10px] text-stone-400 font-mono">30 members</span>
+                  <span className="text-[11px] text-stone-400 font-mono">30 members</span>
                 </div>
                 <div className="grid grid-cols-3 gap-1 bg-stone-950 p-1 rounded-md border border-stone-800">
                   <button
@@ -1017,7 +1041,7 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
                     }`}
                   >
                     <div className="text-[11px] font-bold">Pure Cooling</div>
-                    <div className="text-[9px] text-stone-500 font-mono">°C reduction / ha</div>
+                    <div className="text-[11px] text-stone-500 font-mono">°C reduction / ha</div>
                   </button>
                   <button
                     type="button"
@@ -1029,7 +1053,7 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
                     }`}
                   >
                     <div className="text-[11px] font-bold">Pop-Weighted</div>
-                    <div className="text-[9px] text-stone-500 font-mono">Resident exposure</div>
+                    <div className="text-[11px] text-stone-500 font-mono">Resident exposure</div>
                   </button>
                 </div>
               </div>
@@ -1042,7 +1066,10 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
                 </label>
                 <select
                   value={selectedWard}
-                  onChange={(e) => setSelectedWard(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedWard(e.target.value);
+                    onSelectWard?.(e.target.value);
+                  }}
                   className="w-full bg-stone-950 border border-stone-800 rounded px-2.5 py-1.5 text-xs text-stone-200 font-sans focus:outline-none focus:border-emerald-500"
                 >
                   <option value="All">All Pune Municipal Wards</option>
@@ -1056,6 +1083,16 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
                   <option value="Bibwewadi">Bibwewadi</option>
                   <option value="Dhankwadi">Dhankwadi</option>
                 </select>
+              </div>
+
+              {/* Plain Language Impact Summary */}
+              <div className="p-3 rounded-lg bg-stone-950/90 border border-stone-800 text-xs text-stone-300 leading-relaxed">
+                <span className="font-bold text-emerald-400 block mb-1">
+                  Portfolio Impact Summary:
+                </span>
+                {portfolioSummary.selectedCount > 0
+                  ? `Allocating ${portfolioSummary.allocatedHa.toFixed(1)} ha across ${portfolioSummary.selectedCount} cells achieves an expected ${portfolioSummary.meanCooling.toFixed(2)}°C surface cooling benefit (conservative P10: ${portfolioSummary.p10Cooling.toFixed(2)}°C to optimistic P90: ${portfolioSummary.p90Cooling.toFixed(2)}°C), directly shielding ${portfolioSummary.totalPopulation.toLocaleString()} residents.`
+                  : "Select a budget preset above to calculate optimal cooling parcels."}
               </div>
 
               {/* Recalculate Trigger */}
@@ -1072,7 +1109,7 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
               {/* Two-Scenario Comparison Button */}
               <button
                 type="button"
-                onClick={() => setIsTwoScenarioModalOpen(true)}
+                onClick={() => onOpenTwoScenarioComparison ? onOpenTwoScenarioComparison() : setIsTwoScenarioModalOpen(true)}
                 className="w-full py-2 bg-stone-900 hover:bg-stone-800 text-sky-300 text-xs font-semibold rounded flex items-center justify-center gap-2 border border-sky-900/60 transition-colors shadow-xs"
               >
                 <GitCompare className="w-3.5 h-3.5 text-sky-400" />
@@ -1084,10 +1121,20 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
           {/* Tab 2: Green Loss Watch & Ward Table */}
           {panelTab === "green_loss" && (
             <div className="p-3.5 flex flex-col gap-3.5 overflow-y-auto custom-scrollbar">
+              {/* Plain-Language Headline Banner */}
+              <div className="p-3 rounded-lg bg-rose-950/40 border border-rose-900/60 text-xs space-y-1">
+                <span className="font-bold text-rose-300 block">
+                  Canopy Depletion Diagnostic (Sentinel-2 MSI 2019 vs 2026)
+                </span>
+                <p className="text-[11px] text-stone-300 leading-relaxed font-sans">
+                  Identifies vegetative loss (ΔNDVI ≤ -0.10 with expanding impervious surface ΔNDBI &gt; 0). Note: Satellite change detection requires on-ground municipal field verification before statutory enforcement.
+                </p>
+              </div>
+
               {/* Summary Metrics */}
               <div className="grid grid-cols-2 gap-2 text-xs font-mono">
                 <div className="bg-stone-950 p-2.5 rounded border border-rose-900/40">
-                  <div className="flex items-center justify-between text-[10px] text-stone-400">
+                  <div className="flex items-center justify-between text-[11px] text-stone-400">
                     <span>Total Loss Area</span>
                     <ProvenanceTag type="Modelled" />
                   </div>
@@ -1096,10 +1143,10 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
                       ? `${greenLossData.metadata.total_loss_area_ha.toFixed(2)} ha`
                       : "Not available"}
                   </div>
-                  <div className="text-[10px] text-stone-500">2019–2026 pre-monsoon</div>
+                  <div className="text-[11px] text-stone-500">2019–2026 pre-monsoon</div>
                 </div>
                 <div className="bg-stone-950 p-2.5 rounded border border-rose-900/40">
-                  <div className="flex items-center justify-between text-[10px] text-stone-400">
+                  <div className="flex items-center justify-between text-[11px] text-stone-400">
                     <span>Flagged Cells</span>
                     <ProvenanceTag type="Modelled" />
                   </div>
@@ -1108,12 +1155,12 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
                       ? `${greenLossData.metadata.total_loss_cells} cells`
                       : "Not available"}
                   </div>
-                  <div className="text-[10px] text-stone-500">ΔNDVI ≤ -0.10 & ΔNDBI &gt; 0</div>
+                  <div className="text-[11px] text-stone-500">ΔNDVI ≤ -0.10 & ΔNDBI &gt; 0</div>
                 </div>
               </div>
 
               {/* Model Gate Status */}
-              <div className="flex items-center justify-between text-[10px] font-mono bg-stone-950 px-2.5 py-1.5 rounded border border-stone-800">
+              <div className="flex items-center justify-between text-[11px] font-mono bg-stone-950 px-2.5 py-1.5 rounded border border-stone-800">
                 <span className="text-stone-400">Model Gate Direction Check:</span>
                 <span className={`font-bold ${greenLossData?.metadata.model_gate_passed ? "text-emerald-400" : "text-amber-400"}`}>
                   {greenLossData?.metadata.model_gate_passed ? "PASSED (∂LST/∂NDVI ≤ 0)" : "FAILED (Heat Nullified)"}
@@ -1127,17 +1174,18 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
                     <span>23 PMC Wards by Loss Area</span>
                     <ProvenanceTag type="Measured" />
                   </h3>
-                  <span className="text-[10px] text-stone-500 font-mono">Sorted by loss ha</span>
+                  <span className="text-[11px] text-stone-500 font-mono">Sorted by loss ha</span>
                 </div>
 
                 <div className="border border-stone-800 rounded overflow-hidden max-h-60 overflow-y-auto custom-scrollbar">
                   <table className="w-full text-left text-[11px] font-mono">
-                    <thead className="bg-stone-950 text-stone-400 text-[10px] uppercase sticky top-0 border-b border-stone-800">
+                    <thead className="bg-stone-950 text-stone-400 text-[11px] uppercase sticky top-0 border-b border-stone-800">
                       <tr>
                         <th className="py-1.5 px-2">Ward</th>
                         <th className="py-1.5 px-2 text-right">Loss (ha)</th>
                         <th className="py-1.5 px-2 text-right">Cells</th>
                         <th className="py-1.5 px-2 text-right">Extra Heat</th>
+                        <th className="py-1.5 px-2 text-right">Action</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-stone-800/60 bg-stone-900/60 text-stone-300">
@@ -1146,14 +1194,15 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
                           key={w.ward}
                           onClick={() => {
                             setSelectedWard(w.ward);
+                            onSelectWard?.(w.ward);
                             setActiveLayer("green_loss");
                           }}
                           className={`hover:bg-rose-950/30 cursor-pointer transition-colors ${
                             selectedWard === w.ward ? "bg-rose-950/50 text-white font-bold" : ""
                           }`}
-                          title="Click to filter to this ward"
+                          title="Click to filter map to this ward"
                         >
-                          <td className="py-1.5 px-2 truncate max-w-[130px] font-sans font-medium text-stone-200">
+                          <td className="py-1.5 px-2 truncate max-w-[110px] font-sans font-medium text-stone-200">
                             {w.ward}
                           </td>
                           <td className="py-1.5 px-2 text-right font-bold text-rose-300">
@@ -1166,6 +1215,22 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
                             {w.mean_extra_heat_celsius !== null && w.mean_extra_heat_celsius !== undefined
                               ? `+${w.mean_extra_heat_celsius.toFixed(2)}°C`
                               : "Not available"}
+                          </td>
+                          <td className="py-1.5 px-2 text-right">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedWard(w.ward);
+                                onSelectWard?.(w.ward);
+                                setPanelTab("scenario");
+                                setActiveLayer("burden");
+                              }}
+                              className="px-2 py-0.5 rounded bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/80 text-[11px] font-semibold transition-colors"
+                              title={`Pre-scope cooling optimizer to ${w.ward}`}
+                            >
+                              Restore
+                            </button>
                           </td>
                         </tr>
                       ))}
@@ -1233,7 +1298,7 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
                   onChange={(e) => setRestoreBudgetHa(parseFloat(e.target.value))}
                   className="w-full h-1.5 bg-stone-700 rounded-lg appearance-none cursor-pointer accent-teal-500"
                 />
-                <div className="flex justify-between text-[10px] text-stone-500 font-mono">
+                <div className="flex justify-between text-[11px] text-stone-500 font-mono">
                   <span>1.0 ha</span>
                   <span>Total Loss: {(greenLossData?.metadata.total_loss_area_ha ?? 40.0).toFixed(1)} ha</span>
                 </div>
@@ -1259,7 +1324,7 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
                   onChange={(e) => setTargetNdvi(parseFloat(e.target.value))}
                   className="w-full h-1.5 bg-stone-700 rounded-lg appearance-none cursor-pointer accent-teal-500"
                 />
-                <div className="flex justify-between text-[10px] text-stone-500 font-mono">
+                <div className="flex justify-between text-[11px] text-stone-500 font-mono">
                   <span>0.40 (Light shrubs)</span>
                   <span>0.85 (Full canopy)</span>
                 </div>
@@ -1276,7 +1341,7 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
                 <span>{isOptimizing ? "Optimizing Restoration..." : "Prioritize Loss Parcels to Restore"}</span>
               </button>
 
-              <div className="text-[10px] text-stone-400 font-mono bg-stone-950 p-2.5 rounded border border-stone-800">
+              <div className="text-[11px] text-stone-400 font-mono bg-stone-950 p-2.5 rounded border border-stone-800">
                 <span className="text-teal-400 font-bold block mb-0.5">Optimizer Policy:</span>
                 Parcels are greedily ranked by thermal cooling relief per hectare. Selected parcels are highlighted on the map and updated in the portfolio strip.
               </div>
@@ -1301,7 +1366,7 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
 
         {/* Layer Selector Pills (Floating Top-Center/Right) */}
         <div className="absolute top-3 right-14 z-20 flex items-center gap-1 bg-stone-900/90 backdrop-blur-md p-1 rounded-md border border-stone-800 shadow-xl text-xs">
-          <span className="text-[10px] font-mono text-stone-400 px-2 font-bold uppercase hidden md:inline">
+          <span className="text-[11px] font-mono text-stone-400 px-2 font-bold uppercase hidden md:inline">
             Active Layer:
           </span>
           <button
@@ -1384,8 +1449,8 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
         </div>
 
         {/* Floating Colour-Blind-Safe Sequential Palette Legend */}
-        <div className="absolute bottom-24 right-3 z-20 bg-stone-900/90 backdrop-blur-md p-2.5 rounded-lg border border-stone-800 shadow-xl flex flex-col gap-1.5 w-64">
-          <div className="flex items-center justify-between text-[10px] font-mono text-stone-300">
+        <div className="absolute bottom-24 right-3 z-20 bg-stone-900/90 backdrop-blur-md p-3 rounded-lg border border-stone-800 shadow-xl flex flex-col gap-1.5 w-72">
+          <div className="flex items-center justify-between text-[11px] font-mono text-stone-300">
             <span className="font-bold uppercase tracking-wider">
               {activeLayer === "burden" ? "Heat Burden (Viridis)" :
                activeLayer === "lst" ? "LST Radiometric (°C)" :
@@ -1396,6 +1461,7 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
             </span>
             <ProvenanceTag
               type={activeLayer === "lst" || activeLayer === "ndvi" ? "Measured" : "Modelled"}
+              size="sm"
             />
           </div>
 
@@ -1423,7 +1489,7 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
             </div>
           )}
 
-          <div className="flex justify-between text-[9px] text-stone-400 font-mono">
+          <div className="flex justify-between text-[11px] text-stone-400 font-mono">
             {activeLayer === "green_loss" ? (
               <>
                 <span>Stable (Δ ≥ -0.10)</span>
@@ -1442,7 +1508,7 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
             )}
           </div>
 
-          <span className="text-[8px] text-stone-500 leading-tight">
+          <span className="text-[11px] text-stone-400 leading-tight">
             {activeLayer === "green_loss"
               ? "Sentinel-2 2019 vs 2026 pre-monsoon (ΔNDVI ≤ -0.10 & ΔNDBI > 0)."
               : activeLayer === "solar_penalty"
@@ -1461,7 +1527,8 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
           ensembleStats={zoneEnsembleStats}
           onOpenTwoScenarioComparison={() => {
             setIsEvidenceDrawerOpen(false);
-            setIsTwoScenarioModalOpen(true);
+            if (onOpenTwoScenarioComparison) onOpenTwoScenarioComparison();
+            else setIsTwoScenarioModalOpen(true);
           }}
         />
       </div>
@@ -1474,9 +1541,9 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
           <div className="flex items-center gap-6 divide-x divide-stone-800 text-xs">
             {/* Metric 1: Budget Allocated */}
             <div className="flex flex-col">
-              <div className="flex items-center gap-1.5 text-[10px] text-stone-400 font-medium">
+              <div className="flex items-center gap-1.5 text-[11px] text-stone-400 font-medium">
                 <span>Allocated Hectares</span>
-                <ProvenanceTag type="Assumed" />
+                <ProvenanceTag type="Assumed" size="sm" />
               </div>
               <div className="font-mono font-extrabold text-sm text-stone-100">
                 {portfolioSummary.allocatedHa.toFixed(1)} / {budgetHa.toFixed(1)} ha
@@ -1485,9 +1552,9 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
 
             {/* Metric 2: Selected Zones */}
             <div className="pl-6 flex flex-col">
-              <div className="flex items-center gap-1.5 text-[10px] text-stone-400 font-medium">
+              <div className="flex items-center gap-1.5 text-[11px] text-stone-400 font-medium">
                 <span>Selected Zones</span>
-                <ProvenanceTag type="Modelled" />
+                <ProvenanceTag type="Modelled" size="sm" />
               </div>
               <div className="font-mono font-extrabold text-sm text-emerald-400">
                 {portfolioSummary.selectedCount} cells ({portfolioSummary.selectedCount * 6.25} ha)
@@ -1496,13 +1563,13 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
 
             {/* Metric 3: Mean Cooling with P10/P90 */}
             <div className="pl-6 flex flex-col">
-              <div className="flex items-center gap-1.5 text-[10px] text-stone-400 font-medium">
+              <div className="flex items-center gap-1.5 text-[11px] text-stone-400 font-medium">
                 <span>Expected Cooling</span>
-                <ProvenanceTag type="Modelled" />
+                <ProvenanceTag type="Modelled" size="sm" />
               </div>
               <div className="font-mono font-extrabold text-sm text-teal-400 flex items-center gap-1.5">
                 <span>+{portfolioSummary.meanCooling.toFixed(2)} °C</span>
-                <span className="text-[10px] text-stone-500 font-normal">
+                <span className="text-[11px] text-stone-400 font-normal">
                   (P10: +{portfolioSummary.p10Cooling.toFixed(2)} | P90: +{portfolioSummary.p90Cooling.toFixed(2)})
                 </span>
               </div>
@@ -1510,9 +1577,9 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
 
             {/* Metric 4: Population Benefited */}
             <div className="pl-6 hidden sm:flex flex-col">
-              <div className="flex items-center gap-1.5 text-[10px] text-stone-400 font-medium">
+              <div className="flex items-center gap-1.5 text-[11px] text-stone-400 font-medium">
                 <span>Benefited Population</span>
-                <ProvenanceTag type="Modelled" />
+                <ProvenanceTag type="Modelled" size="sm" />
               </div>
               <div className="font-mono font-extrabold text-sm text-sky-400">
                 {portfolioSummary.totalPopulation.toLocaleString()} residents
@@ -1521,9 +1588,9 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
 
             {/* Metric 5: Ensemble Convergence */}
             <div className="pl-6 hidden md:flex flex-col">
-              <div className="flex items-center gap-1.5 text-[10px] text-stone-400 font-medium">
+              <div className="flex items-center gap-1.5 text-[11px] text-stone-400 font-medium">
                 <span>Ensemble Convergence</span>
-                <ProvenanceTag type="Modelled" />
+                <ProvenanceTag type="Modelled" size="sm" />
               </div>
               <div className="font-mono font-extrabold text-sm text-stone-200">
                 {portfolioSummary.ensembleConvergence} / 30 runs
@@ -1532,7 +1599,7 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
           </div>
 
           {/* Scientific Disclaimer Notice */}
-          <div className="hidden xl:flex items-center gap-2 text-[9px] text-stone-500 font-mono max-w-sm leading-tight text-right">
+          <div className="hidden xl:flex items-center gap-2 text-[11px] text-stone-400 font-mono max-w-sm leading-tight text-right">
             <span>
               LST is radiometric skin temp, not air temp. NDVI is vegetation index, not 3D canopy. No arbitrary weighted composite scores.
             </span>

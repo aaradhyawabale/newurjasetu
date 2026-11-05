@@ -188,7 +188,7 @@ export const TwoScenarioComparisonModal: React.FC<TwoScenarioComparisonModalProp
             <div>
               <h2 className="text-sm font-extrabold text-white tracking-tight flex items-center gap-2">
                 <span>Two-Scenario Comparative Evaluation</span>
-                <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-stone-800 text-stone-300 border border-stone-700">
+                <span className="text-[11px] font-mono uppercase px-2 py-0.5 rounded bg-stone-800 text-stone-300 border border-stone-700">
                   Heat Priority Engine
                 </span>
               </h2>
@@ -229,7 +229,7 @@ export const TwoScenarioComparisonModal: React.FC<TwoScenarioComparisonModalProp
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
                   <span>Scenario A (Baseline Option)</span>
                 </span>
-                <span className="text-[10px] font-mono text-stone-400">
+                <span className="text-[11px] font-mono text-stone-400">
                   {allocA.toFixed(1)} / {budgetA.toFixed(1)} ha allocated
                 </span>
               </div>
@@ -269,7 +269,7 @@ export const TwoScenarioComparisonModal: React.FC<TwoScenarioComparisonModalProp
               </div>
 
               {/* Objective A */}
-              <div className="grid grid-cols-2 gap-2 text-[10px]">
+              <div className="grid grid-cols-2 gap-2 text-[11px]">
                 <button
                   type="button"
                   onClick={() => setObjectiveA("cooling")}
@@ -318,7 +318,7 @@ export const TwoScenarioComparisonModal: React.FC<TwoScenarioComparisonModalProp
                   <span className="w-2.5 h-2.5 rounded-full bg-sky-500" />
                   <span>Scenario B (Alternative Policy)</span>
                 </span>
-                <span className="text-[10px] font-mono text-stone-400">
+                <span className="text-[11px] font-mono text-stone-400">
                   {allocB.toFixed(1)} / {budgetB.toFixed(1)} ha allocated
                 </span>
               </div>
@@ -358,7 +358,7 @@ export const TwoScenarioComparisonModal: React.FC<TwoScenarioComparisonModalProp
               </div>
 
               {/* Objective B */}
-              <div className="grid grid-cols-2 gap-2 text-[10px]">
+              <div className="grid grid-cols-2 gap-2 text-[11px]">
                 <button
                   type="button"
                   onClick={() => setObjectiveB("cooling")}
@@ -407,7 +407,7 @@ export const TwoScenarioComparisonModal: React.FC<TwoScenarioComparisonModalProp
               <span className="font-bold text-xs text-stone-200 uppercase tracking-wider font-mono">
                 Comparative Portfolio Outcomes & Policy Deltas
               </span>
-              <div className="flex items-center gap-1.5 text-[10px]">
+              <div className="flex items-center gap-1.5 text-[11px]">
                 <ProvenanceTag type="Modelled" />
               </div>
             </div>
@@ -415,7 +415,7 @@ export const TwoScenarioComparisonModal: React.FC<TwoScenarioComparisonModalProp
             <div className="overflow-x-auto">
               <table className="w-full text-left font-mono text-xs">
                 <thead>
-                  <tr className="border-b border-stone-800 text-[10px] text-stone-400 uppercase">
+                  <tr className="border-b border-stone-800 text-[11px] text-stone-400 uppercase">
                     <th className="py-1.5">Indicator</th>
                     <th className="py-1.5 text-emerald-400">Scenario A</th>
                     <th className="py-1.5 text-sky-400">Scenario B</th>
@@ -470,34 +470,34 @@ export const TwoScenarioComparisonModal: React.FC<TwoScenarioComparisonModalProp
           <div className="p-3.5 rounded-lg bg-stone-950 border border-stone-800 space-y-2">
             <h3 className="font-bold text-xs text-stone-200 uppercase tracking-wider font-mono flex items-center justify-between">
               <span>Zone Selection Stability & Overlap Analysis</span>
-              <span className="text-[10px] text-stone-400 normal-case">
+              <span className="text-[11px] text-stone-400 normal-case">
                 {commonIds.size} invariant zones selected in both
               </span>
             </h3>
 
             <div className="grid grid-cols-3 gap-2 text-center font-mono text-xs">
               <div className="p-2.5 rounded bg-stone-900 border border-emerald-900/60">
-                <div className="text-[10px] text-emerald-400 font-bold">Core Invariant Zones</div>
+                <div className="text-[11px] text-emerald-400 font-bold">Core Invariant Zones</div>
                 <div className="text-base font-extrabold text-white mt-0.5">{commonIds.size} cells</div>
-                <div className="text-[9px] text-stone-400 mt-0.5">High-confidence across both configurations</div>
+                <div className="text-[11px] text-stone-400 mt-0.5">High-confidence across both configurations</div>
               </div>
 
               <div className="p-2.5 rounded bg-stone-900 border border-stone-800">
-                <div className="text-[10px] text-emerald-400 font-semibold">Unique to Scenario A</div>
+                <div className="text-[11px] text-emerald-400 font-semibold">Unique to Scenario A</div>
                 <div className="text-base font-extrabold text-stone-300 mt-0.5">{uniqueToA.length} cells</div>
-                <div className="text-[9px] text-stone-400 mt-0.5">Excluded under Scenario B objective/budget</div>
+                <div className="text-[11px] text-stone-400 mt-0.5">Excluded under Scenario B objective/budget</div>
               </div>
 
               <div className="p-2.5 rounded bg-stone-900 border border-stone-800">
-                <div className="text-[10px] text-sky-400 font-semibold">Unique to Scenario B</div>
+                <div className="text-[11px] text-sky-400 font-semibold">Unique to Scenario B</div>
                 <div className="text-base font-extrabold text-stone-300 mt-0.5">{uniqueToB.length} cells</div>
-                <div className="text-[9px] text-stone-400 mt-0.5">Added under expanded Scenario B budget</div>
+                <div className="text-[11px] text-stone-400 mt-0.5">Added under expanded Scenario B budget</div>
               </div>
             </div>
           </div>
 
           {/* Scientific Disclaimer */}
-          <div className="p-3 rounded bg-stone-950/80 border border-stone-800/80 text-[10px] text-stone-400 leading-normal flex items-start gap-2">
+          <div className="p-3 rounded bg-stone-950/80 border border-stone-800/80 text-[11px] text-stone-400 leading-normal flex items-start gap-2">
             <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
             <div>
               <strong>Methodological Principles:</strong> All scenario comparisons use physical units (hectares, degrees Celsius, population counts). No arbitrary weighted composite scores. Unknown values stay null. LST is radiometric surface skin temperature, not 2m ambient air temperature. Prioritization supports exploratory planning; structural and municipal approvals remain mandatory.
@@ -507,7 +507,7 @@ export const TwoScenarioComparisonModal: React.FC<TwoScenarioComparisonModalProp
 
         {/* Modal Footer */}
         <div className="p-3 border-t border-stone-800 bg-stone-950/80 flex items-center justify-between text-xs text-stone-400">
-          <span className="font-mono text-[10px]">
+          <span className="font-mono text-[11px]">
             Monte Carlo 30-member spatial block bootstrap ensemble comparison
           </span>
           <button

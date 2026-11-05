@@ -262,10 +262,10 @@ export const InterventionPlanningWorkspace: React.FC<InterventionWorkspaceProps>
                 <h2 className="text-base font-bold text-stone-900">
                   Urban Intervention Planning & Opportunity Discovery
                 </h2>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
                   Phase 6 Dynamic Spatial Discovery
                 </span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 text-blue-800 border border-blue-200">
+                <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-100 text-blue-800 border border-blue-200">
                   Official PMC Data
                 </span>
               </div>
@@ -329,7 +329,7 @@ export const InterventionPlanningWorkspace: React.FC<InterventionWorkspaceProps>
             <span>• No arbitrary weighted composite scores</span>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
-            <span className="text-stone-500 text-[10px]">Data Provenance:</span>
+            <span className="text-stone-500 text-[11px]">Data Provenance:</span>
             <ProvenanceTag type="Measured" />
             <ProvenanceTag type="Modelled" />
             <ProvenanceTag type="Assumed" />
@@ -551,10 +551,10 @@ export const InterventionPlanningWorkspace: React.FC<InterventionWorkspaceProps>
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-md bg-stone-100 text-stone-600 border border-stone-200">
+                        <span className="text-[11px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-md bg-stone-100 text-stone-600 border border-stone-200">
                           {c.categoryId.replace(/_/g, " ")}
                         </span>
-                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
                           c.status === "ELIGIBLE_FOR_REVIEW"
                             ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
                             : c.status === "CONDITIONALLY_ELIGIBLE"
@@ -565,7 +565,7 @@ export const InterventionPlanningWorkspace: React.FC<InterventionWorkspaceProps>
                         }`}>
                           {c.status.replace(/_/g, " ")}
                         </span>
-                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                        <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded ${
                           c.provenanceType === "DATASET_DERIVED"
                             ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
                             : c.provenanceType === "MANUALLY_CURATED"
@@ -583,7 +583,7 @@ export const InterventionPlanningWorkspace: React.FC<InterventionWorkspaceProps>
                         {c.sourceFeatureId && (
                           <>
                             <span>•</span>
-                            <span className="font-mono text-[10px] text-stone-400 truncate max-w-[140px]">{c.sourceFeatureId}</span>
+                            <span className="font-mono text-[11px] text-stone-400 truncate max-w-[140px]">{c.sourceFeatureId}</span>
                           </>
                         )}
                       </div>
@@ -612,7 +612,7 @@ export const InterventionPlanningWorkspace: React.FC<InterventionWorkspaceProps>
                           {c.thermalContext.surfaceTemperatureCelsius !== null ? `${c.thermalContext.surfaceTemperatureCelsius}°C` : "Not available"}
                         </span>
                         {lstDelta !== null && (
-                          <span className={`text-[10px] font-medium ${lstDelta > 0 ? "text-rose-600 font-bold" : "text-stone-500"}`}>
+                          <span className={`text-[11px] font-medium ${lstDelta > 0 ? "text-rose-600 font-bold" : "text-stone-500"}`}>
                             ({lstDelta > 0 ? "+" : ""}{lstDelta}°C)
                           </span>
                         )}
@@ -626,7 +626,7 @@ export const InterventionPlanningWorkspace: React.FC<InterventionWorkspaceProps>
                         <span className="font-semibold text-stone-900 truncate">
                           {c.vegetationContext.ndvi30m !== null ? c.vegetationContext.ndvi30m : "Not available"}
                         </span>
-                        <span className="text-[10px] text-stone-500">
+                        <span className="text-[11px] text-stone-500">
                           NDVI
                         </span>
                       </div>
@@ -635,7 +635,7 @@ export const InterventionPlanningWorkspace: React.FC<InterventionWorkspaceProps>
                   </div>
 
                   {/* Constraints Summary Tag */}
-                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-stone-100 text-[10px] text-stone-500">
+                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-stone-100 text-[11px] text-stone-500">
                     <span>
                       {c.constraints.length} Constraints ({c.constraints.filter(x => x.severity === "CRITICAL_BLOCKER").length} Blocker)
                     </span>
@@ -704,7 +704,7 @@ export const InterventionPlanningWorkspace: React.FC<InterventionWorkspaceProps>
                   <div className="flex items-center justify-between gap-2 flex-wrap">
                     <div className="flex items-center gap-2">
                       <span className="font-semibold text-stone-700">Provenance & Origin:</span>
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
                         activeCandidate.provenanceType === "DATASET_DERIVED"
                           ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
                           : activeCandidate.provenanceType === "MANUALLY_CURATED"
@@ -720,7 +720,7 @@ export const InterventionPlanningWorkspace: React.FC<InterventionWorkspaceProps>
                     </div>
 
                     {activeCandidate.analysisRunId && (
-                      <span className="font-mono text-[10px] text-stone-500 bg-white px-2 py-0.5 rounded border border-stone-200">
+                      <span className="font-mono text-[11px] text-stone-500 bg-white px-2 py-0.5 rounded border border-stone-200">
                         Run: {activeCandidate.analysisRunId}
                       </span>
                     )}
@@ -741,7 +741,7 @@ export const InterventionPlanningWorkspace: React.FC<InterventionWorkspaceProps>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1.5 text-[10px] text-stone-500 pt-1">
+                  <div className="flex items-center gap-1.5 text-[11px] text-stone-500 pt-1">
                     <Info className="w-3 h-3 text-stone-400 shrink-0" />
                     <span>
                       Planning Notice: Technical screening classification only; does NOT constitute municipal sanction or budget sanction. Building footprint is not usable rooftop area. Available transformer headroom requires formal MSEDCL clearance.
@@ -777,7 +777,7 @@ export const InterventionPlanningWorkspace: React.FC<InterventionWorkspaceProps>
                           <ProvenanceTag type="Modelled" />
                         )}
                       </p>
-                      <p className="text-[10px] text-stone-500 mt-1 flex items-center justify-between">
+                      <p className="text-[11px] text-stone-500 mt-1 flex items-center justify-between">
                         <span>USGS ST_QA: ±{activeCandidate.thermalContext.landsatStQaUncertaintyK ?? 2.16} K uncertainty</span>
                         <ProvenanceTag type="Measured" />
                       </p>
@@ -798,7 +798,7 @@ export const InterventionPlanningWorkspace: React.FC<InterventionWorkspaceProps>
                       <p className="text-[11px] text-stone-600 mt-1">
                         SCL: {activeCandidate.vegetationContext.sclClassName || "Not available"} (Class {activeCandidate.vegetationContext.sclClassId})
                       </p>
-                      <p className="text-[10px] text-stone-500 mt-1 flex items-center justify-between">
+                      <p className="text-[11px] text-stone-500 mt-1 flex items-center justify-between">
                         <span>Delta vs Baseline: {activeCandidate.vegetationContext.ndviDeltaToBaseline ?? "Not available"}</span>
                         {activeCandidate.vegetationContext.ndviDeltaToBaseline !== null && (
                           <ProvenanceTag type="Modelled" />
@@ -823,7 +823,7 @@ export const InterventionPlanningWorkspace: React.FC<InterventionWorkspaceProps>
                         <ProvenanceTag type="Modelled" />
                       </p>
                       {activeCandidate.infrastructureContext.nearestSubstationName && (
-                        <p className="text-[10px] text-stone-500 mt-1 flex items-center justify-between truncate">
+                        <p className="text-[11px] text-stone-500 mt-1 flex items-center justify-between truncate">
                           <span className="truncate">Substation: {activeCandidate.infrastructureContext.nearestSubstationName} ({activeCandidate.infrastructureContext.nearestSubstationDistanceM}m)</span>
                           <ProvenanceTag type="Modelled" />
                         </p>
@@ -856,7 +856,7 @@ export const InterventionPlanningWorkspace: React.FC<InterventionWorkspaceProps>
                           <span className="text-xs font-bold text-stone-900">
                             {con.title}
                           </span>
-                          <span className={`text-[9px] font-bold px-2 py-0.2 rounded-full uppercase ${
+                          <span className={`text-[11px] font-bold px-2 py-0.2 rounded-full uppercase ${
                             con.severity === "CRITICAL_BLOCKER"
                               ? "bg-rose-100 text-rose-800"
                               : "bg-amber-100 text-amber-800"
@@ -897,7 +897,7 @@ export const InterventionPlanningWorkspace: React.FC<InterventionWorkspaceProps>
                               <p className="text-[11px] text-stone-500 mt-0.5">{item.description}</p>
                             </td>
                             <td className="px-3.5 py-2.5 font-medium text-stone-700">
-                              <span className="px-2 py-0.5 rounded-full bg-stone-100 text-stone-700 text-[10px] font-bold">
+                              <span className="px-2 py-0.5 rounded-full bg-stone-100 text-stone-700 text-[11px] font-bold">
                                 {item.requiredForPhase}
                               </span>
                             </td>
@@ -947,7 +947,7 @@ export const InterventionPlanningWorkspace: React.FC<InterventionWorkspaceProps>
                                   {e.observedValue !== null ? String(e.observedValue) : "Not available"} {e.unit || ""}
                                 </td>
                                 <td className="px-3 py-2 text-stone-600">{e.sourceDataset}</td>
-                                <td className="px-3 py-2 text-stone-500 text-[10px]">{e.uncertaintyOrDisclaimer}</td>
+                                <td className="px-3 py-2 text-stone-500 text-[11px]">{e.uncertaintyOrDisclaimer}</td>
                               </tr>
                             );
                           })}
@@ -1010,7 +1010,7 @@ export const InterventionPlanningWorkspace: React.FC<InterventionWorkspaceProps>
                       {comparisonData.candidates.map((c) => (
                         <th key={c.id} className="px-4 py-2.5">
                           <span className="font-bold text-stone-900 block">{c.name}</span>
-                          <span className="text-[10px] text-stone-500 font-normal">{c.wardOrPrabhag}</span>
+                          <span className="text-[11px] text-stone-500 font-normal">{c.wardOrPrabhag}</span>
                         </th>
                       ))}
                     </tr>
@@ -1073,7 +1073,7 @@ export const InterventionPlanningWorkspace: React.FC<InterventionWorkspaceProps>
                   <h3 className="text-base font-bold text-stone-900">
                     Municipal Planning Dossier: {activeDossier.candidate.name}
                   </h3>
-                  <span className="font-mono text-[10px] text-stone-500">
+                  <span className="font-mono text-[11px] text-stone-500">
                     Ref ID: {activeDossier.dossierId} | Generated {activeDossier.generatedAt.split("T")[0]}
                   </span>
                 </div>
@@ -1217,17 +1217,17 @@ export const InterventionPlanningWorkspace: React.FC<InterventionWorkspaceProps>
                 <div className="p-3.5 rounded-xl border border-stone-200 bg-stone-50">
                   <span className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider">Registered Datasets</span>
                   <div className="text-2xl font-bold text-stone-900 mt-1">{registeredDatasets.length || datasetSummary?.totalRegistered || 10}</div>
-                  <p className="text-[10px] text-stone-500 mt-0.5">Spanning satellite, municipal, and electrical layers</p>
+                  <p className="text-[11px] text-stone-500 mt-0.5">Spanning satellite, municipal, and electrical layers</p>
                 </div>
                 <div className="p-3.5 rounded-xl border border-emerald-200 bg-emerald-50/50">
                   <span className="text-[11px] font-semibold text-emerald-700 uppercase tracking-wider">Officially Verified</span>
                   <div className="text-2xl font-bold text-emerald-800 mt-1">{datasetSummary?.officialVerifiedCount || 4}</div>
-                  <p className="text-[10px] text-emerald-600 mt-0.5">PMC health, garden, and statutory registers</p>
+                  <p className="text-[11px] text-emerald-600 mt-0.5">PMC health, garden, and statutory registers</p>
                 </div>
                 <div className="p-3.5 rounded-xl border border-amber-200 bg-amber-50/50">
                   <span className="text-[11px] font-semibold text-amber-700 uppercase tracking-wider">Data Gap Action Items</span>
                   <div className="text-2xl font-bold text-amber-800 mt-1">{datasetSummary?.missingDatasetsRoadmap?.length || 4}</div>
-                  <p className="text-[10px] text-amber-600 mt-0.5">Missing utility cadastre & transformer telemetry</p>
+                  <p className="text-[11px] text-amber-600 mt-0.5">Missing utility cadastre & transformer telemetry</p>
                 </div>
               </div>
 
@@ -1251,11 +1251,11 @@ export const InterventionPlanningWorkspace: React.FC<InterventionWorkspaceProps>
                         <tr key={ds.id} className="hover:bg-stone-50">
                           <td className="px-3.5 py-2.5">
                             <span className="font-bold text-stone-900">{ds.name}</span>
-                            <div className="text-[10px] text-stone-500 mt-0.5">{ds.sourceOrganization}</div>
-                            <div className="text-[10px] font-mono text-stone-400">License: {ds.license}</div>
+                            <div className="text-[11px] text-stone-500 mt-0.5">{ds.sourceOrganization}</div>
+                            <div className="text-[11px] font-mono text-stone-400">License: {ds.license}</div>
                           </td>
                           <td className="px-3.5 py-2.5">
-                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
                               ds.verificationStatus === "VERIFIED_OFFICIAL"
                                 ? "bg-emerald-100 text-emerald-800"
                                 : ds.verificationStatus === "VERIFIED_OPENSTREETMAP"
@@ -1267,7 +1267,7 @@ export const InterventionPlanningWorkspace: React.FC<InterventionWorkspaceProps>
                               {ds.verificationStatus.replace(/_/g, " ")}
                             </span>
                           </td>
-                          <td className="px-3.5 py-2.5 font-mono text-[10px] text-stone-700">
+                          <td className="px-3.5 py-2.5 font-mono text-[11px] text-stone-700">
                             <div>{ds.geometryTypeOrRasterResolution}</div>
                             <div className="text-stone-400 mt-0.5">CRS: {ds.crs}</div>
                             {ds.featureOrPixelCount && (
@@ -1276,7 +1276,7 @@ export const InterventionPlanningWorkspace: React.FC<InterventionWorkspaceProps>
                           </td>
                           <td className="px-3.5 py-2.5 text-stone-600 max-w-sm">
                             <p className="font-medium text-stone-800">{ds.intendedUse}</p>
-                            <p className="text-[10px] text-stone-500 mt-1 italic leading-relaxed">
+                            <p className="text-[11px] text-stone-500 mt-1 italic leading-relaxed">
                               Limitation: {ds.knownLimitations}
                             </p>
                           </td>

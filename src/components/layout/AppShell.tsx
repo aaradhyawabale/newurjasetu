@@ -22,7 +22,7 @@ import { AnalysisReportResult } from "@/server/analysis-engine/engine";
 import { exportPlacementsToGeoJson, downloadJsonFile } from "@/lib/geojson-export";
 import { calculateDistanceMeters } from "@/server/gis/geometry";
 import type { CopilotChatContext, CopilotAdjustment } from "@/server/ai/gemini-advisor";
-import { Sparkles, Loader2, Route, Eye, X } from "lucide-react";
+import { Sparkles, Loader2, Route, Eye, X, MapPin, Plus, Download, History } from "lucide-react";
 import { NearbyBridgeCrossingCandidate } from "@/server/analysis-engine/bridge-planner";
 
 const LINEAR_TOOLS: string[] = ["Road", "Bridge", "Water Canal", "Drainage"];
@@ -42,12 +42,14 @@ interface AppShellProps {
   user: UserProfile;
   initialScenarios: Scenario[];
   initialScenarioId: string;
+  embedded?: boolean;
 }
 
 export const AppShell: React.FC<AppShellProps> = ({
   user,
   initialScenarios,
   initialScenarioId,
+  embedded = false,
 }) => {
   const { showToast } = useToast();
 
@@ -83,7 +85,7 @@ export const AppShell: React.FC<AppShellProps> = ({
   // State: 2-Click Linear & Footprint drawing mode (e.g. Bridge start -> endpoint)
   const [linearStartPoint, setLinearStartPoint] = useState<{ lat: number; lng: number } | null>(null);
   const [isTwoClickDrawMode, setIsTwoClickDrawMode] = useState<boolean>(false);
-  const [showLegacyTools, setShowLegacyTools] = useState<boolean>(false);
+  const [showLegacyTools, setShowLegacyTools] = useState<boolean>(embedded ? true : false);
 
   // Keyboard shortcut listener: Escape cancels active multi-click drawing modes
   useEffect(() => {
@@ -1104,69 +1106,177 @@ export const AppShell: React.FC<AppShellProps> = ({
   );
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-background">
-      {/* TopBar (56px) */}
-      <TopBar
-        locationLabel={locationLabel}
-        selectedPointName={
-          activePlacement
-            ? `${activePlacement.type} (${activePlacement.lat.toFixed(3)}, ${activePlacement.lng.toFixed(3)})`
-            : ""
-        }
-        scenarios={scenarios}
-        currentScenarioId={currentScenarioId}
-        onSelectScenario={(id) => setCurrentScenarioId(id)}
-        onCreateScenario={handleCreateScenario}
-        onRenameScenario={handleRenameScenario}
-        onDeleteScenario={handleDeleteScenario}
-        onAnalyzeClick={handleRunAnalysis}
-        onPdfClick={handleDownloadPdf}
-        onHistoryClick={() => setIsHistoryOpen(true)}
-        onExportMapClick={handleExportMapPng}
-        onExportGeoJsonClick={handleExportGeoJson}
-        onSearchSelectLocation={(lat, lng, label) => {
-          setMapCenter({ lat, lng });
-          setLocationLabel(label);
-          handleMapClick(lat, lng);
-        }}
-        onSignOut={handleSignOut}
-        onCompareClick={() => {
-          setComparisonPlacementIds(undefined);
-          setIsComparisonOpen(true);
-        }}
-        onHeatDashboardClick={() => setIsHeatDashboardOpen(true)}
-        onInterventionsClick={() => setIsInterventionsOpen(true)}
-        onCopilotClick={() => setIsCopilotOpen(true)}
-        onToggleLegacyTools={() => setShowLegacyTools((prev) => !prev)}
-        showLegacyTools={showLegacyTools}
-        onOpenShadowSimulator={() => {
-          if (!activePlacement) {
-            showToast("Site or select an infrastructure placement to simulate shadows", "info");
-            setShowLegacyTools(true);
-            return;
+    <div className={`flex flex-col ${embedded ? "h-full w-full" : "h-screen w-screen"} overflow-hidden bg-slate-950`}>
+      {embedded ? (
+        /* Sleek Siting Sub-Toolbar for Unified Shell */
+        <div className="h-12 bg-slate-900 border-b border-slate-800 px-4 flex items-center justify-between text-xs shrink-0 select-none z-20">
+          {/* Left: Study Area + Scenario */}
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-800/80 border border-slate-700/60 text-slate-200">
+              <MapPin className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="font-semibold text-[11px] font-mono tracking-tight">{locationLabel}</span>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] text-slate-400 uppercase font-mono font-medium">Scenario:</span>
+              <select
+                value={currentScenarioId}
+                onChange={(e) => setCurrentScenarioId(e.target.value)}
+                className="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-emerald-500 font-medium"
+              >
+                {scenarios.map((sc) => (
+                  <option key={sc.id} value={sc.id}>
+                    {sc.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => {
+                  const name = prompt("Enter scenario name:", `Scenario ${scenarios.length + 1}`);
+                  if (name?.trim()) handleCreateScenario(name.trim());
+                }}
+                className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors"
+                title="Create new scenario"
+              >
+                <Plus className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Center: Active placement indicator */}
+          <div className="hidden lg:flex items-center gap-2">
+            {activePlacement ? (
+              <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="font-bold">{activePlacement.type}</span>
+                <span className="font-mono text-[11px] text-slate-400">
+                  ({activePlacement.lat.toFixed(4)}, {activePlacement.lng.toFixed(4)})
+                </span>
+              </div>
+            ) : (
+              <span className="text-slate-400 text-xs italic">
+                Select a tool from the palette and click on the map to position infrastructure
+              </span>
+            )}
+          </div>
+
+          {/* Right: Actions */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleRunAnalysis}
+              disabled={!activePlacement || isAnalyzing}
+              className={`px-3 py-1.5 rounded text-xs font-bold transition-all flex items-center gap-1.5 ${
+                activePlacement
+                  ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm"
+                  : "bg-slate-800 text-slate-500 cursor-not-allowed"
+              }`}
+              title="Run multi-criteria smart-fit and constraint analysis"
+            >
+              {isAnalyzing ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="w-3.5 h-3.5" />
+              )}
+              <span>Smart-Fit Analyze</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleExportGeoJson}
+              className="px-2.5 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-medium flex items-center gap-1.5 transition-colors"
+              title="Export placements as GeoJSON"
+            >
+              <Download className="w-3.5 h-3.5 text-slate-400" />
+              <span className="hidden sm:inline">GeoJSON</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleExportMapPng}
+              className="px-2.5 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-medium flex items-center gap-1.5 transition-colors"
+              title="Export map image as PNG"
+            >
+              <Download className="w-3.5 h-3.5 text-slate-400" />
+              <span className="hidden sm:inline">Map PNG</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsHistoryOpen(true)}
+              className="px-2.5 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-medium flex items-center gap-1.5 transition-colors"
+              title="View analysis history"
+            >
+              <History className="w-3.5 h-3.5 text-slate-400" />
+              <span className="font-mono text-[11px] font-semibold text-emerald-400">{historyItems.length}</span>
+            </button>
+          </div>
+        </div>
+      ) : (
+        /* TopBar (56px) for standalone view */
+        <TopBar
+          locationLabel={locationLabel}
+          selectedPointName={
+            activePlacement
+              ? `${activePlacement.type} (${activePlacement.lat.toFixed(3)}, ${activePlacement.lng.toFixed(3)})`
+              : ""
           }
-          setIsShadowSimulatorOpen(true);
-        }}
-        onOpenSolarReality={() => {
-          if (!activePlacement) {
-            showToast("Site or select an infrastructure placement to evaluate solar reality", "info");
-            setShowLegacyTools(true);
-            return;
-          }
-          setIsSolarRealityOpen(true);
-        }}
-        onOpenReportDrawer={() => {
-          if (!currentReport) {
-            showToast("Run analysis on a placement first to generate an assessment report", "info");
-            return;
-          }
-          setIsReportOpen(true);
-        }}
-        userName={user.name || user.email}
-        historyCount={historyItems.length}
-        isAnalyzing={isAnalyzing}
-        hasActivePlacement={Boolean(activePlacement)}
-      />
+          scenarios={scenarios}
+          currentScenarioId={currentScenarioId}
+          onSelectScenario={(id) => setCurrentScenarioId(id)}
+          onCreateScenario={handleCreateScenario}
+          onRenameScenario={handleRenameScenario}
+          onDeleteScenario={handleDeleteScenario}
+          onAnalyzeClick={handleRunAnalysis}
+          onPdfClick={handleDownloadPdf}
+          onHistoryClick={() => setIsHistoryOpen(true)}
+          onExportMapClick={handleExportMapPng}
+          onExportGeoJsonClick={handleExportGeoJson}
+          onSearchSelectLocation={(lat, lng, label) => {
+            setMapCenter({ lat, lng });
+            setLocationLabel(label);
+            handleMapClick(lat, lng);
+          }}
+          onSignOut={handleSignOut}
+          onCompareClick={() => {
+            setComparisonPlacementIds(undefined);
+            setIsComparisonOpen(true);
+          }}
+          onHeatDashboardClick={() => setIsHeatDashboardOpen(true)}
+          onInterventionsClick={() => setIsInterventionsOpen(true)}
+          onCopilotClick={() => setIsCopilotOpen(true)}
+          onToggleLegacyTools={() => setShowLegacyTools((prev) => !prev)}
+          showLegacyTools={showLegacyTools}
+          onOpenShadowSimulator={() => {
+            if (!activePlacement) {
+              showToast("Site or select an infrastructure placement to simulate shadows", "info");
+              setShowLegacyTools(true);
+              return;
+            }
+            setIsShadowSimulatorOpen(true);
+          }}
+          onOpenSolarReality={() => {
+            if (!activePlacement) {
+              showToast("Site or select an infrastructure placement to evaluate solar reality", "info");
+              setShowLegacyTools(true);
+              return;
+            }
+            setIsSolarRealityOpen(true);
+          }}
+          onOpenReportDrawer={() => {
+            if (!currentReport) {
+              showToast("Run analysis on a placement first to generate an assessment report", "info");
+              return;
+            }
+            setIsReportOpen(true);
+          }}
+          userName={user.name || user.email}
+          historyCount={historyItems.length}
+          isAnalyzing={isAnalyzing}
+          hasActivePlacement={Boolean(activePlacement)}
+        />
+      )}
 
       {/* Main Workspace: Left Sidebar + Center Map + Right Panel */}
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
@@ -1313,7 +1423,7 @@ export const AppShell: React.FC<AppShellProps> = ({
                   setAreaStartCorner(null);
                   setStudyArea(null);
                 }}
-                className="ml-1 text-[10px] text-sky-700 hover:underline font-semibold"
+                className="ml-1 text-[11px] text-sky-700 hover:underline font-semibold"
               >
                 Clear
               </button>

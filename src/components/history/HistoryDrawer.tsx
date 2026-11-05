@@ -136,11 +136,11 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
                       className="p-3 rounded-control bg-white border border-stone-200 flex flex-col gap-2 shadow-2xs"
                     >
                       <div className="flex items-center justify-between gap-1">
-                        <span className="text-[10px] font-mono text-stone-400 uppercase truncate">
+                        <span className="text-[11px] font-mono text-stone-400 uppercase truncate">
                           {cand.scenarioName}
                         </span>
                         {diff > 0 && (
-                          <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                          <span className="text-[11px] font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">
                             +{diff} pts
                           </span>
                         )}
@@ -158,7 +158,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
                           label={cand.scoreBand.replace(" Suitability", "")}
                         />
                       </div>
-                      <div className="text-[10px] font-mono text-stone-500 truncate">
+                      <div className="text-[11px] font-mono text-stone-500 truncate">
                         {cand.lat.toFixed(4)}, {cand.lng.toFixed(4)}
                       </div>
                       <button
@@ -210,7 +210,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
               >
                 <div className="flex items-start justify-between">
                   <div className="flex flex-col">
-                    <span className="text-[10px] font-mono text-stone-400 uppercase tracking-wider">
+                    <span className="text-[11px] font-mono text-stone-400 uppercase tracking-wider">
                       {item.scenarioName}
                     </span>
                     <h4 className="text-sm font-bold text-stone-900 mt-0.5">

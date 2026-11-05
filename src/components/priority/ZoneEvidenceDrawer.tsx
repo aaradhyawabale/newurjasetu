@@ -138,11 +138,11 @@ export const ZoneEvidenceDrawer: React.FC<ZoneEvidenceDrawerProps> = ({
               {zone.id}
             </h2>
             {isSelected ? (
-              <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-500/20 text-amber-300 border border-amber-500/40 font-mono">
+              <span className="px-2 py-0.5 rounded text-[11px] font-bold uppercase bg-amber-500/20 text-amber-300 border border-amber-500/40 font-mono">
                 Selected Rank #{zone.rank}
               </span>
             ) : (
-              <span className="px-2 py-0.5 rounded text-[10px] font-semibold uppercase bg-stone-800 text-stone-400 border border-stone-700 font-mono">
+              <span className="px-2 py-0.5 rounded text-[11px] font-semibold uppercase bg-stone-800 text-stone-400 border border-stone-700 font-mono">
                 Candidate Cell
               </span>
             )}
@@ -217,18 +217,18 @@ export const ZoneEvidenceDrawer: React.FC<ZoneEvidenceDrawerProps> = ({
             {/* LST Card */}
             <div className="p-2.5 rounded bg-stone-950 border border-stone-800 flex flex-col justify-between">
               <div>
-                <div className="flex items-center justify-between text-[10px] text-stone-400">
+                <div className="flex items-center justify-between text-[11px] text-stone-400">
                   <span>Surface Temp (LST)</span>
                   <ProvenanceTag type="Measured" />
                 </div>
                 <div className="text-base font-extrabold font-mono text-emerald-400 mt-0.5">
                   {zone.lst_mean !== null ? `${zone.lst_mean.toFixed(2)} °C` : "Not available"}
                 </div>
-                <div className="text-[10px] text-stone-500 font-mono mt-0.5">
+                <div className="text-[11px] text-stone-500 font-mono mt-0.5">
                   Spread: ±{zone.lst_std !== null ? `${zone.lst_std.toFixed(2)} °C` : "N/A"} ({zone.n_obs ?? "N/A"} obs)
                 </div>
               </div>
-              <div className="mt-2 pt-1.5 border-t border-stone-900 text-[9px] text-stone-400 leading-tight">
+              <div className="mt-2 pt-1.5 border-t border-stone-900 text-[11px] text-stone-400 leading-tight">
                 <span className="font-semibold text-stone-300">Scene:</span> Landsat 9 ST_B10 (Mar 1–May 31, 2022–2026; QA cloud masked)
               </div>
             </div>
@@ -236,18 +236,18 @@ export const ZoneEvidenceDrawer: React.FC<ZoneEvidenceDrawerProps> = ({
             {/* NDVI Card */}
             <div className="p-2.5 rounded bg-stone-950 border border-stone-800 flex flex-col justify-between">
               <div>
-                <div className="flex items-center justify-between text-[10px] text-stone-400">
+                <div className="flex items-center justify-between text-[11px] text-stone-400">
                   <span>Vegetation (NDVI)</span>
                   <ProvenanceTag type="Measured" />
                 </div>
                 <div className="text-base font-extrabold font-mono text-teal-400 mt-0.5">
                   {zone.ndvi !== null ? zone.ndvi.toFixed(3) : "Not available"}
                 </div>
-                <div className="text-[10px] text-stone-500 font-mono mt-0.5">
+                <div className="text-[11px] text-stone-500 font-mono mt-0.5">
                   Greenness reflectance ratio
                 </div>
               </div>
-              <div className="mt-2 pt-1.5 border-t border-stone-900 text-[9px] text-stone-400 leading-tight">
+              <div className="mt-2 pt-1.5 border-t border-stone-900 text-[11px] text-stone-400 leading-tight">
                 <span className="font-semibold text-stone-300">Scene:</span> Sentinel-2 L2A (Mar 1–May 31, 2024 composite; SCL filtered)
               </div>
             </div>
@@ -255,18 +255,18 @@ export const ZoneEvidenceDrawer: React.FC<ZoneEvidenceDrawerProps> = ({
             {/* Built Fraction Card */}
             <div className="p-2.5 rounded bg-stone-950 border border-stone-800 flex flex-col justify-between">
               <div>
-                <div className="flex items-center justify-between text-[10px] text-stone-400">
+                <div className="flex items-center justify-between text-[11px] text-stone-400">
                   <span>Built-up Surface</span>
                   <ProvenanceTag type="Modelled" />
                 </div>
                 <div className="text-base font-extrabold font-mono text-stone-200 mt-0.5">
                   {zone.built_frac !== null ? `${(zone.built_frac * 100).toFixed(1)}%` : "Not available"}
                 </div>
-                <div className="text-[10px] text-stone-500 font-mono mt-0.5">
+                <div className="text-[11px] text-stone-500 font-mono mt-0.5">
                   Structural building footprint density
                 </div>
               </div>
-              <div className="mt-2 pt-1.5 border-t border-stone-900 text-[9px] text-stone-400 leading-tight">
+              <div className="mt-2 pt-1.5 border-t border-stone-900 text-[11px] text-stone-400 leading-tight">
                 <span className="font-semibold text-stone-300">Source:</span> OpenStreetMap Polygonal Building Footprints (2024–2026)
               </div>
             </div>
@@ -274,18 +274,18 @@ export const ZoneEvidenceDrawer: React.FC<ZoneEvidenceDrawerProps> = ({
             {/* Greenable Land Card */}
             <div className="p-2.5 rounded bg-stone-950 border border-stone-800 flex flex-col justify-between">
               <div>
-                <div className="flex items-center justify-between text-[10px] text-stone-400">
+                <div className="flex items-center justify-between text-[11px] text-stone-400">
                   <span>Greenable Land</span>
                   <ProvenanceTag type="Modelled" />
                 </div>
                 <div className="text-base font-extrabold font-mono text-emerald-300 mt-0.5">
                   {zone.greenable_ha !== null ? `${zone.greenable_ha.toFixed(2)} ha` : "Not available"}
                 </div>
-                <div className="text-[10px] text-stone-500 font-mono mt-0.5">
+                <div className="text-[11px] text-stone-500 font-mono mt-0.5">
                   Out of 6.25 ha cell footprint
                 </div>
               </div>
-              <div className="mt-2 pt-1.5 border-t border-stone-900 text-[9px] text-stone-400 leading-tight">
+              <div className="mt-2 pt-1.5 border-t border-stone-900 text-[11px] text-stone-400 leading-tight">
                 <span className="font-semibold text-stone-300">Method:</span> Cell area minus built footprint, roads & water buffers
               </div>
             </div>
@@ -304,33 +304,33 @@ export const ZoneEvidenceDrawer: React.FC<ZoneEvidenceDrawerProps> = ({
 
           {/* Cooling Range Box */}
           <div className="p-3 rounded bg-stone-950 border border-stone-800 space-y-2">
-            <div className="flex items-center justify-between text-[10px] text-stone-400">
+            <div className="flex items-center justify-between text-[11px] text-stone-400">
               <span className="font-semibold text-stone-300">Counterfactual Cooling Effect Range:</span>
               <span className="font-mono text-stone-500">30-member ensemble</span>
             </div>
 
             <div className="grid grid-cols-3 gap-2 text-center font-mono">
               <div className="bg-stone-900 p-2 rounded border border-stone-800">
-                <div className="text-[9px] text-stone-400 uppercase font-semibold">P10 (Conservative)</div>
+                <div className="text-[11px] text-stone-400 uppercase font-semibold">P10 (Conservative)</div>
                 <div className="text-sm font-bold text-amber-400 mt-0.5">
                   {zone.cooling_p10 !== null ? `+${zone.cooling_p10.toFixed(2)} °C` : "Not available"}
                 </div>
               </div>
               <div className="bg-stone-900 p-2 rounded border border-emerald-800/80 bg-emerald-950/20">
-                <div className="text-[9px] text-emerald-400 uppercase font-semibold">Mean (Expected)</div>
+                <div className="text-[11px] text-emerald-400 uppercase font-semibold">Mean (Expected)</div>
                 <div className="text-sm font-bold text-emerald-300 mt-0.5">
                   {zone.cooling_mean !== null ? `+${zone.cooling_mean.toFixed(2)} °C` : "Not available"}
                 </div>
               </div>
               <div className="bg-stone-900 p-2 rounded border border-stone-800">
-                <div className="text-[9px] text-stone-400 uppercase font-semibold">P90 (Optimistic)</div>
+                <div className="text-[11px] text-stone-400 uppercase font-semibold">P90 (Optimistic)</div>
                 <div className="text-sm font-bold text-sky-400 mt-0.5">
                   {zone.cooling_p90 !== null ? `+${zone.cooling_p90.toFixed(2)} °C` : "Not available"}
                 </div>
               </div>
             </div>
 
-            <div className="text-[10px] text-stone-400 flex items-center justify-between pt-1 border-t border-stone-900">
+            <div className="text-[11px] text-stone-400 flex items-center justify-between pt-1 border-t border-stone-900">
               <span>Uncertainty Spread:</span>
               <span className="font-mono text-stone-300">
                 {zone.cooling_p90 !== null && zone.cooling_p10 !== null
@@ -343,27 +343,27 @@ export const ZoneEvidenceDrawer: React.FC<ZoneEvidenceDrawerProps> = ({
           {/* Robustness & People Affected */}
           <div className="grid grid-cols-2 gap-2">
             <div className="p-2.5 rounded bg-stone-950 border border-stone-800 flex flex-col justify-between">
-              <div className="text-[10px] text-stone-400 flex items-center justify-between">
+              <div className="text-[11px] text-stone-400 flex items-center justify-between">
                 <span>Robustness %</span>
                 <ProvenanceTag type="Modelled" />
               </div>
               <div className="text-lg font-extrabold font-mono text-emerald-400 mt-1">
                 {selectionPct !== null ? `${selectionPct}%` : "Not available"}
               </div>
-              <div className="text-[10px] text-stone-400 mt-1">
+              <div className="text-[11px] text-stone-400 mt-1">
                 Selected in {runsCount !== null ? `${runsCount} of 30` : "N/A"} Monte Carlo runs under budget constraint.
               </div>
             </div>
 
             <div className="p-2.5 rounded bg-stone-950 border border-stone-800 flex flex-col justify-between">
-              <div className="text-[10px] text-stone-400 flex items-center justify-between">
+              <div className="text-[11px] text-stone-400 flex items-center justify-between">
                 <span>Benefited Population</span>
                 <ProvenanceTag type="Modelled" />
               </div>
               <div className="text-lg font-extrabold font-mono text-sky-400 mt-1">
                 {zone.population !== null ? zone.population.toLocaleString() : "Not available"}
               </div>
-              <div className="text-[10px] text-stone-400 mt-1">
+              <div className="text-[11px] text-stone-400 mt-1">
                 Copernicus GHS-POP / LandScan 2023–2025 grid count inside cell.
               </div>
             </div>
@@ -381,14 +381,14 @@ export const ZoneEvidenceDrawer: React.FC<ZoneEvidenceDrawerProps> = ({
           </div>
 
           <div className="p-3 rounded bg-stone-950 border border-amber-900/40 space-y-2">
-            <div className="flex items-center justify-between text-[10px] text-stone-400">
+            <div className="flex items-center justify-between text-[11px] text-stone-400">
               <span className="font-semibold text-stone-300">Estimated Relative Output Loss:</span>
               <span className="font-mono text-stone-500">Gandikota Kaggle PV Model</span>
             </div>
 
             <div className="grid grid-cols-3 gap-2 text-center font-mono">
               <div className="bg-stone-900 p-2 rounded border border-stone-800">
-                <div className="text-[9px] text-stone-400 uppercase font-semibold">P10 (Higher Loss)</div>
+                <div className="text-[11px] text-stone-400 uppercase font-semibold">P10 (Higher Loss)</div>
                 <div className="text-sm font-bold text-red-400 mt-0.5">
                   {zone.solar_penalty_p10 !== null && zone.solar_penalty_p10 !== undefined
                     ? `${zone.solar_penalty_p10.toFixed(2)}%`
@@ -396,7 +396,7 @@ export const ZoneEvidenceDrawer: React.FC<ZoneEvidenceDrawerProps> = ({
                 </div>
               </div>
               <div className="bg-stone-900 p-2 rounded border border-amber-800/80 bg-amber-950/20">
-                <div className="text-[9px] text-amber-400 uppercase font-semibold">Mean Expected Loss</div>
+                <div className="text-[11px] text-amber-400 uppercase font-semibold">Mean Expected Loss</div>
                 <div className="text-sm font-bold text-amber-300 mt-0.5">
                   {zone.solar_penalty_mean !== null && zone.solar_penalty_mean !== undefined
                     ? `${zone.solar_penalty_mean.toFixed(2)}%`
@@ -404,7 +404,7 @@ export const ZoneEvidenceDrawer: React.FC<ZoneEvidenceDrawerProps> = ({
                 </div>
               </div>
               <div className="bg-stone-900 p-2 rounded border border-stone-800">
-                <div className="text-[9px] text-stone-400 uppercase font-semibold">P90 (Milder Loss)</div>
+                <div className="text-[11px] text-stone-400 uppercase font-semibold">P90 (Milder Loss)</div>
                 <div className="text-sm font-bold text-yellow-300 mt-0.5">
                   {zone.solar_penalty_p90 !== null && zone.solar_penalty_p90 !== undefined
                     ? `${zone.solar_penalty_p90.toFixed(2)}%`
@@ -413,7 +413,7 @@ export const ZoneEvidenceDrawer: React.FC<ZoneEvidenceDrawerProps> = ({
               </div>
             </div>
 
-            <div className="text-[10px] text-stone-400 flex items-center justify-between pt-1 border-t border-stone-900">
+            <div className="text-[11px] text-stone-400 flex items-center justify-between pt-1 border-t border-stone-900">
               <span>Local Surface Heat Excess:</span>
               <span className="font-mono text-stone-300">
                 {zone.heat_excess_celsius !== null && zone.heat_excess_celsius !== undefined
@@ -422,7 +422,7 @@ export const ZoneEvidenceDrawer: React.FC<ZoneEvidenceDrawerProps> = ({
               </span>
             </div>
 
-            <div className="text-[9px] text-stone-500 leading-tight pt-1">
+            <div className="text-[11px] text-stone-500 leading-tight pt-1">
               <strong>Caveat:</strong> Relative efficiency loss from microclimatic heat. Does NOT present absolute kWh generation for Pune without balance-of-system engineering.
             </div>
           </div>
@@ -475,7 +475,7 @@ export const ZoneEvidenceDrawer: React.FC<ZoneEvidenceDrawerProps> = ({
             <span>4. Scientific Safeguards & Data Governance</span>
           </h3>
 
-          <div className="p-2.5 rounded bg-stone-950/90 border border-stone-800 space-y-1.5 text-[10px] text-stone-400 leading-normal">
+          <div className="p-2.5 rounded bg-stone-950/90 border border-stone-800 space-y-1.5 text-[11px] text-stone-400 leading-normal">
             <div>
               <strong className="text-amber-300">Surface Temp (LST) is NOT 2m Ambient Air Temp:</strong> Satellite LST measures skin temperature during morning overpass (~10:30 AM local). Pedestrian air temperature is modulated by shading, wind, and building geometry.
             </div>
@@ -501,7 +501,7 @@ export const ZoneEvidenceDrawer: React.FC<ZoneEvidenceDrawerProps> = ({
             <div className="flex items-center gap-2">
               <Link
                 href="/method"
-                className="text-[10px] text-sky-400 hover:underline flex items-center gap-1 font-mono"
+                className="text-[11px] text-sky-400 hover:underline flex items-center gap-1 font-mono"
               >
                 <span>Methodology</span>
                 <ExternalLink className="w-2.5 h-2.5" />
@@ -511,7 +511,7 @@ export const ZoneEvidenceDrawer: React.FC<ZoneEvidenceDrawerProps> = ({
                 href="/api/model-card"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[10px] text-emerald-400 hover:underline flex items-center gap-1 font-mono"
+                className="text-[11px] text-emerald-400 hover:underline flex items-center gap-1 font-mono"
               >
                 <span>JSON</span>
                 <ExternalLink className="w-2.5 h-2.5" />
@@ -519,7 +519,7 @@ export const ZoneEvidenceDrawer: React.FC<ZoneEvidenceDrawerProps> = ({
             </div>
           </div>
 
-          <div className="p-2.5 rounded bg-stone-950 border border-stone-800 text-[10px] space-y-1 font-mono">
+          <div className="p-2.5 rounded bg-stone-950 border border-stone-800 text-[11px] space-y-1 font-mono">
             <div className="flex justify-between">
               <span className="text-stone-400">Architecture:</span>
               <span className="text-stone-200">{modelCard?.model_name || "Spatial LightGBM (30 bootstrap runs)"}</span>

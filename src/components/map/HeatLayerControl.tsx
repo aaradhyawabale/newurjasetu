@@ -133,7 +133,7 @@ export const HeatLayerControl: React.FC<HeatLayerControlProps> = ({
               <button
                 type="button"
                 onClick={onOpenDashboard}
-                className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-medium text-[10px] transition-colors"
+                className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-medium text-[11px] transition-colors"
                 title="Open comprehensive Heat Intelligence Dashboard"
               >
                 <Activity className="w-3 h-3" />
@@ -187,7 +187,7 @@ export const HeatLayerControl: React.FC<HeatLayerControlProps> = ({
             {/* LST Legend & Opacity Slider */}
             {showLst && (
               <div className="space-y-1.5 bg-rose-50/40 p-2 rounded-panel border border-rose-100">
-                <div className="flex justify-between items-center text-[10px]">
+                <div className="flex justify-between items-center text-[11px]">
                   <span className="font-semibold text-rose-900 flex items-center gap-1">
                     <Flame className="w-3 h-3 text-rose-600" />
                     <span>Land Surface Temperature (°C)</span>
@@ -200,12 +200,12 @@ export const HeatLayerControl: React.FC<HeatLayerControlProps> = ({
                 {/* Continuous Scientific Colorbar */}
                 <div className="h-2.5 w-full rounded-xs bg-gradient-to-r from-[#2378e1] via-[#f5eb5a] via-[#f58723] via-[#e12323] to-[#870f73] shadow-inner" />
 
-                <div className="flex justify-between text-[9px] font-mono text-stone-600 font-medium">
+                <div className="flex justify-between text-[11px] font-mono text-stone-600 font-medium">
                   <span>25.0°C (Min Display)</span>
                   <span>42.5°C</span>
                   <span>60.0°C (Max Display)</span>
                 </div>
-                <div className="flex items-center gap-1.5 text-[9px] text-stone-500 font-sans leading-tight">
+                <div className="flex items-center gap-1.5 text-[11px] text-stone-500 font-sans leading-tight">
                   <ProvenanceTag type="Assumed" />
                   <span>Display stretch: 25°C to 60°C. Continuous colormap; not a regulatory thermal hazard classification.</span>
                 </div>
@@ -213,7 +213,7 @@ export const HeatLayerControl: React.FC<HeatLayerControlProps> = ({
                 {/* Opacity Slider */}
                 <div className="flex items-center gap-2 pt-0.5">
                   <Sliders className="w-3 h-3 text-stone-400" />
-                  <span className="text-[10px] text-stone-500 font-mono">Opacity</span>
+                  <span className="text-[11px] text-stone-500 font-mono">Opacity</span>
                   <input
                     type="range"
                     min="0.1"
@@ -227,7 +227,7 @@ export const HeatLayerControl: React.FC<HeatLayerControlProps> = ({
                     }}
                     className="flex-1 h-1 bg-stone-200 rounded-lg appearance-none cursor-pointer accent-rose-600"
                   />
-                  <span className="text-[9px] font-mono text-stone-500 w-7 text-right">
+                  <span className="text-[11px] font-mono text-stone-500 w-7 text-right">
                     {Math.round(lstOpacity * 100)}%
                   </span>
                 </div>
@@ -244,7 +244,7 @@ export const HeatLayerControl: React.FC<HeatLayerControlProps> = ({
             {/* NDVI Legend & Opacity Slider */}
             {showNdvi && (
               <div className="space-y-1.5 bg-emerald-50/40 p-2 rounded-panel border border-emerald-100">
-                <div className="flex justify-between items-center text-[10px]">
+                <div className="flex justify-between items-center text-[11px]">
                   <span className="font-semibold text-emerald-900 flex items-center gap-1">
                     <Trees className="w-3 h-3 text-emerald-600" />
                     <span>Vegetation Index (NDVI 30m)</span>
@@ -257,12 +257,12 @@ export const HeatLayerControl: React.FC<HeatLayerControlProps> = ({
                 {/* Continuous Scientific Colorbar */}
                 <div className="h-2.5 w-full rounded-xs bg-gradient-to-r from-[#87735f] via-[#d7c391] via-[#d2e15f] via-[#37a02d] to-[#0f5519] shadow-inner" />
 
-                <div className="flex justify-between text-[9px] font-mono text-stone-600 font-medium">
+                <div className="flex justify-between text-[11px] font-mono text-stone-600 font-medium">
                   <span>-0.20 (Min Display)</span>
                   <span>+0.32</span>
                   <span>+0.85 (Max Display)</span>
                 </div>
-                <div className="flex items-center gap-1.5 text-[9px] text-stone-500 font-sans leading-tight">
+                <div className="flex items-center gap-1.5 text-[11px] text-stone-500 font-sans leading-tight">
                   <ProvenanceTag type="Assumed" />
                   <span>Display stretch: -0.20 to +0.85. Reflectance ratio (NIR-Red)/(NIR+Red); not tree canopy percentage.</span>
                 </div>
@@ -270,7 +270,7 @@ export const HeatLayerControl: React.FC<HeatLayerControlProps> = ({
                 {/* Opacity Slider */}
                 <div className="flex items-center gap-2 pt-0.5">
                   <Sliders className="w-3 h-3 text-stone-400" />
-                  <span className="text-[10px] text-stone-500 font-mono">Opacity</span>
+                  <span className="text-[11px] text-stone-500 font-mono">Opacity</span>
                   <input
                     type="range"
                     min="0.1"
@@ -284,7 +284,7 @@ export const HeatLayerControl: React.FC<HeatLayerControlProps> = ({
                     }}
                     className="flex-1 h-1 bg-stone-200 rounded-lg appearance-none cursor-pointer accent-emerald-600"
                   />
-                  <span className="text-[9px] font-mono text-stone-500 w-7 text-right">
+                  <span className="text-[11px] font-mono text-stone-500 w-7 text-right">
                     {Math.round(ndviOpacity * 100)}%
                   </span>
                 </div>
@@ -303,16 +303,16 @@ export const HeatLayerControl: React.FC<HeatLayerControlProps> = ({
         {/* Real-time Point Inspection Card (when user clicked on the map) */}
         {selectedPoint && (
           <div className="p-2.5 bg-stone-900 text-stone-100 border-t border-stone-800 text-[11px] font-mono space-y-1.5">
-            <div className="flex items-center justify-between text-[10px] text-stone-400">
+            <div className="flex items-center justify-between text-[11px] text-stone-400">
               <span className="flex items-center gap-1 font-semibold text-stone-200">
                 <span>📍 Clicked Point Inspection</span>
               </span>
-              <span className="text-emerald-400 text-[9px] bg-emerald-950/80 px-1.5 py-0.2 rounded border border-emerald-800">
+              <span className="text-emerald-400 text-[11px] bg-emerald-950/80 px-1.5 py-0.2 rounded border border-emerald-800">
                 DETERMINISTIC
               </span>
             </div>
 
-            <div className="text-[10px] text-stone-400 flex items-center justify-between">
+            <div className="text-[11px] text-stone-400 flex items-center justify-between">
               <span>Coordinates:</span>
               <span>
                 {selectedPoint.lat.toFixed(4)}°N, {selectedPoint.lng.toFixed(4)}°E
@@ -320,7 +320,7 @@ export const HeatLayerControl: React.FC<HeatLayerControlProps> = ({
             </div>
 
             {isLoadingPoint ? (
-              <div className="text-[10px] text-stone-400 animate-pulse py-1">
+              <div className="text-[11px] text-stone-400 animate-pulse py-1">
                 Sampling satellite raster grid at clicked coordinates...
               </div>
             ) : pointData?.query ? (
@@ -334,7 +334,7 @@ export const HeatLayerControl: React.FC<HeatLayerControlProps> = ({
                     <span className="text-rose-400 font-bold">
                       {pointData.query.lst.celsius}°C
                       {pointData.query.lst.stQaUncertaintyKelvin && (
-                        <span className="text-[9px] text-stone-400 font-normal ml-1">
+                        <span className="text-[11px] text-stone-400 font-normal ml-1">
                           (±{pointData.query.lst.stQaUncertaintyKelvin} K)
                         </span>
                       )}
@@ -358,7 +358,7 @@ export const HeatLayerControl: React.FC<HeatLayerControlProps> = ({
                   )}
                 </div>
 
-                <div className="flex justify-between items-center text-[10px]">
+                <div className="flex justify-between items-center text-[11px]">
                   <span className="text-stone-400">Surface Class (SCL):</span>
                   <span className="text-stone-200 font-sans">
                     {pointData.query.ndvi.sclClassName || "Not available"}
@@ -366,12 +366,12 @@ export const HeatLayerControl: React.FC<HeatLayerControlProps> = ({
                 </div>
               </div>
             ) : (
-              <div className="text-[10px] text-stone-500 italic py-0.5">
+              <div className="text-[11px] text-stone-500 italic py-0.5">
                 Click map within Pune heat raster grid to sample exact pixel values. Transparency indicates fill/NoData.
               </div>
             )}
 
-            <div className="text-[9px] text-stone-400 pt-1 border-t border-stone-800 leading-tight space-y-0.5">
+            <div className="text-[11px] text-stone-400 pt-1 border-t border-stone-800 leading-tight space-y-0.5">
               <div>⚠️ <strong>Scientific Notice:</strong> Surface temperature (LST) is radiometric skin temperature, NOT 2m ambient air temperature.</div>
               <div>NDVI is a spectral reflectance index, NOT 3D tree canopy cover. No arbitrary weighted composite scores.</div>
             </div>
@@ -384,11 +384,11 @@ export const HeatLayerControl: React.FC<HeatLayerControlProps> = ({
             <div>
               <div className="font-semibold text-stone-900 mb-1 flex items-center justify-between">
                 <span>🛰️ Landsat 9 TIRS-2 (Thermal)</span>
-                <span className="text-[9px] font-mono text-stone-500 bg-stone-200/60 px-1 rounded">
+                <span className="text-[11px] font-mono text-stone-500 bg-stone-200/60 px-1 rounded">
                   USGS C2L2
                 </span>
               </div>
-              <div className="space-y-0.5 text-stone-600 font-mono text-[10px]">
+              <div className="space-y-0.5 text-stone-600 font-mono text-[11px]">
                 <div>Scene: LC09_L2SP_147047_20230422_02_T1</div>
                 <div>Acquisition: 2023-04-22 05:27:39 UTC</div>
                 <div>
@@ -403,11 +403,11 @@ export const HeatLayerControl: React.FC<HeatLayerControlProps> = ({
             <div className="border-t border-stone-200 pt-2">
               <div className="font-semibold text-stone-900 mb-1 flex items-center justify-between">
                 <span>🌿 Sentinel-2B MSI (Optical)</span>
-                <span className="text-[9px] font-mono text-stone-500 bg-stone-200/60 px-1 rounded">
+                <span className="text-[11px] font-mono text-stone-500 bg-stone-200/60 px-1 rounded">
                   Copernicus BOA
                 </span>
               </div>
-              <div className="space-y-0.5 text-stone-600 font-mono text-[10px]">
+              <div className="space-y-0.5 text-stone-600 font-mono text-[11px]">
                 <div>Granule: S2B_MSIL2A_20230424T052649_N0510</div>
                 <div>Acquisition: 2023-04-24 05:26:49 UTC (~48h baseline)</div>
                 <div>Reflectance Scale: (DN - 1000) / 10000 (Baseline N0510)</div>
@@ -417,7 +417,7 @@ export const HeatLayerControl: React.FC<HeatLayerControlProps> = ({
             </div>
 
             <div className="border-t border-stone-200 pt-2">
-              <div className="flex items-start gap-1 text-[10px] text-amber-800 bg-amber-50 p-1.5 rounded-xs border border-amber-200">
+              <div className="flex items-start gap-1 text-[11px] text-amber-800 bg-amber-50 p-1.5 rounded-xs border border-amber-200">
                 <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
                 <span>
                   <strong>Candidate Boundary Notice:</strong> Spatial analysis bounded by PMC candidate boundary derived from Prabhag ward boundaries; non-authoritative.

@@ -122,7 +122,7 @@ export const PlacementPanel: React.FC<PlacementPanelProps> = ({
         {/* Header: Short ID & Title */}
         <div className="flex items-start justify-between border-b border-stone-100 pb-3">
           <div>
-            <span className="text-[10px] font-mono font-semibold uppercase text-stone-400 tracking-wider">
+            <span className="text-[11px] font-mono font-semibold uppercase text-stone-400 tracking-wider">
               {shortId}
             </span>
             <h2 className="text-base font-bold text-stone-900">
@@ -166,7 +166,7 @@ export const PlacementPanel: React.FC<PlacementPanelProps> = ({
               <span className="text-xs font-mono font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
                 {footprintAreaM2.toLocaleString()} m²
               </span>
-              <span className="text-[10px] font-mono text-stone-500">
+              <span className="text-[11px] font-mono text-stone-500">
                 ({(footprintAreaM2 / 10000).toFixed(2)} ha)
               </span>
             </div>
@@ -210,7 +210,7 @@ export const PlacementPanel: React.FC<PlacementPanelProps> = ({
                       const next = Math.max(10, Math.min(2000, placement.lengthM + delta));
                       onChange({ ...placement, lengthM: next });
                     }}
-                    className="px-1.5 py-0.5 text-[10px] font-mono bg-white hover:bg-stone-100 border border-stone-200 rounded text-stone-600 hover:text-stone-900"
+                    className="px-1.5 py-0.5 text-[11px] font-mono bg-white hover:bg-stone-100 border border-stone-200 rounded text-stone-600 hover:text-stone-900"
                     title={`Adjust length by ${delta > 0 ? `+${delta}` : delta}m`}
                   >
                     {delta > 0 ? `+${delta}` : delta}m
@@ -255,7 +255,7 @@ export const PlacementPanel: React.FC<PlacementPanelProps> = ({
                       const next = Math.max(5, Math.min(500, placement.widthM + delta));
                       onChange({ ...placement, widthM: next });
                     }}
-                    className="px-1.5 py-0.5 text-[10px] font-mono bg-white hover:bg-stone-100 border border-stone-200 rounded text-stone-600 hover:text-stone-900"
+                    className="px-1.5 py-0.5 text-[11px] font-mono bg-white hover:bg-stone-100 border border-stone-200 rounded text-stone-600 hover:text-stone-900"
                     title={`Adjust width by ${delta > 0 ? `+${delta}` : delta}m`}
                   >
                     {delta > 0 ? `+${delta}` : delta}m
@@ -286,7 +286,7 @@ export const PlacementPanel: React.FC<PlacementPanelProps> = ({
 
           {/* Quick Presets */}
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-[10px] font-mono uppercase text-stone-400">Presets:</span>
+            <span className="text-[11px] font-mono uppercase text-stone-400">Presets:</span>
             {placement.type === "Bridge" ? (
               <>
                 {[
@@ -299,7 +299,7 @@ export const PlacementPanel: React.FC<PlacementPanelProps> = ({
                     key={preset.label}
                     type="button"
                     onClick={() => onChange({ ...placement, lengthM: preset.len, widthM: preset.wid })}
-                    className="px-2 py-0.5 text-[10px] font-mono rounded bg-stone-100 hover:bg-emerald-50 hover:text-emerald-800 border border-stone-200 text-stone-600"
+                    className="px-2 py-0.5 text-[11px] font-mono rounded bg-stone-100 hover:bg-emerald-50 hover:text-emerald-800 border border-stone-200 text-stone-600"
                   >
                     {preset.len}m
                   </button>
@@ -316,7 +316,7 @@ export const PlacementPanel: React.FC<PlacementPanelProps> = ({
                     key={preset.label}
                     type="button"
                     onClick={() => onChange({ ...placement, lengthM: preset.len, widthM: preset.wid })}
-                    className="px-2 py-0.5 text-[10px] font-mono rounded bg-stone-100 hover:bg-emerald-50 hover:text-emerald-800 border border-stone-200 text-stone-600"
+                    className="px-2 py-0.5 text-[11px] font-mono rounded bg-stone-100 hover:bg-emerald-50 hover:text-emerald-800 border border-stone-200 text-stone-600"
                   >
                     {preset.label} ({preset.len}×{preset.wid}m)
                   </button>
@@ -340,7 +340,7 @@ export const PlacementPanel: React.FC<PlacementPanelProps> = ({
           </div>
 
           {/* Interactive cursor tip */}
-          <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-50/60 rounded border border-emerald-200 text-[10px] text-emerald-800 leading-tight">
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-50/60 rounded border border-emerald-200 text-[11px] text-emerald-800 leading-tight">
             <Move className="w-3 h-3 text-emerald-600 shrink-0" />
             <span>
               Tip: Drag handles on map with cursor: green top/bottom handles stretch length, blue side handles adjust width, and corner squares scale freely with opposite edges anchored.
@@ -351,10 +351,10 @@ export const PlacementPanel: React.FC<PlacementPanelProps> = ({
         {/* Location-Specific Limits Card */}
         <div className="p-3 rounded-panel bg-stone-50 border border-stone-200 flex flex-col gap-1.5">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-mono uppercase tracking-wider font-semibold text-stone-500">
+            <span className="text-[11px] font-mono uppercase tracking-wider font-semibold text-stone-500">
               Location-Specific Limits
             </span>
-            <span className="text-[10px] font-mono text-stone-600 font-medium">
+            <span className="text-[11px] font-mono text-stone-600 font-medium">
               {validationResult?.allowedAreaRange
                 ? `${validationResult.allowedAreaRange.minM2.toLocaleString()} – ${validationResult.allowedAreaRange.maxM2.toLocaleString()} m²`
                 : config
@@ -370,7 +370,7 @@ export const PlacementPanel: React.FC<PlacementPanelProps> = ({
 
           {INFRASTRUCTURE_SEPARATION_RULES[placement.type] && (
             <div className="pt-1.5 mt-0.5 border-t border-stone-200/80 flex flex-col gap-1">
-              <div className="flex items-center justify-between text-[10px] font-mono text-stone-500">
+              <div className="flex items-center justify-between text-[11px] font-mono text-stone-500">
                 <span>Hazard / Rail / Hwy Buffer:</span>
                 <span className="font-semibold text-stone-700">
                   {INFRASTRUCTURE_SEPARATION_RULES[placement.type].minHazardBufferM}m /{" "}
@@ -378,7 +378,7 @@ export const PlacementPanel: React.FC<PlacementPanelProps> = ({
                   {INFRASTRUCTURE_SEPARATION_RULES[placement.type].minMotorwayBufferM}m
                 </span>
               </div>
-              <span className="text-[9px] font-mono text-stone-400 truncate">
+              <span className="text-[11px] font-mono text-stone-400 truncate">
                 Ref: {INFRASTRUCTURE_SEPARATION_RULES[placement.type].standardReference}
               </span>
             </div>
@@ -473,7 +473,7 @@ export const PlacementPanel: React.FC<PlacementPanelProps> = ({
                 <Sun className="w-3.5 h-3.5 text-amber-600" />
                 <span>Shadow-of-the-Future</span>
               </span>
-              <span className="text-[9px] font-mono px-1.5 py-0.2 bg-amber-200 text-amber-800 rounded font-bold">
+              <span className="text-[11px] font-mono px-1.5 py-0.2 bg-amber-200 text-amber-800 rounded font-bold">
                 Shading AI
               </span>
             </div>
@@ -508,7 +508,7 @@ export const PlacementPanel: React.FC<PlacementPanelProps> = ({
                 <Compass className="w-3.5 h-3.5 text-cyan-700" />
                 <span>Bridge Continuity & Approaches</span>
               </span>
-              <span className="text-[9px] font-mono px-1.5 py-0.2 bg-cyan-200 text-cyan-800 rounded font-bold">
+              <span className="text-[11px] font-mono px-1.5 py-0.2 bg-cyan-200 text-cyan-800 rounded font-bold">
                 IRC:5 / SP:73
               </span>
             </div>
@@ -652,12 +652,12 @@ export const PlacementPanel: React.FC<PlacementPanelProps> = ({
           {validationResult && validationResult.roadAccess && (
             <div className="p-3 rounded-panel bg-amber-50/70 border border-amber-200 flex flex-col gap-1.5 mt-1">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-mono uppercase tracking-wider font-semibold text-amber-900 flex items-center gap-1">
+                <span className="text-[11px] font-mono uppercase tracking-wider font-semibold text-amber-900 flex items-center gap-1">
                   <Route className="w-3.5 h-3.5 text-amber-700" />
                   <span>Road Access & Alignment</span>
                 </span>
                 <span
-                  className={`text-[9px] font-mono px-1.5 py-0.5 rounded font-bold ${
+                  className={`text-[11px] font-mono px-1.5 py-0.5 rounded font-bold ${
                     validationResult.roadAccess.requiresNewAccessRoad
                       ? "bg-amber-100 text-amber-800 border border-amber-300"
                       : "bg-emerald-100 text-emerald-800 border border-emerald-300"
@@ -684,7 +684,7 @@ export const PlacementPanel: React.FC<PlacementPanelProps> = ({
                     <span>{validationResult.roadAccess.obstacleDetails || "Crosses obstacle"}</span>
                   </div>
                 )}
-                <div className="text-[10px] text-stone-500 italic mt-1 leading-snug">
+                <div className="text-[11px] text-stone-500 italic mt-1 leading-snug">
                   {validationResult.roadAccess.preliminaryNotice}
                 </div>
               </div>
@@ -695,11 +695,11 @@ export const PlacementPanel: React.FC<PlacementPanelProps> = ({
           {validationResult && validationResult.planningContext && (
             <div className="p-3 rounded-panel bg-sky-50/70 border border-sky-200 flex flex-col gap-1.5 mt-1">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-mono uppercase tracking-wider font-semibold text-sky-900 flex items-center gap-1">
+                <span className="text-[11px] font-mono uppercase tracking-wider font-semibold text-sky-900 flex items-center gap-1">
                   <FileText className="w-3.5 h-3.5 text-sky-700" />
                   <span>Planning Framework</span>
                 </span>
-                <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-sky-100 text-sky-800 border border-sky-300 font-bold">
+                <span className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-sky-100 text-sky-800 border border-sky-300 font-bold">
                   {validationResult.planningContext.zoningStatus}
                 </span>
               </div>
@@ -716,7 +716,7 @@ export const PlacementPanel: React.FC<PlacementPanelProps> = ({
                   <span className="font-semibold">Norms:</span>{" "}
                   {validationResult.planningContext.statutoryRules}
                 </div>
-                <div className="text-[10px] text-stone-500 mt-1 leading-snug">
+                <div className="text-[11px] text-stone-500 mt-1 leading-snug">
                   <span className="font-semibold text-amber-800">Unverified:</span>{" "}
                   {validationResult.planningContext.unverifiedAttributes.slice(0, 2).join("; ")}.
                 </div>

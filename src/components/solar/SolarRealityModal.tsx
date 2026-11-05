@@ -237,7 +237,7 @@ export const SolarRealityModal: React.FC<SolarRealityModalProps> = ({
                 <h2 className="text-base font-bold text-stone-900">
                   Solar Reality — Generation, Weather & Calibration
                 </h2>
-                <span className="px-2 py-0.5 text-[10px] font-mono font-bold uppercase rounded bg-emerald-100 text-emerald-800 border border-emerald-200">
+                <span className="px-2 py-0.5 text-[11px] font-mono font-bold uppercase rounded bg-emerald-100 text-emerald-800 border border-emerald-200">
                   {result?.systemType?.replace(/_/g, " ") ?? "Solar Farm"}
                 </span>
               </div>
@@ -308,7 +308,7 @@ export const SolarRealityModal: React.FC<SolarRealityModalProps> = ({
             {/* Top KPI Summary Banner */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 px-6 py-3.5 bg-stone-50 border-b border-stone-200">
               <div className="p-3 bg-white rounded-lg border border-stone-200 shadow-2xs">
-                <span className="text-[10px] font-semibold text-stone-500 uppercase tracking-wider block">
+                <span className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider block">
                   Annual Generation (P50)
                 </span>
                 <div className="text-xl font-black font-mono text-emerald-700 mt-0.5">
@@ -320,7 +320,7 @@ export const SolarRealityModal: React.FC<SolarRealityModalProps> = ({
               </div>
 
               <div className="p-3 bg-white rounded-lg border border-stone-200 shadow-2xs">
-                <span className="text-[10px] font-semibold text-stone-500 uppercase tracking-wider block">
+                <span className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider block">
                   Specific Yield
                 </span>
                 <div className="text-xl font-black font-mono text-stone-900 mt-0.5">
@@ -333,7 +333,7 @@ export const SolarRealityModal: React.FC<SolarRealityModalProps> = ({
               </div>
 
               <div className="p-3 bg-white rounded-lg border border-stone-200 shadow-2xs">
-                <span className="text-[10px] font-semibold text-stone-500 uppercase tracking-wider block">
+                <span className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider block">
                   Capacity Factor (CUF)
                 </span>
                 <div className="text-xl font-black font-mono text-stone-900 mt-0.5">
@@ -345,7 +345,7 @@ export const SolarRealityModal: React.FC<SolarRealityModalProps> = ({
               </div>
 
               <div className="p-3 bg-white rounded-lg border border-stone-200 shadow-2xs">
-                <span className="text-[10px] font-semibold text-stone-500 uppercase tracking-wider block">
+                <span className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider block">
                   Bankable P90 Yield
                 </span>
                 <div className="text-xl font-black font-mono text-amber-900 mt-0.5">
@@ -399,7 +399,7 @@ export const SolarRealityModal: React.FC<SolarRealityModalProps> = ({
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 text-xs">
                   <div>
-                    <label className="text-[10px] font-semibold text-stone-600 block mb-1">System Archetype</label>
+                    <label className="text-[11px] font-semibold text-stone-600 block mb-1">System Archetype</label>
                     <select
                       value={systemType}
                       onChange={(e) => setSystemType(e.target.value as SolarSystemType)}
@@ -413,7 +413,7 @@ export const SolarRealityModal: React.FC<SolarRealityModalProps> = ({
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-semibold text-stone-600 block mb-1">Capacity (kWp)</label>
+                    <label className="text-[11px] font-semibold text-stone-600 block mb-1">Capacity (kWp)</label>
                     <input
                       type="number"
                       min="1"
@@ -425,7 +425,7 @@ export const SolarRealityModal: React.FC<SolarRealityModalProps> = ({
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-semibold text-stone-600 block mb-1">Tilt Angle (°)</label>
+                    <label className="text-[11px] font-semibold text-stone-600 block mb-1">Tilt Angle (°)</label>
                     <input
                       type="number"
                       min="0"
@@ -437,7 +437,7 @@ export const SolarRealityModal: React.FC<SolarRealityModalProps> = ({
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-semibold text-stone-600 block mb-1">Tariff (₹/kWh)</label>
+                    <label className="text-[11px] font-semibold text-stone-600 block mb-1">Tariff (₹/kWh)</label>
                     <input
                       type="number"
                       step="0.1"
@@ -450,7 +450,7 @@ export const SolarRealityModal: React.FC<SolarRealityModalProps> = ({
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-semibold text-stone-600 block mb-1">Capex (₹/kWp)</label>
+                    <label className="text-[11px] font-semibold text-stone-600 block mb-1">Capex (₹/kWp)</label>
                     <input
                       type="number"
                       step="1000"
@@ -463,7 +463,7 @@ export const SolarRealityModal: React.FC<SolarRealityModalProps> = ({
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-semibold text-stone-600 block mb-1">Soiling Rate (%)</label>
+                    <label className="text-[11px] font-semibold text-stone-600 block mb-1">Soiling Rate (%)</label>
                     <input
                       type="number"
                       step="0.5"
@@ -529,7 +529,7 @@ export const SolarRealityModal: React.FC<SolarRealityModalProps> = ({
                     <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
                     <span>1-Click Solar System Archetypes</span>
                   </span>
-                  <span className="text-[10px] text-stone-500 font-mono">
+                  <span className="text-[11px] text-stone-500 font-mono">
                     Liu-Jordan Transposition & Weather Modeling
                   </span>
                 </div>
@@ -558,7 +558,7 @@ export const SolarRealityModal: React.FC<SolarRealityModalProps> = ({
                           <Icon className={`w-3.5 h-3.5 ${isSelected ? "text-emerald-100" : "text-emerald-600"}`} />
                           <span className="text-xs font-bold leading-tight truncate">{preset.label}</span>
                         </div>
-                        <span className={`text-[10px] leading-tight truncate ${isSelected ? "text-emerald-100" : "text-stone-500"}`}>
+                        <span className={`text-[11px] leading-tight truncate ${isSelected ? "text-emerald-100" : "text-stone-500"}`}>
                           {preset.sub}
                         </span>
                       </button>
@@ -571,7 +571,7 @@ export const SolarRealityModal: React.FC<SolarRealityModalProps> = ({
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {/* Annual Generation */}
                 <div className="p-3.5 rounded-xl border border-stone-200 bg-white shadow-xs space-y-1">
-                  <span className="text-[10px] font-semibold text-stone-500 uppercase tracking-wider block">
+                  <span className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider block">
                     Annual Clean Generation
                   </span>
                   <div className="text-2xl font-black font-mono text-emerald-700">
@@ -584,7 +584,7 @@ export const SolarRealityModal: React.FC<SolarRealityModalProps> = ({
 
                 {/* Annual Revenue */}
                 <div className="p-3.5 rounded-xl border border-stone-200 bg-white shadow-xs space-y-1">
-                  <span className="text-[10px] font-semibold text-stone-500 uppercase tracking-wider block">
+                  <span className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider block">
                     Annual Energy Revenue
                   </span>
                   <div className="text-2xl font-black font-mono text-stone-900">
@@ -599,7 +599,7 @@ export const SolarRealityModal: React.FC<SolarRealityModalProps> = ({
 
                 {/* Simple Payback */}
                 <div className="p-3.5 rounded-xl border border-stone-200 bg-white shadow-xs space-y-1">
-                  <span className="text-[10px] font-semibold text-stone-500 uppercase tracking-wider block">
+                  <span className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider block">
                     Simple Payback Period
                   </span>
                   <div className="text-2xl font-black font-mono text-amber-900">
@@ -613,7 +613,7 @@ export const SolarRealityModal: React.FC<SolarRealityModalProps> = ({
 
                 {/* Capacity Factor & Specific Yield */}
                 <div className="p-3.5 rounded-xl border border-stone-200 bg-white shadow-xs space-y-1">
-                  <span className="text-[10px] font-semibold text-stone-500 uppercase tracking-wider block">
+                  <span className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider block">
                     Capacity Factor (CUF)
                   </span>
                   <div className="text-2xl font-black font-mono text-stone-900">
@@ -634,7 +634,7 @@ export const SolarRealityModal: React.FC<SolarRealityModalProps> = ({
                       12-Month Generation & Climatology Profile (MWh / Month)
                     </span>
                   </div>
-                  <div className="flex items-center gap-3 text-[10px] font-mono text-stone-500">
+                  <div className="flex items-center gap-3 text-[11px] font-mono text-stone-500">
                     <span className="flex items-center gap-1">
                       <span className="w-2 h-2 rounded bg-emerald-600 inline-block" /> Winter/Spring Peak
                     </span>
@@ -656,7 +656,7 @@ export const SolarRealityModal: React.FC<SolarRealityModalProps> = ({
 
                     return (
                       <div key={m.month} className="flex flex-col items-center gap-1 flex-1 min-w-0">
-                        <span className="text-[9px] font-mono font-bold text-stone-700 truncate w-full text-center">
+                        <span className="text-[11px] font-mono font-bold text-stone-700 truncate w-full text-center">
                           {m.productionMwh}
                         </span>
                         <div className="w-full h-24 bg-stone-100 rounded-t flex items-end justify-center p-0.5 relative group">
@@ -671,21 +671,21 @@ export const SolarRealityModal: React.FC<SolarRealityModalProps> = ({
                             }`}
                           />
                           {/* Tooltip on hover */}
-                          <div className="absolute -top-10 opacity-0 group-hover:opacity-100 transition-opacity bg-stone-900 text-white text-[9px] px-2 py-1 rounded shadow-md pointer-events-none whitespace-nowrap z-20 font-mono">
+                          <div className="absolute -top-10 opacity-0 group-hover:opacity-100 transition-opacity bg-stone-900 text-white text-[11px] px-2 py-1 rounded shadow-md pointer-events-none whitespace-nowrap z-20 font-mono">
                             {m.poaKwhM2Day} POA • {m.capacityUtilizationFactorPct}% CUF
                           </div>
                         </div>
-                        <span className="text-[10px] font-bold font-sans text-stone-800 flex items-center justify-center gap-0.5">
+                        <span className="text-[11px] font-bold font-sans text-stone-800 flex items-center justify-center gap-0.5">
                           <span>{m.month}</span>
                           {isMonsoon && <CloudRain className="w-2.5 h-2.5 text-blue-600 shrink-0" />}
                         </span>
-                        <span className="text-[9px] font-mono text-stone-400 truncate">{m.ghiKwhM2Day}</span>
+                        <span className="text-[11px] font-mono text-stone-400 truncate">{m.ghiKwhM2Day}</span>
                       </div>
                     );
                   })}
                 </div>
 
-                <div className="flex flex-wrap items-center justify-between text-[10px] font-mono text-stone-500">
+                <div className="flex flex-wrap items-center justify-between text-[11px] font-mono text-stone-500">
                   <span>Monsoon Dip ({result?.seasonalWeather.monsoonPeriod.months.join(", ")}): <strong>-{result?.seasonalWeather.monsoonPeriod.monsoonDropPercentage}% vs annual mean</strong></span>
                   <span>Tilt Gain Factor: <strong>{(result ? result.annualPoaAverageKwhM2Day / result.annualGhiAverageKwhM2Day : 1.05).toFixed(2)}x POA / GHI</strong></span>
                 </div>
@@ -702,14 +702,14 @@ export const SolarRealityModal: React.FC<SolarRealityModalProps> = ({
                 <div className="w-full h-5 bg-stone-100 rounded-full overflow-hidden flex border border-stone-200">
                   <div
                     style={{ width: `${result ? result.systemPerformanceRatio * 100 : 78}%` }}
-                    className="bg-emerald-600 h-full flex items-center justify-center text-[10px] font-bold text-white transition-all duration-300"
+                    className="bg-emerald-600 h-full flex items-center justify-center text-[11px] font-bold text-white transition-all duration-300"
                     title="Net Useful Delivered Electricity"
                   >
                     {result ? `${(result.systemPerformanceRatio * 100).toFixed(1)}% Useful Energy` : "78.4% Useful Energy"}
                   </div>
                   <div
                     style={{ width: `${100 - (result ? result.systemPerformanceRatio * 100 : 78)}%` }}
-                    className="bg-stone-400 h-full flex items-center justify-center text-[10px] font-bold text-white transition-all duration-300"
+                    className="bg-stone-400 h-full flex items-center justify-center text-[11px] font-bold text-white transition-all duration-300"
                     title="Balance of System Losses"
                   >
                     Losses
@@ -829,7 +829,7 @@ export const SolarRealityModal: React.FC<SolarRealityModalProps> = ({
                         <td className="py-2 px-3 font-bold font-sans text-stone-800 flex items-center gap-1.5">
                           <span>{row.month}</span>
                           {[6, 7].includes(row.monthIndex) && (
-                            <span className="text-[9px] bg-blue-100 text-blue-800 px-1 py-0.2 rounded font-mono">Monsoon</span>
+                            <span className="text-[11px] bg-blue-100 text-blue-800 px-1 py-0.2 rounded font-mono">Monsoon</span>
                           )}
                         </td>
                         <td className="py-2 px-3 text-stone-500">{row.days}</td>
@@ -878,7 +878,7 @@ export const SolarRealityModal: React.FC<SolarRealityModalProps> = ({
                   </p>
                 </div>
                 {result?.shadingIntegration.doubleCountingGuarded && (
-                  <span className="text-[10px] bg-purple-100 text-purple-800 border border-purple-200 font-mono font-bold px-2 py-0.5 rounded">
+                  <span className="text-[11px] bg-purple-100 text-purple-800 border border-purple-200 font-mono font-bold px-2 py-0.5 rounded">
                     Shading Guard: Verified
                   </span>
                 )}
@@ -939,7 +939,7 @@ export const SolarRealityModal: React.FC<SolarRealityModalProps> = ({
                   {/* Calibration Metric Banner */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <div className="p-3 rounded-lg border border-stone-200 bg-stone-50 space-y-0.5">
-                      <span className="text-[10px] font-mono text-stone-500 uppercase block">Model vs Observed Delta</span>
+                      <span className="text-[11px] font-mono text-stone-500 uppercase block">Model vs Observed Delta</span>
                       <div className="text-lg font-black font-mono">
                         {result.calibration.energyDeltaPct >= 0 ? (
                           <span className="text-emerald-700">+{result.calibration.energyDeltaPct}%</span>
@@ -947,33 +947,33 @@ export const SolarRealityModal: React.FC<SolarRealityModalProps> = ({
                           <span className="text-amber-800">{result.calibration.energyDeltaPct}%</span>
                         )}
                       </div>
-                      <span className="text-[10px] text-stone-500">
+                      <span className="text-[11px] text-stone-500">
                         Total Obs: {Math.round(result.calibration.totalObservedKwh / 1000)} MWh
                       </span>
                     </div>
 
                     <div className="p-3 rounded-lg border border-stone-200 bg-stone-50 space-y-0.5">
-                      <span className="text-[10px] font-mono text-stone-500 uppercase block">Mean Bias Error (MBE)</span>
+                      <span className="text-[11px] font-mono text-stone-500 uppercase block">Mean Bias Error (MBE)</span>
                       <div className="text-lg font-black font-mono text-stone-900">
                         {result.calibration.meanBiasErrorKwh.toLocaleString()} kWh
                       </div>
-                      <span className="text-[10px] text-stone-500">Monthly systematic bias</span>
+                      <span className="text-[11px] text-stone-500">Monthly systematic bias</span>
                     </div>
 
                     <div className="p-3 rounded-lg border border-stone-200 bg-stone-50 space-y-0.5">
-                      <span className="text-[10px] font-mono text-stone-500 uppercase block">Mean Abs Error (MAPE)</span>
+                      <span className="text-[11px] font-mono text-stone-500 uppercase block">Mean Abs Error (MAPE)</span>
                       <div className="text-lg font-black font-mono text-stone-900">
                         {result.calibration.meanAbsolutePercentageErrorPct}%
                       </div>
-                      <span className="text-[10px] text-stone-500">Mean relative variation</span>
+                      <span className="text-[11px] text-stone-500">Mean relative variation</span>
                     </div>
 
                     <div className="p-3 rounded-lg border border-stone-200 bg-stone-50 space-y-0.5">
-                      <span className="text-[10px] font-mono text-stone-500 uppercase block">Root Mean Square Error</span>
+                      <span className="text-[11px] font-mono text-stone-500 uppercase block">Root Mean Square Error</span>
                       <div className="text-lg font-black font-mono text-stone-900">
                         {result.calibration.rootMeanSquareErrorKwh.toLocaleString()} kWh
                       </div>
-                      <span className="text-[10px] text-stone-500">RMSE dispersion</span>
+                      <span className="text-[11px] text-stone-500">RMSE dispersion</span>
                     </div>
                   </div>
 
@@ -1052,7 +1052,7 @@ export const SolarRealityModal: React.FC<SolarRealityModalProps> = ({
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="p-4 bg-stone-50 border border-stone-200 rounded-xl space-y-1">
-                  <span className="text-[10px] font-mono font-bold uppercase text-stone-500 block">P90 Bankable Case (1-in-10 Year Low)</span>
+                  <span className="text-[11px] font-mono font-bold uppercase text-stone-500 block">P90 Bankable Case (1-in-10 Year Low)</span>
                   <div className="text-2xl font-black font-mono text-amber-900">
                     {result?.uncertaintyBounds.p90AnnualGenerationMwh.toLocaleString()} MWh
                   </div>
@@ -1062,7 +1062,7 @@ export const SolarRealityModal: React.FC<SolarRealityModalProps> = ({
                 </div>
 
                 <div className="p-4 bg-emerald-50/60 border border-emerald-300 rounded-xl space-y-1">
-                  <span className="text-[10px] font-mono font-bold uppercase text-emerald-800 block">P50 Expected Median (Base Case)</span>
+                  <span className="text-[11px] font-mono font-bold uppercase text-emerald-800 block">P50 Expected Median (Base Case)</span>
                   <div className="text-2xl font-black font-mono text-emerald-800">
                     {result?.uncertaintyBounds.p50AnnualGenerationMwh.toLocaleString()} MWh
                   </div>
@@ -1072,7 +1072,7 @@ export const SolarRealityModal: React.FC<SolarRealityModalProps> = ({
                 </div>
 
                 <div className="p-4 bg-stone-50 border border-stone-200 rounded-xl space-y-1">
-                  <span className="text-[10px] font-mono font-bold uppercase text-stone-500 block">P10 Optimistic Case (High Sun Year)</span>
+                  <span className="text-[11px] font-mono font-bold uppercase text-stone-500 block">P10 Optimistic Case (High Sun Year)</span>
                   <div className="text-2xl font-black font-mono text-stone-900">
                     {result?.uncertaintyBounds.p10AnnualGenerationMwh.toLocaleString()} MWh
                   </div>
@@ -1095,7 +1095,7 @@ export const SolarRealityModal: React.FC<SolarRealityModalProps> = ({
             <div className="space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="p-4 bg-stone-50 border border-stone-200 rounded-xl space-y-1">
-                  <span className="text-[10px] uppercase font-semibold text-stone-500 block">Total Capital Cost</span>
+                  <span className="text-[11px] uppercase font-semibold text-stone-500 block">Total Capital Cost</span>
                   <div className="text-xl font-black font-mono text-stone-900">
                     ₹{(result ? (result.economics.capexTotalInr / 10000000).toFixed(2) : "--")} Cr
                   </div>
@@ -1105,7 +1105,7 @@ export const SolarRealityModal: React.FC<SolarRealityModalProps> = ({
                 </div>
 
                 <div className="p-4 bg-stone-50 border border-stone-200 rounded-xl space-y-1">
-                  <span className="text-[10px] uppercase font-semibold text-stone-500 block">Annual Revenue / Avoidance</span>
+                  <span className="text-[11px] uppercase font-semibold text-stone-500 block">Annual Revenue / Avoidance</span>
                   <div className="text-xl font-black font-mono text-emerald-700">
                     ₹{(result ? (result.economics.annualRevenueInr / 10000000).toFixed(2) : "--")} Cr / yr
                   </div>
@@ -1115,7 +1115,7 @@ export const SolarRealityModal: React.FC<SolarRealityModalProps> = ({
                 </div>
 
                 <div className="p-4 bg-stone-50 border border-stone-200 rounded-xl space-y-1">
-                  <span className="text-[10px] uppercase font-semibold text-stone-500 block">25-Year Net Cash Flow</span>
+                  <span className="text-[11px] uppercase font-semibold text-stone-500 block">25-Year Net Cash Flow</span>
                   <div className="text-xl font-black font-mono text-emerald-800">
                     ₹{(result ? (result.economics.twentyFiveYearNetSavingsInr / 10000000).toFixed(2) : "--")} Cr
                   </div>
@@ -1131,7 +1131,7 @@ export const SolarRealityModal: React.FC<SolarRealityModalProps> = ({
                   <h4 className="text-xs font-bold text-stone-900 uppercase tracking-wider">
                     Sensitivity to Changing Capital Cost & Tariff Assumptions
                   </h4>
-                  <span className="text-[10px] text-stone-500 font-mono">Deterministic Sensitivity Matrix</span>
+                  <span className="text-[11px] text-stone-500 font-mono">Deterministic Sensitivity Matrix</span>
                 </div>
 
                 <div className="border border-stone-200 rounded-lg overflow-hidden shadow-2xs">
@@ -1153,7 +1153,7 @@ export const SolarRealityModal: React.FC<SolarRealityModalProps> = ({
                         >
                           <td className="py-2.5 px-3 font-sans">
                             {item.scenarioName}
-                            {idx === 0 && <span className="ml-1.5 text-[10px] bg-amber-200 text-amber-900 px-1.5 py-0.2 rounded font-mono font-normal">Active</span>}
+                            {idx === 0 && <span className="ml-1.5 text-[11px] bg-amber-200 text-amber-900 px-1.5 py-0.2 rounded font-mono font-normal">Active</span>}
                           </td>
                           <td className="py-2.5 px-3">₹{(item.capexTotalInr / 10000000).toFixed(2)} Cr</td>
                           <td className="py-2.5 px-3">₹{item.tariffInrPerKwh.toFixed(2)}</td>
@@ -1197,7 +1197,7 @@ export const SolarRealityModal: React.FC<SolarRealityModalProps> = ({
                         </td>
                         <td className="py-2 px-3">
                           <span
-                            className={`px-1.5 py-0.2 rounded text-[9px] font-mono font-bold uppercase ${
+                            className={`px-1.5 py-0.2 rounded text-[11px] font-mono font-bold uppercase ${
                               item.state === "required_provided"
                                 ? "bg-emerald-100 text-emerald-800"
                                 : item.state === "optional_provided"
@@ -1229,19 +1229,19 @@ export const SolarRealityModal: React.FC<SolarRealityModalProps> = ({
                 </h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                   <div>
-                    <span className="text-[10px] text-stone-500 font-mono block">Data Source</span>
+                    <span className="text-[11px] text-stone-500 font-mono block">Data Source</span>
                     <span className="font-semibold text-stone-800">{result?.dataProvenance.source}</span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-stone-500 font-mono block">Dataset & Baseline</span>
+                    <span className="text-[11px] text-stone-500 font-mono block">Dataset & Baseline</span>
                     <span className="font-semibold text-stone-800">{result?.dataProvenance.dataset}</span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-stone-500 font-mono block">Temporal Resolution</span>
+                    <span className="text-[11px] text-stone-500 font-mono block">Temporal Resolution</span>
                     <span className="font-semibold text-stone-800">{result?.dataProvenance.temporalResolution}</span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-stone-500 font-mono block">Spatial Grid Resolution</span>
+                    <span className="text-[11px] text-stone-500 font-mono block">Spatial Grid Resolution</span>
                     <span className="font-semibold text-stone-800">{result?.dataProvenance.spatialResolution}</span>
                   </div>
                 </div>

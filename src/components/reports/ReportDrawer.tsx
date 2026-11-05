@@ -192,7 +192,7 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
           >
             <Table className="w-3.5 h-3.5 text-emerald-700" />
             <span>Detailed GIS Audit</span>
-            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-stone-100 text-stone-500">
+            <span className="text-[11px] font-mono px-1.5 py-0.2 rounded bg-stone-100 text-stone-500">
               {criteria.length} criteria
             </span>
           </button>
@@ -244,12 +244,12 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                     <span className="text-2xl font-mono font-extrabold text-stone-900 leading-none">
                       {overall.score}
                     </span>
-                    <span className="text-[10px] font-mono text-stone-500">/ 100</span>
+                    <span className="text-[11px] font-mono text-stone-500">/ 100</span>
                   </div>
                 </div>
 
                 <div className="flex flex-col gap-1">
-                  <span className="text-[10px] font-mono uppercase tracking-wider font-semibold text-stone-500">
+                  <span className="text-[11px] font-mono uppercase tracking-wider font-semibold text-stone-500">
                     Siting Feasibility Verdict
                   </span>
                   <h3 className="text-lg font-bold text-stone-900 leading-tight">
@@ -260,7 +260,7 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                     <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-white/80 border border-stone-200 text-stone-700 font-medium">
                       Data Confidence: <strong>{overall.confidence}%</strong>
                     </span>
-                    <span className="text-[10px] text-stone-500 font-mono">
+                    <span className="text-[11px] text-stone-500 font-mono">
                       (Geometric heuristic screening; not an arbitrary statutory composite score)
                     </span>
                   </div>
@@ -324,7 +324,7 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                     </span>
                   </div>
                   <span
-                    className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold border ${
+                    className={`text-[11px] font-mono px-2 py-0.5 rounded font-bold border ${
                       report.bridgeAppraisal?.dualBankDisconnected
                         ? "bg-red-100 text-red-800 border-red-300"
                         : report.bridgeAppraisal?.networkConnectivityStatus === "incompatible_hierarchy"
@@ -347,7 +347,7 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                 {/* Abutment Dual-Bank Cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <div className="p-2.5 bg-white rounded border border-cyan-200 flex flex-col gap-1 text-xs">
-                    <span className="text-[10px] font-mono uppercase text-cyan-800 font-bold">
+                    <span className="text-[11px] font-mono uppercase text-cyan-800 font-bold">
                       Bank A (Start Abutment)
                     </span>
                     <div className="flex items-center justify-between">
@@ -355,7 +355,7 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                         {report.bridgeAppraisal?.abutmentA.targetRoad?.name || "Ram Nagar Road / Corridor"}
                       </span>
                       <span
-                        className={`font-mono font-bold text-[10px] px-1.5 py-0.2 rounded ${
+                        className={`font-mono font-bold text-[11px] px-1.5 py-0.2 rounded ${
                           report.bridgeAppraisal?.abutmentA.isConnected
                             ? "bg-emerald-50 text-emerald-800"
                             : "bg-amber-50 text-amber-800"
@@ -366,13 +366,13 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                           : `${Math.round(report.bridgeAppraisal?.abutmentA.distanceToRoadM ?? 85)}m gap`}
                       </span>
                     </div>
-                    <span className="text-[10px] text-stone-500">
+                    <span className="text-[11px] text-stone-500">
                       Target Class: {report.bridgeAppraisal?.abutmentA.targetRoad?.highwayClass || "secondary"} (Requires min {report.bridgeAppraisal?.abutmentA.approachRoadRequired.requiredRightOfWayM ?? 15}m RoW)
                     </span>
                   </div>
 
                   <div className="p-2.5 bg-white rounded border border-cyan-200 flex flex-col gap-1 text-xs">
-                    <span className="text-[10px] font-mono uppercase text-cyan-800 font-bold">
+                    <span className="text-[11px] font-mono uppercase text-cyan-800 font-bold">
                       Bank B (End Abutment)
                     </span>
                     <div className="flex items-center justify-between">
@@ -380,7 +380,7 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                         {report.bridgeAppraisal?.abutmentB.targetRoad?.name || "Eastern Bank Collector"}
                       </span>
                       <span
-                        className={`font-mono font-bold text-[10px] px-1.5 py-0.2 rounded ${
+                        className={`font-mono font-bold text-[11px] px-1.5 py-0.2 rounded ${
                           report.bridgeAppraisal?.abutmentB.isConnected
                             ? "bg-emerald-50 text-emerald-800"
                             : "bg-amber-50 text-amber-800"
@@ -391,7 +391,7 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                           : `${Math.round(report.bridgeAppraisal?.abutmentB.distanceToRoadM ?? 110)}m gap`}
                       </span>
                     </div>
-                    <span className="text-[10px] text-stone-500">
+                    <span className="text-[11px] text-stone-500">
                       Target Class: {report.bridgeAppraisal?.abutmentB.targetRoad?.highwayClass || "residential"} (Requires min {report.bridgeAppraisal?.abutmentB.approachRoadRequired.requiredRightOfWayM ?? 15}m RoW)
                     </span>
                   </div>
@@ -429,11 +429,11 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                           </span>
                           <div className="flex items-center gap-1.5">
                             {isPreviewingCandidate && (
-                              <span className="text-[10px] font-mono px-1.5 py-0.2 bg-cyan-600 text-white rounded font-medium animate-pulse">
+                              <span className="text-[11px] font-mono px-1.5 py-0.2 bg-cyan-600 text-white rounded font-medium animate-pulse">
                                 Previewing on Map
                               </span>
                             )}
-                            <span className="text-[10px] font-mono px-1.5 py-0.2 bg-cyan-100 text-cyan-800 rounded font-semibold">
+                            <span className="text-[11px] font-mono px-1.5 py-0.2 bg-cyan-100 text-cyan-800 rounded font-semibold">
                               Recommended
                             </span>
                           </div>
@@ -446,7 +446,7 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
 
                         {/* Candidate metric summary */}
                         {candidate && (
-                          <div className="flex items-center flex-wrap gap-2 text-[10px] font-mono text-cyan-900 bg-cyan-50/80 px-2 py-1 rounded border border-cyan-200">
+                          <div className="flex items-center flex-wrap gap-2 text-[11px] font-mono text-cyan-900 bg-cyan-50/80 px-2 py-1 rounded border border-cyan-200">
                             <span>Span: <strong>{Math.round(candidate.spanM)}m</strong></span>
                             <span>•</span>
                             <span>Offset: <strong>~{Math.round(candidate.distanceFromCurrentM)}m {candidate.direction}</strong></span>
@@ -522,7 +522,7 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                             <span>Option 2: Construct Dual-Bank Approach Road Corridors</span>
                           </span>
                           {isBridgeApproachHighlighted && (
-                            <span className="text-[10px] font-mono px-1.5 py-0.2 bg-amber-600 text-white rounded font-medium animate-pulse">
+                            <span className="text-[11px] font-mono px-1.5 py-0.2 bg-amber-600 text-white rounded font-medium animate-pulse">
                               Corridors Active on Map
                             </span>
                           )}
@@ -537,7 +537,7 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                             )}m) with ${approachRoads?.requiredRightOfWayM ?? 24}m Right-of-Way matching IRC width norms.`}
                         </p>
 
-                        <div className="flex items-center gap-3 text-[10px] font-mono text-stone-500 pt-0.5">
+                        <div className="flex items-center gap-3 text-[11px] font-mono text-stone-500 pt-0.5">
                           <span>Total Approach Length: <strong>{approachRoads?.totalApproachLengthM ?? 29}m</strong></span>
                           <span>•</span>
                           <span>Right-of-Way: <strong>{approachRoads?.requiredRightOfWayM ?? 24}m</strong></span>
@@ -582,7 +582,7 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                       Satellite Thermal & Microclimate Appraisal
                     </span>
                   </div>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded font-bold border bg-rose-100 text-rose-900 border-rose-300">
+                  <span className="text-[11px] font-mono px-2 py-0.5 rounded font-bold border bg-rose-100 text-rose-900 border-rose-300">
                     Landsat 9 + Sentinel-2
                   </span>
                 </div>
@@ -600,7 +600,7 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                         : "Not available"}
                     </span>
                     {report.heatIntelligence.siteObservations.stQaUncertaintyK && (
-                      <span className="text-[9px] text-stone-500">
+                      <span className="text-[11px] text-stone-500">
                         Uncertainty: ±{report.heatIntelligence.siteObservations.stQaUncertaintyK} K
                       </span>
                     )}
@@ -616,7 +616,7 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                         ? report.heatIntelligence.siteObservations.ndvi30m
                         : "Not available"}
                     </span>
-                    <span className="text-[9px] text-stone-500">
+                    <span className="text-[11px] text-stone-500">
                       30m area-weighted
                     </span>
                   </div>
@@ -629,7 +629,7 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                     <span className="text-sm font-bold text-stone-800">
                       {report.heatIntelligence.citywideBaselines.meanLSTCelsius !== null ? `${report.heatIntelligence.citywideBaselines.meanLSTCelsius}°C Mean` : "Not available"}
                     </span>
-                    <span className="text-[9px] text-stone-500 flex items-center justify-between">
+                    <span className="text-[11px] text-stone-500 flex items-center justify-between">
                       <span>
                         Δ {report.heatIntelligence.citywideBaselines.thermalDeltaCelsius !== null
                           ? (report.heatIntelligence.citywideBaselines.thermalDeltaCelsius > 0
@@ -651,7 +651,7 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                     <span className="text-xs font-bold text-stone-800 truncate" title={report.heatIntelligence.siteObservations.sclClassName}>
                       {report.heatIntelligence.siteObservations.sclClassName || "Not available"}
                     </span>
-                    <span className="text-[9px] text-stone-500">
+                    <span className="text-[11px] text-stone-500">
                       Sentinel-2 L2A
                     </span>
                   </div>
@@ -702,7 +702,7 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                         {report.heatIntelligence.disciplineInsights.evidenceLedger.map((item, idx) => (
                           <div key={idx} className="p-1.5 rounded bg-stone-50 border border-stone-200 flex flex-col gap-0.5">
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-                              <span className="font-medium text-stone-800 text-[10px]">{item.claim}</span>
+                              <span className="font-medium text-stone-800 text-[11px]">{item.claim}</span>
                               <span className={`text-[8.5px] font-mono font-bold px-1.5 py-0.2 rounded border shrink-0 ${
                                 item.category === 'VERIFIED_TECHNICAL_REFERENCE'
                                   ? 'bg-indigo-50 text-indigo-800 border-indigo-200'
@@ -718,7 +718,7 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                               </span>
                             </div>
                             {item.sourceOrStandard && (
-                              <span className="text-[9px] text-stone-500 font-mono">
+                              <span className="text-[11px] text-stone-500 font-mono">
                                 Standard: {item.sourceOrStandard}
                               </span>
                             )}
@@ -747,7 +747,7 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                   <Activity className="w-4 h-4 text-emerald-700" />
                   <span>Town Planning Pillars Breakdown</span>
                 </span>
-                <span className="text-[10px] font-mono text-stone-400">
+                <span className="text-[11px] font-mono text-stone-400">
                   Performance across 4 core master-planning criteria groups
                 </span>
               </div>
@@ -763,7 +763,7 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                         {pillar.name}
                       </span>
                       <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] font-mono text-stone-500 font-medium">
+                        <span className="text-[11px] font-mono text-stone-500 font-medium">
                           Wt: {pillar.weight}%
                         </span>
                         <span
@@ -792,7 +792,7 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                       />
                     </div>
 
-                    <div className="text-[10px] text-stone-500 font-mono flex items-center justify-between">
+                    <div className="text-[11px] text-stone-500 font-mono flex items-center justify-between">
                       <span>{pillar.criteria.length} evaluation metric(s)</span>
                       <span>
                         {pillar.avgScore >= 80 ? "Optimal" : pillar.avgScore >= 50 ? "Acceptable" : "Constrained"}
@@ -806,39 +806,39 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
             {/* At-a-Glance Key Indicators (KPI Grid) */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
               <div className="p-3 bg-white rounded-control border border-stone-200 shadow-2xs flex flex-col gap-1">
-                <span className="text-[10px] font-mono uppercase text-stone-500 font-semibold">
+                <span className="text-[11px] font-mono uppercase text-stone-500 font-semibold">
                   Footprint Sizing
                 </span>
                 <span className="text-sm font-mono font-bold text-stone-900">
                   {placementSnapshot.lengthM}m × {placementSnapshot.widthM}m
                 </span>
-                <span className="text-[10px] text-stone-400">
+                <span className="text-[11px] text-stone-400">
                   {placementSnapshot.areaM2.toLocaleString()} m² surface
                 </span>
               </div>
 
               <div className="p-3 bg-white rounded-control border border-stone-200 shadow-2xs flex flex-col gap-1">
-                <span className="text-[10px] font-mono uppercase text-stone-500 font-semibold">
+                <span className="text-[11px] font-mono uppercase text-stone-500 font-semibold">
                   Arterial Access
                 </span>
                 <span className="text-sm font-mono font-bold text-stone-900">
                   {criteria.find((c) => c.id.includes("road") || c.id.includes("access"))?.value || "30 m"}
                 </span>
-                <span className="text-[10px] text-stone-400">Direct street access</span>
+                <span className="text-[11px] text-stone-400">Direct street access</span>
               </div>
 
               <div className="p-3 bg-white rounded-control border border-stone-200 shadow-2xs flex flex-col gap-1">
-                <span className="text-[10px] font-mono uppercase text-stone-500 font-semibold">
+                <span className="text-[11px] font-mono uppercase text-stone-500 font-semibold">
                   Terrain Slope
                 </span>
                 <span className="text-sm font-mono font-bold text-stone-900">
                   {criteria.find((c) => c.id.includes("slope") || c.id.includes("terrain"))?.value || "1.2% slope"}
                 </span>
-                <span className="text-[10px] text-stone-400">Topographic grading</span>
+                <span className="text-[11px] text-stone-400">Topographic grading</span>
               </div>
 
               <div className="p-3 bg-white rounded-control border border-stone-200 shadow-2xs flex flex-col gap-1">
-                <span className="text-[10px] font-mono uppercase text-stone-500 font-semibold">
+                <span className="text-[11px] font-mono uppercase text-stone-500 font-semibold">
                   Spatial Verification
                 </span>
                 <span
@@ -852,7 +852,7 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                 >
                   {report.validation.status === "pass" ? "Passed" : report.validation.status === "warn" ? "Warning" : "Conflict"}
                 </span>
-                <span className="text-[10px] text-stone-400">
+                <span className="text-[11px] text-stone-400">
                   {report.validation.conflicts.length} conflict(s) detected
                 </span>
               </div>
@@ -948,7 +948,7 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                 <h4 className="text-xs font-mono uppercase tracking-wider font-semibold text-stone-500">
                   Criteria Scorecard
                 </h4>
-                <span className="text-[10px] font-mono text-stone-400">
+                <span className="text-[11px] font-mono text-stone-400">
                   Weighted Piecewise Evaluation ({criteria.length} criteria)
                 </span>
               </div>
@@ -956,7 +956,7 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
               <div className="overflow-x-auto rounded-panel border border-stone-200">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="bg-stone-100/75 border-b border-stone-200 text-stone-600 font-mono text-[10px] uppercase">
+                    <tr className="bg-stone-100/75 border-b border-stone-200 text-stone-600 font-mono text-[11px] uppercase">
                       <th className="py-2.5 px-3 font-semibold">Criterion</th>
                       <th className="py-2.5 px-3 font-semibold">Value</th>
                       <th className="py-2.5 px-3 font-semibold w-28">Score</th>
@@ -983,16 +983,16 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                                 {c.status === "unknown" && <StatusBadge status="unknown" />}
                                 {c.uncertaintyClassification &&
                                   c.uncertaintyClassification !== "evidence_supported" && (
-                                    <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-stone-100 text-stone-600 border border-stone-200 uppercase">
+                                    <span className="text-[11px] font-mono px-1.5 py-0.2 rounded bg-stone-100 text-stone-600 border border-stone-200 uppercase">
                                       {c.uncertaintyClassification.replace("_", " ")}
                                     </span>
                                   )}
                               </div>
-                              <div className="text-[10px] text-stone-500 font-normal max-w-xs truncate">
+                              <div className="text-[11px] text-stone-500 font-normal max-w-xs truncate">
                                 {c.description}
                               </div>
                               {c.missingReason && (
-                                <div className="text-[10px] text-amber-800 bg-amber-50/80 border border-amber-200/70 rounded px-1.5 py-0.5 mt-1 max-w-xs leading-tight">
+                                <div className="text-[11px] text-amber-800 bg-amber-50/80 border border-amber-200/70 rounded px-1.5 py-0.5 mt-1 max-w-xs leading-tight">
                                   {c.missingReason}
                                 </div>
                               )}
@@ -1006,7 +1006,7 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                             <td className="py-2.5 px-3 font-mono text-stone-500 whitespace-nowrap">
                               <div>{Math.round(c.weight * 100)}%</div>
                               {c.weightedContribution !== undefined && (
-                                <div className="text-[9px] text-stone-400">+{c.weightedContribution} pts</div>
+                                <div className="text-[11px] text-stone-400">+{c.weightedContribution} pts</div>
                               )}
                             </td>
                             <td className="py-2.5 px-3 text-[11px] text-stone-500 max-w-xs leading-tight">
@@ -1041,7 +1041,7 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                               <td colSpan={7} className="p-3.5 text-xs text-stone-700">
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                                   <div className="flex flex-col gap-1">
-                                    <span className="font-mono text-[10px] uppercase font-bold text-stone-500">
+                                    <span className="font-mono text-[11px] uppercase font-bold text-stone-500">
                                       Calculation Method
                                     </span>
                                     <p className="text-[11px] text-stone-800 leading-relaxed">
@@ -1050,7 +1050,7 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                                   </div>
 
                                   <div className="flex flex-col gap-1">
-                                    <span className="font-mono text-[10px] uppercase font-bold text-stone-500">
+                                    <span className="font-mono text-[11px] uppercase font-bold text-stone-500">
                                       Data Source & Classification
                                     </span>
                                     <div className="flex flex-col gap-0.5 text-[11px]">
@@ -1067,7 +1067,7 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                                   </div>
 
                                   <div className="flex flex-col gap-1">
-                                    <span className="font-mono text-[10px] uppercase font-bold text-stone-500">
+                                    <span className="font-mono text-[11px] uppercase font-bold text-stone-500">
                                       Metric Limitations
                                     </span>
                                     <p className="text-[11px] text-stone-600 leading-relaxed italic">
@@ -1127,7 +1127,7 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                     </span>
                   </div>
                   <span
-                    className={`text-[10px] font-mono px-2 py-0.5 rounded font-semibold border ${
+                    className={`text-[11px] font-mono px-2 py-0.5 rounded font-semibold border ${
                       report.sensitivity.rankStability === "stable"
                         ? "bg-emerald-50 text-emerald-800 border-emerald-200"
                         : report.sensitivity.rankStability === "sensitive"
@@ -1163,7 +1163,7 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                           </span>
                           {prof.scoreDeltaFromBaseline !== 0 && (
                             <span
-                              className={`text-[10px] font-mono font-bold px-1.5 py-0.2 rounded ${
+                              className={`text-[11px] font-mono font-bold px-1.5 py-0.2 rounded ${
                                 prof.scoreDeltaFromBaseline > 0
                                   ? "bg-emerald-100 text-emerald-800"
                                   : "bg-stone-100 text-stone-700"
@@ -1175,7 +1175,7 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                             </span>
                           )}
                         </div>
-                        <p className="text-[10px] text-stone-500 leading-tight line-clamp-2 mt-0.5">
+                        <p className="text-[11px] text-stone-500 leading-tight line-clamp-2 mt-0.5">
                           {prof.rationale}
                         </p>
                       </div>
@@ -1183,9 +1183,9 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                       <div className="flex items-baseline justify-between border-t border-stone-100 pt-1.5">
                         <span className="text-base font-mono font-bold text-stone-900">
                           {prof.score}
-                          <span className="text-[10px] text-stone-400 font-normal">/100</span>
+                          <span className="text-[11px] text-stone-400 font-normal">/100</span>
                         </span>
-                        <span className="text-[10px] font-mono font-medium text-stone-600">
+                        <span className="text-[11px] font-mono font-medium text-stone-600">
                           {prof.band.replace(" Suitability", "")}
                         </span>
                       </div>
@@ -1208,7 +1208,7 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                       <span
                         key={idx}
                         title={ds.license ? `License: ${ds.license}` : undefined}
-                        className={`px-2 py-0.5 rounded text-[10px] font-mono border flex items-center gap-1 ${
+                        className={`px-2 py-0.5 rounded text-[11px] font-mono border flex items-center gap-1 ${
                           ds.status === "ok"
                             ? "bg-emerald-50/70 border-emerald-200 text-emerald-800"
                             : ds.status === "empty" || ds.status === "stale"
@@ -1227,7 +1227,7 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                         />
                         <span>{ds.provider}</span>
                         {ds.status === "stale" && (
-                          <span className="uppercase font-bold text-[9px]">(STALE)</span>
+                          <span className="uppercase font-bold text-[11px]">(STALE)</span>
                         )}
                         {ds.featureCount !== undefined && (
                           <span className="opacity-75">({ds.featureCount})</span>
@@ -1248,12 +1248,12 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                     <div className="flex flex-col gap-0.5">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-mono font-bold text-stone-900">{ev.id}</span>
-                        <span className="px-1.5 py-0.2 rounded text-[10px] font-mono bg-stone-100 text-stone-600">
+                        <span className="px-1.5 py-0.2 rounded text-[11px] font-mono bg-stone-100 text-stone-600">
                           {ev.provider}
                         </span>
                         {ev.qualityStatus && (
                           <span
-                            className={`px-1.5 py-0.2 rounded text-[9px] font-mono uppercase ${
+                            className={`px-1.5 py-0.2 rounded text-[11px] font-mono uppercase ${
                               ev.qualityStatus === "verified"
                                 ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                                 : ev.qualityStatus === "sparse" || ev.qualityStatus === "stale"
@@ -1265,14 +1265,14 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                           </span>
                         )}
                         {ev.license && (
-                          <span className="text-[9px] font-mono text-stone-400">
+                          <span className="text-[11px] font-mono text-stone-400">
                             {ev.license}
                           </span>
                         )}
                       </div>
                       <p className="text-stone-600 text-[11px] mt-0.5">{ev.summary}</p>
                     </div>
-                    <div className="text-[10px] font-mono text-stone-400 shrink-0 text-right">
+                    <div className="text-[11px] font-mono text-stone-400 shrink-0 text-right">
                       {new Date(ev.retrievedAt).toLocaleTimeString()}
                     </div>
                   </div>

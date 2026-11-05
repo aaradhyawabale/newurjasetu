@@ -134,36 +134,59 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
     }
   }, [isOpen]);
 
-  const quickPrompts = [
-    {
-      label: "Align to Road & Clear Overlap",
-      prompt: "Align this infrastructure to the road corridor and retract from any road overlaps.",
-    },
-    {
-      label: "Move 30m North",
-      prompt: "Move the infrastructure 30m north.",
-    },
-    {
-      label: "Rotate 90°",
-      prompt: "Rotate the infrastructure 90 degrees.",
-    },
-    {
-      label: "Check Road Collision",
-      prompt: "Is this proposed building overlapping an existing road or road right-of-way?",
-    },
-    {
-      label: "Road Access Analysis",
-      prompt: "Does this site have direct road access, and what preliminary access road is required?",
-    },
-    {
-      label: "Official DP & UDCPR Rules",
-      prompt: "Which official planning documents and Maharashtra UDCPR 2020 rules apply to this facility?",
-    },
-    {
-      label: "Simple Citizen Explanation",
-      prompt: "Explain whether this site is suitable or has problems in simple plain language for a citizen.",
-    },
-  ];
+  const quickPrompts = activePlacement
+    ? [
+        {
+          label: "Align to Road & Clear Overlap",
+          prompt: "Align this infrastructure to the road corridor and retract from any road overlaps.",
+        },
+        {
+          label: "Move 30m North",
+          prompt: "Move the infrastructure 30m north.",
+        },
+        {
+          label: "Rotate 90°",
+          prompt: "Rotate the infrastructure 90 degrees.",
+        },
+        {
+          label: "Check Road Collision",
+          prompt: "Is this proposed building overlapping an existing road or road right-of-way?",
+        },
+        {
+          label: "Road Access Analysis",
+          prompt: "Does this site have direct road access, and what preliminary access road is required?",
+        },
+        {
+          label: "Official DP & UDCPR Rules",
+          prompt: "Which official planning documents and Maharashtra UDCPR 2020 rules apply to this facility?",
+        },
+        {
+          label: "Simple Citizen Explanation",
+          prompt: "Explain whether this site is suitable or has problems in simple plain language for a citizen.",
+        },
+      ]
+    : [
+        {
+          label: "Pune Heat Priority",
+          prompt: "Which Pune wards face the highest heat burden and need immediate greening intervention?",
+        },
+        {
+          label: "Green Canopy Loss (2019–2026)",
+          prompt: "Summarize the top wards experiencing severe vegetation loss between 2019 and 2026.",
+        },
+        {
+          label: "LST vs Air Temp Caveat",
+          prompt: "Explain the scientific difference between Landsat 9 Land Surface Temperature and ambient 2m air temperature for municipal reports.",
+        },
+        {
+          label: "Canopy Target Strategy",
+          prompt: "What target canopy NDVI should we set for urban cooling in dense core areas vs peri-urban sectors?",
+        },
+        {
+          label: "How to Site EV / Civic Assets",
+          prompt: "Guide me on how to site an EV charging station or civic facility in Pune using the Siting Studio.",
+        },
+      ];
 
   const handleSaveKey = async () => {
     const key = apiKeyInput.trim();
@@ -382,18 +405,18 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
         {/* Top Active Grounding Pill Strip */}
         <div className="p-3 bg-stone-50 rounded-panel border border-stone-200 flex flex-col gap-2 shrink-0 mb-3 shadow-2xs">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-mono uppercase tracking-wider font-semibold text-stone-500 flex items-center gap-1.5">
+            <span className="text-[11px] font-mono uppercase tracking-wider font-semibold text-stone-500 flex items-center gap-1.5">
               <Sparkles className="w-3 h-3 text-purple-600" />
               Active Geospatial Grounding
             </span>
             <div className="flex items-center gap-2">
               {isConfigured ? (
-                <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-purple-50 text-purple-700 border border-purple-200 flex items-center gap-1">
+                <span className="px-1.5 py-0.5 rounded text-[11px] font-mono bg-purple-50 text-purple-700 border border-purple-200 flex items-center gap-1">
                   <Sparkles className="w-2.5 h-2.5 text-purple-600" />
                   {configuredModel}
                 </span>
               ) : (
-                <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1">
+                <span className="px-1.5 py-0.5 rounded text-[11px] font-mono bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1">
                   <Info className="w-2.5 h-2.5 text-amber-600" />
                   Local GIS Rules Engine
                 </span>
@@ -402,7 +425,7 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
                 type="button"
                 onClick={checkConnection}
                 disabled={isCheckingConnection}
-                className="px-2 py-0.5 rounded text-[10px] font-mono bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-300 flex items-center gap-1 transition-colors"
+                className="px-2 py-0.5 rounded text-[11px] font-mono bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-300 flex items-center gap-1 transition-colors"
                 title="Verify live DNS, HTTPS, and Gemini generation connectivity"
               >
                 {isCheckingConnection ? (
@@ -414,7 +437,7 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
               </button>
               {connectionStatus && (
                 <span
-                  className={`px-1.5 py-0.5 rounded text-[9px] font-mono border font-semibold ${
+                  className={`px-1.5 py-0.5 rounded text-[11px] font-mono border font-semibold ${
                     connectionStatus === "CONNECTED"
                       ? "bg-emerald-50 text-emerald-800 border-emerald-300"
                       : "bg-amber-50 text-amber-900 border-amber-300"
@@ -426,7 +449,7 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
               <button
                 type="button"
                 onClick={() => setShowKeyConfig(!showKeyConfig)}
-                className="text-[10px] font-medium text-purple-700 hover:text-purple-900 underline flex items-center gap-0.5 ml-1"
+                className="text-[11px] font-medium text-purple-700 hover:text-purple-900 underline flex items-center gap-0.5 ml-1"
               >
                 <Key className="w-2.5 h-2.5" />
                 <span>{isConfigured ? "Config" : "Add Key"}</span>
@@ -441,14 +464,14 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
 
           {/* Diagnostic Details Banner when available */}
           {diagnosticResult && (
-            <div className="p-2 bg-stone-100/90 rounded border border-stone-300 text-[10px] font-mono flex flex-col gap-1">
+            <div className="p-2 bg-stone-100/90 rounded border border-stone-300 text-[11px] font-mono flex flex-col gap-1">
               <div className="flex items-center justify-between text-stone-700 font-bold">
                 <span>Gemini API Runtime Diagnostic:</span>
                 <span className={diagnosticResult.status === "CONNECTED" ? "text-emerald-700" : "text-amber-700"}>
                   {diagnosticResult.status}
                 </span>
               </div>
-              <div className="text-stone-600 text-[9px] space-y-0.5">
+              <div className="text-stone-600 text-[11px] space-y-0.5">
                 <div>• DNS: {diagnosticResult.dns?.resolved ? "Resolved (Google Cloud Anycast)" : "Failed"}</div>
                 <div>• HTTPS (Port 443): {diagnosticResult.https?.reachable ? `Reachable (HTTP ${diagnosticResult.https.statusCode})` : "Blocked / Unreachable"}</div>
                 <div>• Key Auth: {diagnosticResult.auth?.valid ? "Authorized" : diagnosticResult.auth?.error || "Pending"}</div>
@@ -472,7 +495,7 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
                   href="https://aistudio.google.com/app/apikey"
                   target="_blank"
                   rel="noreferrer"
-                  className="text-[10px] text-purple-700 hover:underline flex items-center gap-0.5"
+                  className="text-[11px] text-purple-700 hover:underline flex items-center gap-0.5"
                 >
                   <span>Get Free Key (Google AI Studio)</span>
                   <ArrowRight className="w-2.5 h-2.5" />
@@ -518,28 +541,28 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
           )}
 
           <div className="flex flex-wrap gap-1.5">
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] bg-white border border-stone-200 text-stone-700">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] bg-white border border-stone-200 text-stone-700">
               <MapPin className="w-2.5 h-2.5 text-stone-500" />
               {city}
             </span>
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] bg-white border border-stone-200 text-stone-700">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] bg-white border border-stone-200 text-stone-700">
               <Layers className="w-2.5 h-2.5 text-stone-500" />
               {infraType}
               {context.placement && ` (${Math.round(context.placement.areaM2)} m²)`}
             </span>
             {roadCollision ? (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] bg-red-50 border border-red-200 text-red-700 font-medium">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] bg-red-50 border border-red-200 text-red-700 font-medium">
                 <AlertTriangle className="w-2.5 h-2.5 text-red-600" />
                 Road Overlap Detected
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] bg-emerald-50 border border-emerald-200 text-emerald-700 font-medium">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] bg-emerald-50 border border-emerald-200 text-emerald-700 font-medium">
                 <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
                 No Road Overlap
               </span>
             )}
             {roadAccess && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] bg-stone-100 border border-stone-200 text-stone-700">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] bg-stone-100 border border-stone-200 text-stone-700">
                 <Route className="w-2.5 h-2.5 text-amber-600" />
                 {roadAccess.requiresNewAccessRoad
                   ? `Preliminary Access (${Math.round(roadAccess.distanceM || 0)}m)`
@@ -547,7 +570,7 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
               </span>
             )}
             {officialContext && officialContext.masterPlan && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] bg-blue-50 border border-blue-200 text-blue-700">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] bg-blue-50 border border-blue-200 text-blue-700">
                 <BookOpen className="w-2.5 h-2.5 text-blue-600" />
                 {officialContext.masterPlan}
               </span>
@@ -565,7 +588,7 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
             <div className="flex flex-col gap-1.5 flex-1">
               <div className="flex items-center justify-between">
                 <span className="font-semibold text-stone-900">UrjaSetu Planning Assistant</span>
-                <span className="text-[10px] font-mono text-stone-400">
+                <span className="text-[11px] font-mono text-stone-400">
                   {isConfigured ? "Gemini Live AI Ready" : "Local GIS Engine Ready"}
                 </span>
               </div>
@@ -586,7 +609,7 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
                   </button>
                 </div>
               )}
-              <div className="pt-1 flex items-center gap-1.5 text-[10px] text-stone-500 font-mono">
+              <div className="pt-1 flex items-center gap-1.5 text-[11px] text-stone-500 font-mono">
                 <ShieldAlert className="w-3 h-3 text-stone-400 shrink-0" />
                 <span>Responses are decision-support guidance, not statutory municipal building sanctions.</span>
               </div>
@@ -596,7 +619,7 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
           {/* Quick Prompt Chips */}
           {messages.length === 0 && (
             <div className="flex flex-col gap-1.5 my-2">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-stone-400 font-semibold">
+              <span className="text-[11px] font-mono uppercase tracking-wider text-stone-400 font-semibold">
                 Suggested Questions
               </span>
               <div className="flex flex-wrap gap-1.5">
@@ -639,22 +662,22 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
                   <div>
                     {/* Engine Attribution Badge */}
                     {msg.engineSource === "gemini_cloud" || (msg.modelUsed && msg.modelUsed.startsWith("gemini")) ? (
-                      <div className="mb-2 pb-1.5 border-b border-purple-100 flex items-center justify-between text-[10px] font-mono text-purple-700">
+                      <div className="mb-2 pb-1.5 border-b border-purple-100 flex items-center justify-between text-[11px] font-mono text-purple-700">
                         <div className="flex items-center gap-1">
                           <Sparkles className="w-3 h-3 text-purple-600" />
                           <span className="font-semibold">Google Gemini Live Cloud AI</span>
                         </div>
-                        <span className="bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.5 rounded text-[9px] font-mono font-medium">
+                        <span className="bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.5 rounded text-[11px] font-mono font-medium">
                           {msg.modelUsed || "gemini-3.5-flash"}
                         </span>
                       </div>
                     ) : (
-                      <div className="mb-2 pb-1.5 border-b border-stone-100 flex items-center justify-between text-[10px] font-mono text-amber-800">
+                      <div className="mb-2 pb-1.5 border-b border-stone-100 flex items-center justify-between text-[11px] font-mono text-amber-800">
                         <div className="flex items-center gap-1">
                           <Info className="w-3 h-3 text-amber-600" />
                           <span className="font-semibold">UrjaSetu Local GIS Rules Engine</span>
                         </div>
-                        <span className="bg-amber-50 text-amber-900 border border-amber-200 px-1.5 py-0.5 rounded text-[9px] font-mono font-medium">
+                        <span className="bg-amber-50 text-amber-900 border border-amber-200 px-1.5 py-0.5 rounded text-[11px] font-mono font-medium">
                           Deterministic Mode
                         </span>
                       </div>
@@ -666,10 +689,10 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
                         <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
                         <div className="leading-tight">
                           <span className="font-semibold">Gemini Cloud AI Unreachable: </span>
-                          <span className="font-mono text-[10px] text-amber-800">
+                          <span className="font-mono text-[11px] text-amber-800">
                             {msg.cloudError || "Connection failed"}
                           </span>
-                          <p className="mt-0.5 text-[10px] text-stone-600">
+                          <p className="mt-0.5 text-[11px] text-stone-600">
                             Answers synthesized autonomously via UrjaSetu&apos;s local deterministic GIS rules engine.
                           </p>
                         </div>
@@ -691,7 +714,7 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
                             {msg.proposedAdjustment.actionType === "custom" && <Sliders className="w-3.5 h-3.5 text-amber-700" />}
                             <span>Infrastructure Spatial Adjustment</span>
                           </div>
-                          <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300 font-semibold">
+                          <span className="text-[11px] font-mono uppercase px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300 font-semibold">
                             {msg.proposedAdjustment.actionType.replace(/_/g, " ")}
                           </span>
                         </div>
@@ -704,7 +727,7 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
                         <div className="grid grid-cols-2 gap-1.5 text-[11px] mb-2.5 bg-white/90 p-2 rounded-lg border border-amber-100">
                           {msg.proposedAdjustment.lat !== undefined && (
                             <div className="col-span-2">
-                              <span className="text-stone-400 block text-[10px] uppercase font-semibold">Center Coordinates</span>
+                              <span className="text-stone-400 block text-[11px] uppercase font-semibold">Center Coordinates</span>
                               <span className="font-mono text-stone-700">
                                 {context.placement?.lat?.toFixed(4) || "20.3506"}, {context.placement?.lng?.toFixed(4) || "74.3626"}
                                 {" → "}
@@ -716,7 +739,7 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
                           )}
                           {(msg.proposedAdjustment.lengthM !== undefined || msg.proposedAdjustment.widthM !== undefined) && (
                             <div>
-                              <span className="text-stone-400 block text-[10px] uppercase font-semibold">Dimensions</span>
+                              <span className="text-stone-400 block text-[11px] uppercase font-semibold">Dimensions</span>
                               <span className="font-mono text-stone-700">
                                 {context.placement?.lengthM || 100}m × {context.placement?.widthM || 50}m
                                 {" → "}
@@ -728,7 +751,7 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
                           )}
                           {msg.proposedAdjustment.bearingDeg !== undefined && (
                             <div>
-                              <span className="text-stone-400 block text-[10px] uppercase font-semibold">Orientation / Bearing</span>
+                              <span className="text-stone-400 block text-[11px] uppercase font-semibold">Orientation / Bearing</span>
                               <span className="font-mono text-stone-700">
                                 {context.placement?.bearingDeg ?? 0}°
                                 {" → "}
@@ -844,7 +867,7 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
               </button>
             )}
           </div>
-          <div className="flex items-center justify-between text-[10px] text-stone-400 font-mono">
+          <div className="flex items-center justify-between text-[11px] text-stone-400 font-mono">
             <span>Press Enter to send</span>
             <span>UrjaSetu Spatial Intelligence</span>
           </div>

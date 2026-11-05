@@ -357,7 +357,7 @@ export const ShadowSimulatorModal: React.FC<ShadowSimulatorModalProps> = ({
                 <h2 className="text-base font-bold text-stone-900">
                   Shadow-of-the-Future
                 </h2>
-                <span className="px-2 py-0.5 text-[10px] font-mono font-bold uppercase rounded bg-amber-100 text-amber-800 border border-amber-200">
+                <span className="px-2 py-0.5 text-[11px] font-mono font-bold uppercase rounded bg-amber-100 text-amber-800 border border-amber-200">
                   Future-Aware Solar Shading
                 </span>
               </div>
@@ -459,7 +459,7 @@ export const ShadowSimulatorModal: React.FC<ShadowSimulatorModalProps> = ({
                     <Sparkles className="w-3.5 h-3.5 text-amber-600" />
                     <span>1-Click Solar & Masterplan Presets</span>
                   </span>
-                  <span className="text-[10px] text-stone-500 font-mono">
+                  <span className="text-[11px] text-stone-500 font-mono">
                     Instant 3D Ray-Tracing Simulation
                   </span>
                 </div>
@@ -488,7 +488,7 @@ export const ShadowSimulatorModal: React.FC<ShadowSimulatorModalProps> = ({
                           <Icon className={`w-3.5 h-3.5 ${isSelected ? "text-amber-100" : "text-amber-600"}`} />
                           <span className="text-xs font-bold leading-tight truncate">{preset.label}</span>
                         </div>
-                        <span className={`text-[10px] leading-tight truncate ${isSelected ? "text-amber-100" : "text-stone-500"}`}>
+                        <span className={`text-[11px] leading-tight truncate ${isSelected ? "text-amber-100" : "text-stone-500"}`}>
                           {preset.sub}
                         </span>
                       </button>
@@ -501,7 +501,7 @@ export const ShadowSimulatorModal: React.FC<ShadowSimulatorModalProps> = ({
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {/* Solar Access Score */}
                 <div className="p-3.5 rounded-xl border border-stone-200 bg-white shadow-xs space-y-1">
-                  <span className="text-[10px] font-semibold text-stone-500 uppercase tracking-wider block">
+                  <span className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider block">
                     Solar Access Score
                   </span>
                   <div className="text-2xl font-black font-mono text-emerald-700">
@@ -521,7 +521,7 @@ export const ShadowSimulatorModal: React.FC<ShadowSimulatorModalProps> = ({
 
                 {/* Shaded Area */}
                 <div className="p-3.5 rounded-xl border border-stone-200 bg-white shadow-xs space-y-1">
-                  <span className="text-[10px] font-semibold text-stone-500 uppercase tracking-wider block">
+                  <span className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider block">
                     Active Shaded Footprint
                   </span>
                   <div className="text-2xl font-black font-mono text-stone-900">
@@ -534,7 +534,7 @@ export const ShadowSimulatorModal: React.FC<ShadowSimulatorModalProps> = ({
 
                 {/* Sun Position */}
                 <div className="p-3.5 rounded-xl border border-stone-200 bg-white shadow-xs space-y-1">
-                  <span className="text-[10px] font-semibold text-stone-500 uppercase tracking-wider block">
+                  <span className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider block">
                     Sun Elevation & Azimuth
                   </span>
                   <div className="text-xl font-black font-mono text-amber-900">
@@ -547,7 +547,7 @@ export const ShadowSimulatorModal: React.FC<ShadowSimulatorModalProps> = ({
 
                 {/* Annual Generation Delta */}
                 <div className="p-3.5 rounded-xl border border-stone-200 bg-white shadow-xs space-y-1">
-                  <span className="text-[10px] font-semibold text-stone-500 uppercase tracking-wider block">
+                  <span className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider block">
                     Annual Energy Screening
                   </span>
                   <div className="text-xl font-black font-mono text-stone-900">
@@ -580,7 +580,7 @@ export const ShadowSimulatorModal: React.FC<ShadowSimulatorModalProps> = ({
                 <div className="w-full h-5 bg-stone-100 rounded-full overflow-hidden flex border border-stone-200">
                   <div
                     style={{ width: `${shadingResult?.scenario.unshadedPercentage ?? 100}%` }}
-                    className="bg-emerald-500 h-full flex items-center justify-center text-[10px] font-bold text-white transition-all duration-300"
+                    className="bg-emerald-500 h-full flex items-center justify-center text-[11px] font-bold text-white transition-all duration-300"
                     title={`Unshaded Active Area: ${shadingResult?.scenario.unshadedPercentage ?? 100}%`}
                   >
                     {(shadingResult?.scenario.unshadedPercentage ?? 100) >= 20 &&
@@ -589,7 +589,7 @@ export const ShadowSimulatorModal: React.FC<ShadowSimulatorModalProps> = ({
                   {(shadingResult?.scenario.shadedPercentage ?? 0) > 0 && (
                     <div
                       style={{ width: `${shadingResult?.scenario.shadedPercentage ?? 0}%` }}
-                      className="bg-rose-500 h-full flex items-center justify-center text-[10px] font-bold text-white transition-all duration-300"
+                      className="bg-rose-500 h-full flex items-center justify-center text-[11px] font-bold text-white transition-all duration-300"
                       title={`Shaded Area: ${shadingResult?.scenario.shadedAreaM2 ?? 0} m² (${shadingResult?.scenario.shadedPercentage ?? 0}%)`}
                     >
                       {(shadingResult?.scenario.shadedPercentage ?? 0) >= 10 &&
@@ -618,7 +618,7 @@ export const ShadowSimulatorModal: React.FC<ShadowSimulatorModalProps> = ({
                       Diurnal Hourly Sun Elevation & Shading Curve (07:00 – 17:00 IST)
                     </span>
                   </div>
-                  <span className="text-[10px] font-mono text-stone-500">
+                  <span className="text-[11px] font-mono text-stone-500">
                     Clear-Sky Beam Flux Weighted
                   </span>
                 </div>
@@ -633,7 +633,7 @@ export const ShadowSimulatorModal: React.FC<ShadowSimulatorModalProps> = ({
 
                     return (
                       <div key={sample.hour} className="flex flex-col items-center gap-1.5">
-                        <span className="text-[10px] font-mono text-stone-600">
+                        <span className="text-[11px] font-mono text-stone-600">
                           {sample.scenarioUnshadedPercentage}%
                         </span>
                         <div className="w-full h-24 bg-stone-100 rounded-t flex items-end justify-center p-1 relative group">
@@ -648,18 +648,18 @@ export const ShadowSimulatorModal: React.FC<ShadowSimulatorModalProps> = ({
                             }`}
                           />
                           {/* Tooltip on hover */}
-                          <div className="absolute -top-10 opacity-0 group-hover:opacity-100 transition-opacity bg-stone-900 text-white text-[9px] px-2 py-1 rounded shadow-md pointer-events-none whitespace-nowrap z-10 font-mono">
+                          <div className="absolute -top-10 opacity-0 group-hover:opacity-100 transition-opacity bg-stone-900 text-white text-[11px] px-2 py-1 rounded shadow-md pointer-events-none whitespace-nowrap z-10 font-mono">
                             {el}° el • {sample.clearskyGhiWm2} W/m²
                           </div>
                         </div>
                         <span className="text-[11px] font-bold font-mono text-stone-800">{sample.timeDisplay}</span>
-                        <span className="text-[9px] font-mono text-stone-400">{el}° el</span>
+                        <span className="text-[11px] font-mono text-stone-400">{el}° el</span>
                       </div>
                     );
                   })}
                 </div>
 
-                <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-mono text-stone-500">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono text-stone-500">
                   <div className="flex items-center gap-3">
                     <span className="flex items-center gap-1">
                       <span className="w-2 h-2 rounded bg-emerald-500 inline-block" /> Clear (&gt;80%)
@@ -723,7 +723,7 @@ export const ShadowSimulatorModal: React.FC<ShadowSimulatorModalProps> = ({
 
               {/* Solstice / Equinox Shortcuts */}
               <div className="flex items-center gap-1.5 text-[11px]">
-                <span className="text-stone-600 text-[10px] font-mono">Presets:</span>
+                <span className="text-stone-600 text-[11px] font-mono">Presets:</span>
                 <button
                   type="button"
                   onClick={() => {
@@ -784,7 +784,7 @@ export const ShadowSimulatorModal: React.FC<ShadowSimulatorModalProps> = ({
                   className="w-14 px-1.5 py-0.5 text-xs border border-stone-300 rounded font-mono text-center font-bold text-amber-900"
                 />
                 <span className="text-xs text-stone-500 font-mono">m</span>
-                <span className="text-[10px] text-stone-600 font-mono border-l border-stone-200 pl-2">
+                <span className="text-[11px] text-stone-600 font-mono border-l border-stone-200 pl-2">
                   {receiverElevationM === 0 ? "Ground Mount" : `${receiverElevationM}m Rooftop`}
                 </span>
               </div>
@@ -804,7 +804,7 @@ export const ShadowSimulatorModal: React.FC<ShadowSimulatorModalProps> = ({
                   <span>Sun Azimuth: <strong>{liveSolarPos.azimuthDeg}°</strong></span>
                   <span>Sun Elevation: <strong>{liveSolarPos.elevationDeg}°</strong></span>
                   <span
-                    className={`px-1.5 py-0.2 rounded font-sans font-bold text-[10px] ${
+                    className={`px-1.5 py-0.2 rounded font-sans font-bold text-[11px] ${
                       liveSolarPos.isDaylight ? "bg-emerald-100 text-emerald-800" : "bg-stone-200 text-stone-600"
                     }`}
                   >
@@ -827,7 +827,7 @@ export const ShadowSimulatorModal: React.FC<ShadowSimulatorModalProps> = ({
                 }}
                 className="w-full accent-amber-600 cursor-pointer"
               />
-              <div className="flex justify-between text-[10px] font-mono text-stone-600">
+              <div className="flex justify-between text-[11px] font-mono text-stone-600">
                 <span>06:00 (Sunrise)</span>
                 <span>09:00 (Morning)</span>
                 <span>12:00 (Solar Noon)</span>
@@ -846,7 +846,7 @@ export const ShadowSimulatorModal: React.FC<ShadowSimulatorModalProps> = ({
                 <div className="p-4 rounded-xl border border-stone-200 bg-white shadow-xs space-y-2">
                   <div className="text-[11px] font-semibold text-stone-600 uppercase tracking-wider flex items-center justify-between">
                     <span>Observed Baseline (2026)</span>
-                    <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-stone-100 text-stone-700">
+                    <span className="px-1.5 py-0.2 rounded text-[11px] font-mono font-bold bg-stone-100 text-stone-700">
                       Current
                     </span>
                   </div>
@@ -921,19 +921,19 @@ export const ShadowSimulatorModal: React.FC<ShadowSimulatorModalProps> = ({
                 </h4>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                   <div className="p-2.5 rounded bg-stone-50 border border-stone-100">
-                    <span className="text-[10px] text-stone-600 font-mono block">Sun Azimuth (Clockwise from North)</span>
+                    <span className="text-[11px] text-stone-600 font-mono block">Sun Azimuth (Clockwise from North)</span>
                     <span className="text-sm font-bold font-mono text-stone-800">{shadingResult?.solarPosition.azimuthDeg}°</span>
                   </div>
                   <div className="p-2.5 rounded bg-stone-50 border border-stone-100">
-                    <span className="text-[10px] text-stone-600 font-mono block">Sun Elevation (Above Horizon)</span>
+                    <span className="text-[11px] text-stone-600 font-mono block">Sun Elevation (Above Horizon)</span>
                     <span className="text-sm font-bold font-mono text-stone-800">{shadingResult?.solarPosition.elevationDeg}°</span>
                   </div>
                   <div className="p-2.5 rounded bg-stone-50 border border-stone-100">
-                    <span className="text-[10px] text-stone-600 font-mono block">Solar Declination</span>
+                    <span className="text-[11px] text-stone-600 font-mono block">Solar Declination</span>
                     <span className="text-sm font-bold font-mono text-stone-800">{shadingResult?.solarPosition.declinationDeg}°</span>
                   </div>
                   <div className="p-2.5 rounded bg-stone-50 border border-stone-100">
-                    <span className="text-[10px] text-stone-600 font-mono block">Equation of Time</span>
+                    <span className="text-[11px] text-stone-600 font-mono block">Equation of Time</span>
                     <span className="text-sm font-bold font-mono text-stone-800">{shadingResult?.solarPosition.equationOfTimeMinutes} min</span>
                   </div>
                 </div>
@@ -947,7 +947,7 @@ export const ShadowSimulatorModal: React.FC<ShadowSimulatorModalProps> = ({
               {/* Diurnal Summary Metric Banner */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="p-4 rounded-xl border border-stone-200 bg-stone-50 space-y-1">
-                  <span className="text-[10px] font-mono font-bold text-stone-500 uppercase tracking-wider block">
+                  <span className="text-[11px] font-mono font-bold text-stone-500 uppercase tracking-wider block">
                     Diurnal Daylight Hours
                   </span>
                   <div className="text-2xl font-black font-mono text-stone-900">
@@ -962,7 +962,7 @@ export const ShadowSimulatorModal: React.FC<ShadowSimulatorModalProps> = ({
                 </div>
 
                 <div className="p-4 rounded-xl border border-amber-200 bg-amber-50/50 space-y-1">
-                  <span className="text-[10px] font-mono font-bold text-amber-800 uppercase tracking-wider block">
+                  <span className="text-[11px] font-mono font-bold text-amber-800 uppercase tracking-wider block">
                     Solar Access Ratio (SAR)
                   </span>
                   <div className="text-2xl font-black font-mono text-amber-950">
@@ -977,7 +977,7 @@ export const ShadowSimulatorModal: React.FC<ShadowSimulatorModalProps> = ({
                 </div>
 
                 <div className="p-4 rounded-xl border border-stone-200 bg-white space-y-1">
-                  <span className="text-[10px] font-mono font-bold text-stone-500 uppercase tracking-wider block">
+                  <span className="text-[11px] font-mono font-bold text-stone-500 uppercase tracking-wider block">
                     Annual Generation Screening Loss
                   </span>
                   <div className="text-2xl font-black font-mono text-stone-900">
@@ -1004,14 +1004,14 @@ export const ShadowSimulatorModal: React.FC<ShadowSimulatorModalProps> = ({
                       Diurnal Ray-Tracing Samples (07:00 – 17:00 IST) — {shadingResult?.diurnalProfile?.presetDateLabel}
                     </span>
                   </div>
-                  <span className="text-[10px] text-stone-500 font-mono">
+                  <span className="text-[11px] text-stone-500 font-mono">
                     Clear-sky beam flux weighted
                   </span>
                 </div>
 
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs text-left">
-                    <thead className="bg-stone-50 text-[10px] font-mono uppercase text-stone-500 border-b border-stone-200">
+                    <thead className="bg-stone-50 text-[11px] font-mono uppercase text-stone-500 border-b border-stone-200">
                       <tr>
                         <th className="px-3 py-2">Hour (IST)</th>
                         <th className="px-3 py-2">Sun Pos (El / Az)</th>
@@ -1041,15 +1041,15 @@ export const ShadowSimulatorModal: React.FC<ShadowSimulatorModalProps> = ({
                           </td>
                           <td className="px-3 py-2 text-right">
                             {sample.scenarioUnshadedPercentage >= 80 ? (
-                              <span className="px-1.5 py-0.5 rounded text-[9px] font-sans font-bold bg-emerald-100 text-emerald-800">
+                              <span className="px-1.5 py-0.5 rounded text-[11px] font-sans font-bold bg-emerald-100 text-emerald-800">
                                 Clear Beam
                               </span>
                             ) : sample.scenarioUnshadedPercentage >= 50 ? (
-                              <span className="px-1.5 py-0.5 rounded text-[9px] font-sans font-bold bg-amber-100 text-amber-800">
+                              <span className="px-1.5 py-0.5 rounded text-[11px] font-sans font-bold bg-amber-100 text-amber-800">
                                 Partial Shade
                               </span>
                             ) : (
-                              <span className="px-1.5 py-0.5 rounded text-[9px] font-sans font-bold bg-red-100 text-red-800">
+                              <span className="px-1.5 py-0.5 rounded text-[11px] font-sans font-bold bg-red-100 text-red-800">
                                 Heavy Shade
                               </span>
                             )}
@@ -1123,7 +1123,7 @@ export const ShadowSimulatorModal: React.FC<ShadowSimulatorModalProps> = ({
                 <div className="p-4 bg-amber-50/60 border border-amber-200 rounded-xl space-y-4">
                   <div className="flex items-center justify-between border-b border-amber-200 pb-2">
                     <span className="text-xs font-bold text-amber-900">Define Planned or Hypothetical Structure</span>
-                    <span className="text-[10px] bg-amber-200 text-amber-900 px-2 py-0.5 rounded font-mono font-bold">
+                    <span className="text-[11px] bg-amber-200 text-amber-900 px-2 py-0.5 rounded font-mono font-bold">
                       Future Scenario Editor
                     </span>
                   </div>
@@ -1287,7 +1287,7 @@ export const ShadowSimulatorModal: React.FC<ShadowSimulatorModalProps> = ({
                           <div className="flex items-center gap-2">
                             <span className="text-xs font-bold text-stone-900">{hb.name}</span>
                             <span
-                              className={`px-1.5 py-0.2 text-[9px] font-mono font-bold uppercase rounded ${
+                              className={`px-1.5 py-0.2 text-[11px] font-mono font-bold uppercase rounded ${
                                 hb.developmentStatus === "approved_development"
                                   ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
                                   : hb.developmentStatus === "proposed_development"
@@ -1298,7 +1298,7 @@ export const ShadowSimulatorModal: React.FC<ShadowSimulatorModalProps> = ({
                               {hb.developmentStatus?.replace("_", " ") ?? "Hypothetical"}
                             </span>
                             {hb.targetYear && (
-                              <span className="text-[10px] font-mono text-stone-500">
+                              <span className="text-[11px] font-mono text-stone-500">
                                 Target: {hb.targetYear}
                               </span>
                             )}
@@ -1381,25 +1381,25 @@ export const ShadowSimulatorModal: React.FC<ShadowSimulatorModalProps> = ({
               {/* Height Provenance Summary Card */}
               <div className="p-3 rounded-lg bg-stone-50 border border-stone-200 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                 <div>
-                  <span className="text-[10px] text-stone-500 block">Direct Measured Heights</span>
+                  <span className="text-[11px] text-stone-500 block">Direct Measured Heights</span>
                   <span className="font-mono font-bold text-emerald-700">
                     {shadingResult?.provenanceSummary.measuredCount ?? 0}
                   </span>
                 </div>
                 <div>
-                  <span className="text-[10px] text-stone-500 block">Inferred from Storeys</span>
+                  <span className="text-[11px] text-stone-500 block">Inferred from Storeys</span>
                   <span className="font-mono font-bold text-blue-700">
                     {shadingResult?.provenanceSummary.inferredCount ?? 0}
                   </span>
                 </div>
                 <div>
-                  <span className="text-[10px] text-stone-500 block">Default Assumptions</span>
+                  <span className="text-[11px] text-stone-500 block">Default Assumptions</span>
                   <span className="font-mono font-bold text-amber-700">
                     {shadingResult?.provenanceSummary.defaultAssumedCount ?? 0}
                   </span>
                 </div>
                 <div>
-                  <span className="text-[10px] text-stone-500 block">Future Scenario Towers</span>
+                  <span className="text-[11px] text-stone-500 block">Future Scenario Towers</span>
                   <span className="font-mono font-bold text-purple-700">
                     {shadingResult?.provenanceSummary.hypotheticalCount ?? 0}
                   </span>
@@ -1426,7 +1426,7 @@ export const ShadowSimulatorModal: React.FC<ShadowSimulatorModalProps> = ({
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-bold text-stone-900">{b.name}</span>
                           <span
-                            className={`px-1.5 py-0.2 text-[9px] font-mono font-bold uppercase rounded ${
+                            className={`px-1.5 py-0.2 text-[11px] font-mono font-bold uppercase rounded ${
                               b.heightProvenance === "measured"
                                 ? "bg-emerald-100 text-emerald-800"
                                 : b.heightProvenance === "inferred_from_levels"
@@ -1439,7 +1439,7 @@ export const ShadowSimulatorModal: React.FC<ShadowSimulatorModalProps> = ({
                             {b.heightProvenance}
                           </span>
                           {b.developmentStatus && (
-                            <span className="px-1.5 py-0.2 text-[9px] font-mono font-semibold uppercase rounded bg-stone-100 text-stone-700">
+                            <span className="px-1.5 py-0.2 text-[11px] font-mono font-semibold uppercase rounded bg-stone-100 text-stone-700">
                               {b.developmentStatus.replace("_", " ")}
                             </span>
                           )}
@@ -1454,7 +1454,7 @@ export const ShadowSimulatorModal: React.FC<ShadowSimulatorModalProps> = ({
                         {b.levels && <span>Storeys: <strong>{b.levels}</strong></span>}
                         <span>Source: <strong>{b.source}</strong></span>
                       </div>
-                      <p className="text-[10px] text-stone-500 italic bg-stone-50 p-1.5 rounded">
+                      <p className="text-[11px] text-stone-500 italic bg-stone-50 p-1.5 rounded">
                         {b.obstructionNotes}
                       </p>
                     </div>

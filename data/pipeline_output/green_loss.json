@@ -15,7 +15,7 @@
     "total_cells_evaluated": 42,
     "model_gate_passed": false,
     "model_gate_failure_reason": "Thermodynamic direction check failed (\u2202LST/\u2202NDVI > 0) or gate forced fail; extra heat fields nullified.",
-    "created_at": "2026-11-04T18:52:41.816178+00:00"
+    "created_at": "2026-11-05T05:18:04.732942+00:00"
   },
   "governance": {
     "disclaimers": [

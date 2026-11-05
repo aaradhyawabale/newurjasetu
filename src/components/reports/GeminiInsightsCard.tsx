@@ -119,25 +119,25 @@ export const GeminiInsightsCard: React.FC<GeminiInsightsCardProps> = ({
     switch (prov) {
       case "VERIFIED_INPUT":
         return (
-          <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+          <span className="px-1.5 py-0.2 rounded text-[11px] font-mono font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
             VERIFIED INPUT
           </span>
         );
       case "DETERMINISTIC_RESULT":
         return (
-          <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-blue-100 text-blue-800 border border-blue-300">
+          <span className="px-1.5 py-0.2 rounded text-[11px] font-mono font-bold bg-blue-100 text-blue-800 border border-blue-300">
             DETERMINISTIC RESULT
           </span>
         );
       case "AI_INTERPRETATION":
         return (
-          <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-purple-100 text-purple-800 border border-purple-300">
+          <span className="px-1.5 py-0.2 rounded text-[11px] font-mono font-bold bg-purple-100 text-purple-800 border border-purple-300">
             AI INTERPRETATION
           </span>
         );
       case "UNVERIFIED_ASSUMPTION":
         return (
-          <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-amber-100 text-amber-800 border border-amber-300">
+          <span className="px-1.5 py-0.2 rounded text-[11px] font-mono font-bold bg-amber-100 text-amber-800 border border-amber-300">
             UNVERIFIED ASSUMPTION
           </span>
         );
@@ -178,7 +178,7 @@ export const GeminiInsightsCard: React.FC<GeminiInsightsCardProps> = ({
               <span className="text-xs font-bold text-stone-900">
                 Gemini Urban Planning Advisor
               </span>
-              <span className="text-[10px] font-mono text-purple-700">
+              <span className="text-[11px] font-mono text-purple-700">
                 Model: {modelName} • Grounded Decision Synthesis
               </span>
             </div>
@@ -228,7 +228,7 @@ export const GeminiInsightsCard: React.FC<GeminiInsightsCardProps> = ({
           <span className="text-xs font-bold text-stone-900">
             Synthesizing Spatial Evidence with Gemini...
           </span>
-          <span className="text-[10px] font-mono text-stone-500">
+          <span className="text-[11px] font-mono text-stone-500">
             Evaluating {report.criteria.length} criteria, terrain slope, buffer exclusions, and sensitivity profiles
           </span>
         </div>
@@ -286,11 +286,11 @@ export const GeminiInsightsCard: React.FC<GeminiInsightsCardProps> = ({
               <span className="text-xs font-bold text-stone-900">
                 Gemini Urban Planning Copilot
               </span>
-              <span className="px-1.5 py-0.2 rounded text-[9px] font-mono bg-purple-50 text-purple-700 border border-purple-200">
+              <span className="px-1.5 py-0.2 rounded text-[11px] font-mono bg-purple-50 text-purple-700 border border-purple-200">
                 {insights.meta.modelUsed}
               </span>
             </div>
-            <span className="text-[10px] text-stone-500 font-mono">
+            <span className="text-[11px] text-stone-500 font-mono">
               Confidence: {insights.confidenceIndicator.level} ({insights.confidenceIndicator.completenessPercent}% completeness)
             </span>
           </div>
@@ -342,7 +342,7 @@ export const GeminiInsightsCard: React.FC<GeminiInsightsCardProps> = ({
             Technical Mode (Planners & Engineers)
           </button>
         </div>
-        <span className="text-[10px] font-mono text-stone-500 pr-2 hidden sm:inline">
+        <span className="text-[11px] font-mono text-stone-500 pr-2 hidden sm:inline">
           {mode === "simple" ? "Plain language & direct next steps" : "Full metrics, NOCs & provenance"}
         </span>
       </div>
@@ -419,7 +419,7 @@ export const GeminiInsightsCard: React.FC<GeminiInsightsCardProps> = ({
                 "Verify parcel boundaries with the local Town Planning Department before proceeding with layout design."}
             </p>
             {report.validation?.planningContext && (
-              <span className="text-[10px] text-stone-500 font-mono mt-0.5">
+              <span className="text-[11px] text-stone-500 font-mono mt-0.5">
                 Authority: {report.validation.planningContext.jurisdiction} • {report.validation.planningContext.masterPlan}
               </span>
             )}
@@ -496,7 +496,7 @@ export const GeminiInsightsCard: React.FC<GeminiInsightsCardProps> = ({
                     {renderProvenanceChip(adv.provenance)}
                   </div>
                   <p className="text-[11px] text-stone-600 leading-normal">{adv.description}</p>
-                  <span className="text-[9px] font-mono text-stone-400">Ref: {adv.sourceReference}</span>
+                  <span className="text-[11px] font-mono text-stone-400">Ref: {adv.sourceReference}</span>
                 </div>
               ))}
             </div>
@@ -515,7 +515,7 @@ export const GeminiInsightsCard: React.FC<GeminiInsightsCardProps> = ({
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs font-bold text-stone-900">{c.title}</span>
                       <span
-                        className={`px-1 py-0.2 rounded text-[9px] font-mono font-bold ${
+                        className={`px-1 py-0.2 rounded text-[11px] font-mono font-bold ${
                           c.severity === "CRITICAL"
                             ? "bg-red-100 text-red-800"
                             : c.severity === "HIGH"
@@ -529,7 +529,7 @@ export const GeminiInsightsCard: React.FC<GeminiInsightsCardProps> = ({
                     {renderProvenanceChip(c.provenance)}
                   </div>
                   <p className="text-[11px] text-stone-600 leading-normal">{c.description}</p>
-                  <span className="text-[9px] font-mono text-stone-400">Ref: {c.sourceReference}</span>
+                  <span className="text-[11px] font-mono text-stone-400">Ref: {c.sourceReference}</span>
                 </div>
               ))}
             </div>
@@ -555,7 +555,7 @@ export const GeminiInsightsCard: React.FC<GeminiInsightsCardProps> = ({
                 <p className="text-xs text-purple-950 font-medium bg-purple-50/60 p-2 rounded border border-purple-200/60 leading-normal">
                   <strong>Recommended Mitigation:</strong> {m.mitigation}
                 </p>
-                <div className="flex items-center justify-between text-[10px] text-stone-500 pt-0.5">
+                <div className="flex items-center justify-between text-[11px] text-stone-500 pt-0.5">
                   <span>Evidence: {m.supportingEvidence}</span>
                   <span className="font-mono text-stone-400">Ref: {m.sourceReference}</span>
                 </div>
@@ -574,7 +574,7 @@ export const GeminiInsightsCard: React.FC<GeminiInsightsCardProps> = ({
           <div className="overflow-x-auto rounded-control border border-stone-200">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="bg-stone-100/75 border-b border-stone-200 text-stone-600 font-mono text-[10px] uppercase">
+                <tr className="bg-stone-100/75 border-b border-stone-200 text-stone-600 font-mono text-[11px] uppercase">
                   <th className="py-2 px-3 font-semibold">Authority</th>
                   <th className="py-2 px-3 font-semibold">Clearance / NOC</th>
                   <th className="py-2 px-3 font-semibold">Trigger Condition</th>
@@ -595,11 +595,11 @@ export const GeminiInsightsCard: React.FC<GeminiInsightsCardProps> = ({
                     </td>
                     <td className="py-2.5 px-3">
                       {item.isMandatory ? (
-                        <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-red-100 text-red-800">
+                        <span className="px-1.5 py-0.2 rounded text-[11px] font-mono font-bold bg-red-100 text-red-800">
                           MANDATORY
                         </span>
                       ) : (
-                        <span className="px-1.5 py-0.2 rounded text-[9px] font-mono text-stone-600 bg-stone-100">
+                        <span className="px-1.5 py-0.2 rounded text-[11px] font-mono text-stone-600 bg-stone-100">
                           RECOMMENDED
                         </span>
                       )}
@@ -642,7 +642,7 @@ export const GeminiInsightsCard: React.FC<GeminiInsightsCardProps> = ({
                 <div key={idx} className="p-3 bg-stone-50 rounded-control border border-stone-200 flex flex-col gap-1">
                   <span className="text-xs font-bold text-stone-900">{alt.title}</span>
                   <p className="text-[11px] text-stone-700">{alt.description}</p>
-                  <p className="text-[10px] text-purple-900 bg-purple-50 p-1.5 rounded border border-purple-100 mt-1">
+                  <p className="text-[11px] text-purple-900 bg-purple-50 p-1.5 rounded border border-purple-100 mt-1">
                     <strong>Trade-offs:</strong> {alt.tradeOffs}
                   </p>
                 </div>
@@ -661,7 +661,7 @@ export const GeminiInsightsCard: React.FC<GeminiInsightsCardProps> = ({
                   <div key={idx} className="p-2.5 flex flex-col gap-1 text-xs">
                     <span className="font-bold text-stone-900">{gap.fieldOrTopic}</span>
                     <p className="text-stone-600 text-[11px]">{gap.explanation}</p>
-                    <span className="text-amber-800 text-[10px] font-medium bg-amber-50 p-1 rounded w-fit">
+                    <span className="text-amber-800 text-[11px] font-medium bg-amber-50 p-1 rounded w-fit">
                       Required Action: {gap.requiredVerification}
                     </span>
                   </div>
@@ -675,7 +675,7 @@ export const GeminiInsightsCard: React.FC<GeminiInsightsCardProps> = ({
       )}
 
       {/* Provenance Footnote & Disclaimer */}
-      <div className="pt-2 border-t border-stone-100 flex items-center justify-between text-[10px] text-stone-400 font-mono flex-wrap gap-2">
+      <div className="pt-2 border-t border-stone-100 flex items-center justify-between text-[11px] text-stone-400 font-mono flex-wrap gap-2">
         <span className="flex items-center gap-1">
           <Info className="w-3 h-3 text-stone-400" />
           <span>Grounded in UrjaSetu deterministic calculations. Indicative decision support only.</span>
