@@ -99,6 +99,7 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
   // Scenario Controls State
   const [budgetHa, setBudgetHa] = useState<number>(10.0);
   const [targetNdvi, setTargetNdvi] = useState<number>(0.65);
+  const [solarAlpha, setSolarAlpha] = useState<number>(0.50);
   const [uncertaintyQuantile, setUncertaintyQuantile] = useState<"p10" | "mean" | "p90">("mean");
   const [objective, setObjective] = useState<"cooling" | "population_weighted">("cooling");
   const [selectedWard, setSelectedWard] = useState<string>(propSelectedWard || "All");
@@ -342,7 +343,9 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
           loss_area_ha: lossCell?.loss_area_ha ?? 0,
           extra_heat_mean: lossCell?.extra_heat_mean ?? 0,
           heat_excess_celsius: cell.heat_excess_celsius ?? 0,
-          solar_penalty_mean: cell.solar_penalty_mean !== null && cell.solar_penalty_mean !== undefined ? cell.solar_penalty_mean : null,
+          solar_penalty_mean: (cell.heat_excess_celsius !== null && cell.heat_excess_celsius !== undefined)
+            ? Number((-0.533 * solarAlpha * cell.heat_excess_celsius).toFixed(2))
+            : (cell.solar_penalty_mean !== null && cell.solar_penalty_mean !== undefined ? cell.solar_penalty_mean : null),
           solar_penalty_p10: cell.solar_penalty_p10 !== null && cell.solar_penalty_p10 !== undefined ? cell.solar_penalty_p10 : null,
           solar_penalty_p90: cell.solar_penalty_p90 !== null && cell.solar_penalty_p90 !== undefined ? cell.solar_penalty_p90 : null,
           isSelected: isSelected ? 1 : 0,
@@ -360,7 +363,7 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
       type: "FeatureCollection" as const,
       features,
     };
-  }, [cells, optimizationResult, basePolygonsMap, greenLossCellMap]);
+  }, [cells, optimizationResult, basePolygonsMap, greenLossCellMap, solarAlpha]);
 
   // Initialize MapLibre
   useEffect(() => {
@@ -934,6 +937,33 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
                           <span>0.85 (Dense)</span>
                         </div>
                       </div>
+
+                      <div className="flex flex-col gap-1 pt-2 border-t border-stone-850">
+                        <div className="flex justify-between text-[11px] font-mono text-stone-300">
+                          <span className="flex items-center gap-1">
+                            <span>Solar Penalty Coupling (α):</span>
+                            <ProvenanceTag type="Assumed" />
+                          </span>
+                          <span className="text-amber-400 font-bold">α = {solarAlpha.toFixed(2)}</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0.20}
+                          max={0.80}
+                          step={0.05}
+                          value={solarAlpha}
+                          onChange={(e) => setSolarAlpha(parseFloat(e.target.value))}
+                          className="w-full h-1.5 bg-stone-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                        />
+                        <div className="flex justify-between text-[11px] text-stone-500 font-mono">
+                          <span>0.20 (Low)</span>
+                          <span>0.50 (Default)</span>
+                          <span>0.80 (High)</span>
+                        </div>
+                        <div className="text-[10px] text-stone-400 font-sans mt-0.5 leading-snug">
+                          solar penalty = γ × α × heat_excess. Empirical γ = -0.533%/°C (90% CI: [-0.744, -0.295]) vs datasheet -0.380%/°C (empirical factor includes elevated ambient, inverter clipping, and cable derating at Gandikota plant).
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1060,9 +1090,12 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
 
               {/* 5. Ward Filter */}
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-stone-200 flex items-center gap-1.5">
-                  <span>Administrative Ward</span>
-                  <ProvenanceTag type="Measured" />
+                <label className="text-xs font-semibold text-stone-200 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <span>Administrative Ward</span>
+                    <ProvenanceTag type="Measured" />
+                  </span>
+                  <span className="text-[10px] text-stone-400 font-normal">approximate (nearest ward-office centroid)</span>
                 </label>
                 <select
                   value={selectedWard}
@@ -1072,7 +1105,7 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
                   }}
                   className="w-full bg-stone-950 border border-stone-800 rounded px-2.5 py-1.5 text-xs text-stone-200 font-sans focus:outline-none focus:border-emerald-500"
                 >
-                  <option value="All">All Pune Municipal Wards</option>
+                  <option value="All">All Pune Municipal Wards (approximate)</option>
                   <option value="Kasba Vishrambaugwada">Kasba Vishrambaugwada</option>
                   <option value="Shivajinagar - Ghole Road">Shivajinagar - Ghole Road</option>
                   <option value="Bhawani Peth">Bhawani Peth</option>
@@ -1091,7 +1124,7 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
                   Portfolio Impact Summary:
                 </span>
                 {portfolioSummary.selectedCount > 0
-                  ? `Allocating ${portfolioSummary.allocatedHa.toFixed(1)} ha across ${portfolioSummary.selectedCount} cells achieves an expected ${portfolioSummary.meanCooling.toFixed(2)}°C surface cooling benefit (conservative P10: ${portfolioSummary.p10Cooling.toFixed(2)}°C to optimistic P90: ${portfolioSummary.p90Cooling.toFixed(2)}°C), directly shielding ${portfolioSummary.totalPopulation.toLocaleString()} residents.`
+                  ? `Allocating ${portfolioSummary.allocatedHa.toFixed(1)} ha across ${portfolioSummary.selectedCount} cells achieves an expected ${portfolioSummary.meanCooling.toFixed(2)}°C surface cooling benefit (conservative P10: ${portfolioSummary.p10Cooling.toFixed(2)}°C to optimistic P90: ${portfolioSummary.p90Cooling.toFixed(2)}°C [model variance only; Spatial-CV RMSE: 0.91°C]), directly shielding ${portfolioSummary.totalPopulation.toLocaleString()} residents [Assumed].`
                   : "Select a budget preset above to calculate optimal cooling parcels."}
               </div>
 
@@ -1163,7 +1196,15 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
               <div className="flex items-center justify-between text-[11px] font-mono bg-stone-950 px-2.5 py-1.5 rounded border border-stone-800">
                 <span className="text-stone-400">Model Gate Direction Check:</span>
                 <span className={`font-bold ${greenLossData?.metadata.model_gate_passed ? "text-emerald-400" : "text-amber-400"}`}>
-                  {greenLossData?.metadata.model_gate_passed ? "PASSED (∂LST/∂NDVI ≤ 0)" : "FAILED (Heat Nullified)"}
+                  {greenLossData?.metadata.model_gate_passed ? "PASSED (Unconstrained 95.9% negative response)" : "FAILED (Heat Nullified)"}
+                </span>
+              </div>
+
+              {/* Visual Inspection Status Badge */}
+              <div className="flex items-center justify-between text-[11px] font-mono bg-stone-950 px-2.5 py-1.5 rounded border border-amber-900/40">
+                <span className="text-stone-400">Visual Inspection:</span>
+                <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-950/80 text-amber-300 border border-amber-700/80">
+                  Not yet validated (Pending review sample)
                 </span>
               </div>
 
@@ -1174,7 +1215,7 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
                     <span>23 PMC Wards by Loss Area</span>
                     <ProvenanceTag type="Measured" />
                   </h3>
-                  <span className="text-[11px] text-stone-500 font-mono">Sorted by loss ha</span>
+                  <span className="text-[10px] text-stone-500 font-mono">approximate centroids</span>
                 </div>
 
                 <div className="border border-stone-800 rounded overflow-hidden max-h-60 overflow-y-auto custom-scrollbar">
@@ -1512,7 +1553,7 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
             {activeLayer === "green_loss"
               ? "Sentinel-2 2019 vs 2026 pre-monsoon (ΔNDVI ≤ -0.10 & ΔNDBI > 0)."
               : activeLayer === "solar_penalty"
-              ? "Relative PV derating from local surface heat excess. Does not calculate absolute kWh."
+              ? `Relative PV derating = γ × α × heat_excess. Empirical γ = -0.533%/°C (90% CI: [-0.744, -0.295]) vs datasheet -0.380%/°C | α = ${solarAlpha.toFixed(2)} [Assumed]. Does not calculate absolute kWh.`
               : "Colour-blind-safe sequential Viridis palette (Deuteranopia & Protanopia compliant)."}
           </span>
         </div>

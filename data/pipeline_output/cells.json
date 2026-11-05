@@ -8,8 +8,12 @@
     "lst_mean": 32.0,
     "heat_excess_celsius": 0.0,
     "solar_penalty_mean": -0.0,
+    "solar_penalty_low": -0.0,
+    "solar_penalty_mid": -0.0,
+    "solar_penalty_high": -0.0,
     "solar_penalty_p10": -0.0,
-    "solar_penalty_p90": -0.0
+    "solar_penalty_p90": -0.0,
+    "solar_penalty_rank": 2
   },
   {
     "id": "cell_valid",
@@ -19,9 +23,13 @@
     ],
     "lst_mean": 42.0,
     "heat_excess_celsius": 10.0,
-    "solar_penalty_mean": -4.2,
-    "solar_penalty_p10": -5.1,
-    "solar_penalty_p90": -3.4
+    "solar_penalty_mean": -2.1,
+    "solar_penalty_low": -0.84,
+    "solar_penalty_mid": -2.1,
+    "solar_penalty_high": -3.36,
+    "solar_penalty_p10": -2.55,
+    "solar_penalty_p90": -1.7,
+    "solar_penalty_rank": 1
   },
   {
     "id": "cell_null_lst",
@@ -32,7 +40,11 @@
     "lst_mean": null,
     "heat_excess_celsius": null,
     "solar_penalty_mean": null,
+    "solar_penalty_low": null,
+    "solar_penalty_mid": null,
+    "solar_penalty_high": null,
     "solar_penalty_p10": null,
-    "solar_penalty_p90": null
+    "solar_penalty_p90": null,
+    "solar_penalty_rank": null
   }
 ]

@@ -53,5 +53,25 @@
     "ndvi_drop_threshold": 0.1,
     "ndbi_rise_required": true
   },
-  "timestamp": "2026-11-05T05:18:04.732942+00:00"
+  "sensitivity_table": [
+    {
+      "delta_ndvi_threshold": -0.1,
+      "flagged_cells_count": 2449,
+      "total_loss_area_ha": 6904.85,
+      "mean_delta_ndvi": -0.205
+    },
+    {
+      "delta_ndvi_threshold": -0.15,
+      "flagged_cells_count": 2224,
+      "total_loss_area_ha": 6494.38,
+      "mean_delta_ndvi": -0.212
+    },
+    {
+      "delta_ndvi_threshold": -0.2,
+      "flagged_cells_count": 1214,
+      "total_loss_area_ha": 4089.99,
+      "mean_delta_ndvi": -0.245
+    }
+  ],
+  "timestamp": "2026-11-05T06:59:45.496035+00:00"
 }

@@ -149,6 +149,7 @@ export const ZoneEvidenceDrawer: React.FC<ZoneEvidenceDrawerProps> = ({
           </div>
           <div className="flex items-center gap-2 text-xs text-stone-400">
             <span className="font-semibold text-stone-300">{zone.ward || "Pune Urban Ward"}</span>
+            <span className="text-[10px] text-stone-500 font-mono">(approximate: nearest ward-office centroid)</span>
             <span>•</span>
             <span className="font-mono text-[11px] text-stone-400">
               {lat.toFixed(4)}° N, {lng.toFixed(4)}° E
@@ -306,7 +307,9 @@ export const ZoneEvidenceDrawer: React.FC<ZoneEvidenceDrawerProps> = ({
           <div className="p-3 rounded bg-stone-950 border border-stone-800 space-y-2">
             <div className="flex items-center justify-between text-[11px] text-stone-400">
               <span className="font-semibold text-stone-300">Counterfactual Cooling Effect Range:</span>
-              <span className="font-mono text-stone-500">30-member ensemble</span>
+              <span className="font-mono text-stone-400 text-[10px] px-1.5 py-0.5 rounded bg-stone-900 border border-stone-800">
+                Spatial-CV RMSE: 0.91°C
+              </span>
             </div>
 
             <div className="grid grid-cols-3 gap-2 text-center font-mono">
@@ -334,7 +337,7 @@ export const ZoneEvidenceDrawer: React.FC<ZoneEvidenceDrawerProps> = ({
               <span>Uncertainty Spread:</span>
               <span className="font-mono text-stone-300">
                 {zone.cooling_p90 !== null && zone.cooling_p10 !== null
-                  ? `±${((zone.cooling_p90 - zone.cooling_p10) / 2).toFixed(2)} °C (P10–P90)`
+                  ? `±${((zone.cooling_p90 - zone.cooling_p10) / 2).toFixed(2)} °C (model variance only; P10–P90)`
                   : "Not available"}
               </span>
             </div>
@@ -358,13 +361,13 @@ export const ZoneEvidenceDrawer: React.FC<ZoneEvidenceDrawerProps> = ({
             <div className="p-2.5 rounded bg-stone-950 border border-stone-800 flex flex-col justify-between">
               <div className="text-[11px] text-stone-400 flex items-center justify-between">
                 <span>Benefited Population</span>
-                <ProvenanceTag type="Modelled" />
+                <ProvenanceTag type="Assumed" />
               </div>
               <div className="text-lg font-extrabold font-mono text-sky-400 mt-1">
                 {zone.population !== null ? zone.population.toLocaleString() : "Not available"}
               </div>
               <div className="text-[11px] text-stone-400 mt-1">
-                Copernicus GHS-POP / LandScan 2023–2025 grid count inside cell.
+                WorldPop 2022 projections downscaled [Assumed] to 250m cell envelope.
               </div>
             </div>
           </div>
@@ -383,31 +386,33 @@ export const ZoneEvidenceDrawer: React.FC<ZoneEvidenceDrawerProps> = ({
           <div className="p-3 rounded bg-stone-950 border border-amber-900/40 space-y-2">
             <div className="flex items-center justify-between text-[11px] text-stone-400">
               <span className="font-semibold text-stone-300">Estimated Relative Output Loss:</span>
-              <span className="font-mono text-stone-500">Gandikota Kaggle PV Model</span>
+              <span className="font-mono text-stone-400 text-[10px]">
+                {zone.solar_penalty_rank ? `Solar Rank #${zone.solar_penalty_rank}` : "Gandikota PV Model"}
+              </span>
             </div>
 
             <div className="grid grid-cols-3 gap-2 text-center font-mono">
               <div className="bg-stone-900 p-2 rounded border border-stone-800">
-                <div className="text-[11px] text-stone-400 uppercase font-semibold">P10 (Higher Loss)</div>
-                <div className="text-sm font-bold text-red-400 mt-0.5">
-                  {zone.solar_penalty_p10 !== null && zone.solar_penalty_p10 !== undefined
-                    ? `${zone.solar_penalty_p10.toFixed(2)}%`
+                <div className="text-[10px] text-stone-400 uppercase font-semibold">Low (α=0.2)</div>
+                <div className="text-sm font-bold text-amber-200 mt-0.5">
+                  {zone.solar_penalty_low !== null && zone.solar_penalty_low !== undefined
+                    ? `${zone.solar_penalty_low.toFixed(2)}%`
                     : "Not available"}
                 </div>
               </div>
               <div className="bg-stone-900 p-2 rounded border border-amber-800/80 bg-amber-950/20">
-                <div className="text-[11px] text-amber-400 uppercase font-semibold">Mean Expected Loss</div>
+                <div className="text-[10px] text-amber-400 uppercase font-semibold">Mid / Mean (α=0.5)</div>
                 <div className="text-sm font-bold text-amber-300 mt-0.5">
-                  {zone.solar_penalty_mean !== null && zone.solar_penalty_mean !== undefined
-                    ? `${zone.solar_penalty_mean.toFixed(2)}%`
-                    : "Not available"}
+                  {zone.solar_penalty_mid !== null && zone.solar_penalty_mid !== undefined
+                    ? `${zone.solar_penalty_mid.toFixed(2)}%`
+                    : (zone.solar_penalty_mean !== null && zone.solar_penalty_mean !== undefined ? `${zone.solar_penalty_mean.toFixed(2)}%` : "Not available")}
                 </div>
               </div>
               <div className="bg-stone-900 p-2 rounded border border-stone-800">
-                <div className="text-[11px] text-stone-400 uppercase font-semibold">P90 (Milder Loss)</div>
-                <div className="text-sm font-bold text-yellow-300 mt-0.5">
-                  {zone.solar_penalty_p90 !== null && zone.solar_penalty_p90 !== undefined
-                    ? `${zone.solar_penalty_p90.toFixed(2)}%`
+                <div className="text-[10px] text-stone-400 uppercase font-semibold">High (α=0.8)</div>
+                <div className="text-sm font-bold text-red-400 mt-0.5">
+                  {zone.solar_penalty_high !== null && zone.solar_penalty_high !== undefined
+                    ? `${zone.solar_penalty_high.toFixed(2)}%`
                     : "Not available"}
                 </div>
               </div>
@@ -422,8 +427,15 @@ export const ZoneEvidenceDrawer: React.FC<ZoneEvidenceDrawerProps> = ({
               </span>
             </div>
 
+            <div className="text-[11px] text-stone-400 flex items-center justify-between">
+              <span>Penalty Formulation [Assumed α]:</span>
+              <span className="font-mono text-stone-300">
+                γ × α × heat_excess (γ = -0.533%/°C)
+              </span>
+            </div>
+
             <div className="text-[11px] text-stone-500 leading-tight pt-1">
-              <strong>Caveat:</strong> Relative efficiency loss from microclimatic heat. Does NOT present absolute kWh generation for Pune without balance-of-system engineering.
+              <strong>Caveat:</strong> Microclimatic PV derating trained on Gandikota plant (Kadapa, AP). Ranking is strictly by heat excess (α-independent). Does NOT compute absolute kWh without structural BoS design.
             </div>
           </div>
         </div>

@@ -400,7 +400,7 @@ export default function MethodPage() {
               <div className="mt-4 pt-3 border-t border-emerald-900/40 text-[11px] text-stone-400 flex items-start gap-2">
                 <Info className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
                 <span>
-                  <strong>Safety Governance Rule</strong>: If the model predicts warming when greening is increased (direction check failure ∂LST/∂NDVI &gt; 0), the Priority Engine locks all cooling fields to <code>null</code>, shows &quot;Not available&quot;, and sets status to <code>UNAVAILABLE</code> to prevent counterfactual hallucination.
+                  <strong>Unconstrained Diagnostic Gate</strong>: Because production ensemble trees enforce monotone splits, monotonicity alone is not a proof of data-driven physics. We independently fit an unconstrained diagnostic model to verify that <strong>95.9% of cells</strong> exhibit an empirical negative cooling response to greening (∂LST/∂NDVI &le; 0), exceeding the &ge; 80% statutory gate requirement. If this diagnostic gate fails, all cooling and heat penalty fields are nullified.
                 </span>
               </div>
             </div>
@@ -409,6 +409,50 @@ export default function MethodPage() {
               Physical consistency check data not available.
             </div>
           )}
+        </section>
+
+        {/* ========================================================================= */}
+        {/* SECTION 3B: PHOTOVOLTAIC DERATING & MICROCLIMATIC COUPLING                */}
+        {/* ========================================================================= */}
+        <section aria-labelledby="section-solar" className="space-y-4">
+          <div className="flex items-center justify-between border-b border-stone-800 pb-2">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-amber-400" />
+              <h2 id="section-solar" className="text-lg font-bold text-stone-100">
+                3B. Solar Heat Penalty Formulation & Microclimatic Coupling
+              </h2>
+            </div>
+            <ProvenanceTag type="Modelled" />
+          </div>
+
+          <div className="bg-stone-900/60 border border-stone-800 rounded-xl p-5 space-y-3 text-xs leading-relaxed text-stone-300">
+            <p>
+              Urban surface heat creates an efficiency penalty on photovoltaic generation. Rather than assuming an uncalibrated 1:1 coupling with surface skin temperature, UrjaSetu models PV loss via:
+            </p>
+            <div className="p-3 bg-stone-950 rounded-lg border border-stone-800 font-mono text-center text-amber-300 font-bold">
+              Solar Output Penalty (%) = γ × α × heat_excess
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 font-mono text-[11px]">
+              <div className="bg-stone-950 p-3 rounded border border-stone-800">
+                <span className="text-stone-400 block uppercase">Empirical Coefficient (γ)</span>
+                <span className="text-amber-400 font-bold text-sm block mt-0.5">-0.533%/°C</span>
+                <span className="text-stone-500 block mt-0.5">90% CI: [-0.744, -0.295]%</span>
+                <span className="text-stone-400 block mt-1 font-sans">Empirically derived from Gandikota Solar Park (Kadapa, AP). Reflects elevated ambient temperature, inverter clipping, and thermal mismatch vs datasheet -0.380%/°C.</span>
+              </div>
+              <div className="bg-stone-950 p-3 rounded border border-stone-800">
+                <span className="text-stone-400 block uppercase">Coupling Factor (α)</span>
+                <span className="text-teal-400 font-bold text-sm block mt-0.5">0.50 (Default) [Assumed]</span>
+                <span className="text-stone-500 block mt-0.5">Config range: 0.20 – 0.80</span>
+                <span className="text-stone-400 block mt-1 font-sans">Represents the fraction of local ground surface heat transferred into the rooftop panel microclimate.</span>
+              </div>
+              <div className="bg-stone-950 p-3 rounded border border-stone-800">
+                <span className="text-stone-400 block uppercase">Ranking Invariance</span>
+                <span className="text-emerald-400 font-bold text-sm block mt-0.5">heat_excess_celsius</span>
+                <span className="text-stone-500 block mt-0.5">Independent of α</span>
+                <span className="text-stone-400 block mt-1 font-sans">Parcels are ranked strictly by thermal heat excess so priorities do not depend on the assumed coupling parameter.</span>
+              </div>
+            </div>
+          </div>
         </section>
 
         {/* ========================================================================= */}

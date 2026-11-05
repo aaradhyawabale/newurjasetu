@@ -6,10 +6,11 @@
     "end_date": "2020-06-17",
     "total_days": 34
   },
+  "dataset_location": "Gandikota, Kadapa District, Andhra Pradesh, India",
   "dataset_plants": [
     {
       "plant_id": 4135001,
-      "name": "Gandikota Solar Plant 1 (India)",
+      "name": "Gandikota Solar Plant 1 (Kadapa District, Andhra Pradesh, India)",
       "rmse_kw": 20.1,
       "r2_score": 0.9954,
       "train_days": 27,
@@ -17,7 +18,7 @@
     },
     {
       "plant_id": 4136001,
-      "name": "Gandikota Solar Plant 2 (India)",
+      "name": "Gandikota Solar Plant 2 (Kadapa District, Andhra Pradesh, India)",
       "rmse_kw": 25.19,
       "r2_score": 0.9947,
       "train_days": 27,
@@ -33,10 +34,26 @@
     "percent_change_per_10c_p10": -7.44,
     "percent_change_per_10c_p90": -2.95,
     "bootstrap_samples": 30,
-    "penalty_per_celsius_mean": -0.533
+    "penalty_per_celsius_mean": -0.533,
+    "gamma_derating_per_celsius": -0.533,
+    "gamma_confidence_interval_90": [
+      -0.744,
+      -0.295
+    ],
+    "datasheet_coefficient_per_celsius": -0.38,
+    "comparison_explanation": "Empirical regression from Gandikota SCADA operational data yields gamma = -0.533%/\u00b0C (90% CI: [-0.744, -0.295]), compared to the standard manufacturer datasheet nominal rating of -0.380%/\u00b0C, reflecting real-world utility operating losses including inverter clipping and balance-of-system thermal bottlenecks.",
+    "coupling_factor_alpha": {
+      "default": 0.5,
+      "range": [
+        0.2,
+        0.8
+      ],
+      "provenance": "Assumed",
+      "description": "Urban microclimate coupling coefficient scaling radiometric land surface temperature excess to rooftop PV module operating temperature."
+    }
   },
   "limitations": [
-    "Trained on 34 days of operational SCADA and weather sensor data (May 15 - June 17, 2020) from two utility-scale solar plants in Gandikota, India.",
+    "Trained on 34 days of operational SCADA and weather sensor data (May 15 - June 17, 2020) from two utility-scale solar plants in Gandikota, Kadapa District, Andhra Pradesh, India.",
     "Not Pune-specific: Pune urban microclimates have distinct convective wind patterns, humidity profiles, atmospheric aerosol optical depths, and rooftop boundary layer turbulence.",
     "Relative output loss only: does NOT predict absolute kWh solar generation for Pune cells without site-specific panel tilt, orientation, inverter sizing, and clipping factors.",
     "Surface temperature (LST) is radiometric skin temperature, NOT PV module surface temperature or ambient 2m air temperature."
@@ -50,5 +67,5 @@
     ],
     "provenance_tag": "Modelled"
   },
-  "created_at": "2026-11-04T18:46:14.352017+00:00"
+  "created_at": "2026-11-05T06:38:43.426881+00:00"
 }

@@ -1,0 +1,186 @@
+[
+  {
+    "ward": "Nagar Road",
+    "loss_cells_count": 641,
+    "total_loss_area_ha": 1821.06,
+    "mean_ndvi_drop": 0.207,
+    "mean_extra_heat_celsius": 1.08,
+    "affected_population": 735239
+  },
+  {
+    "ward": "Kondhwa-wanawdi",
+    "loss_cells_count": 467,
+    "total_loss_area_ha": 1313.84,
+    "mean_ndvi_drop": 0.205,
+    "mean_extra_heat_celsius": 1.07,
+    "affected_population": 523536
+  },
+  {
+    "ward": "Dhankwadi",
+    "loss_cells_count": 361,
+    "total_loss_area_ha": 1008.2,
+    "mean_ndvi_drop": 0.203,
+    "mean_extra_heat_celsius": 1.07,
+    "affected_population": 419811
+  },
+  {
+    "ward": "Aundh",
+    "loss_cells_count": 230,
+    "total_loss_area_ha": 669.61,
+    "mean_ndvi_drop": 0.212,
+    "mean_extra_heat_celsius": 1.11,
+    "affected_population": 275190
+  },
+  {
+    "ward": "Warje-karvenager",
+    "loss_cells_count": 236,
+    "total_loss_area_ha": 655.56,
+    "mean_ndvi_drop": 0.202,
+    "mean_extra_heat_celsius": 1.06,
+    "affected_population": 234705
+  },
+  {
+    "ward": "Kothrud",
+    "loss_cells_count": 142,
+    "total_loss_area_ha": 395.8,
+    "mean_ndvi_drop": 0.203,
+    "mean_extra_heat_celsius": 1.06,
+    "affected_population": 260842
+  },
+  {
+    "ward": "Bhawani Peth",
+    "loss_cells_count": 101,
+    "total_loss_area_ha": 294.69,
+    "mean_ndvi_drop": 0.212,
+    "mean_extra_heat_celsius": 1.11,
+    "affected_population": 255193
+  },
+  {
+    "ward": "Shivajinagar - Ghole Road",
+    "loss_cells_count": 83,
+    "total_loss_area_ha": 229.46,
+    "mean_ndvi_drop": 0.201,
+    "mean_extra_heat_celsius": 1.06,
+    "affected_population": 214322
+  },
+  {
+    "ward": "Dhole Patil",
+    "loss_cells_count": 60,
+    "total_loss_area_ha": 163.08,
+    "mean_ndvi_drop": 0.198,
+    "mean_extra_heat_celsius": 1.04,
+    "affected_population": 120921
+  },
+  {
+    "ward": "Sangamwadi",
+    "loss_cells_count": 51,
+    "total_loss_area_ha": 155.36,
+    "mean_ndvi_drop": 0.222,
+    "mean_extra_heat_celsius": 1.16,
+    "affected_population": 99358
+  },
+  {
+    "ward": "Sahkar Nagar",
+    "loss_cells_count": 51,
+    "total_loss_area_ha": 137.56,
+    "mean_ndvi_drop": 0.196,
+    "mean_extra_heat_celsius": 1.03,
+    "affected_population": 105699
+  },
+  {
+    "ward": "Bibwewadi",
+    "loss_cells_count": 18,
+    "total_loss_area_ha": 43.84,
+    "mean_ndvi_drop": 0.177,
+    "mean_extra_heat_celsius": 0.93,
+    "affected_population": 33549
+  },
+  {
+    "ward": "Kasba Vishrambaugwada",
+    "loss_cells_count": 8,
+    "total_loss_area_ha": 16.79,
+    "mean_ndvi_drop": 0.153,
+    "mean_extra_heat_celsius": 0.8,
+    "affected_population": 23275
+  },
+  {
+    "ward": "Tillak Rasta",
+    "loss_cells_count": 0,
+    "total_loss_area_ha": 0.0,
+    "mean_ndvi_drop": 0.0,
+    "mean_extra_heat_celsius": null,
+    "affected_population": 0
+  },
+  {
+    "ward": "Hadapsar - Mundhwa",
+    "loss_cells_count": 0,
+    "total_loss_area_ha": 0.0,
+    "mean_ndvi_drop": 0.0,
+    "mean_extra_heat_celsius": null,
+    "affected_population": 0
+  },
+  {
+    "ward": "Sinhagad Road",
+    "loss_cells_count": 0,
+    "total_loss_area_ha": 0.0,
+    "mean_ndvi_drop": 0.0,
+    "mean_extra_heat_celsius": null,
+    "affected_population": 0
+  },
+  {
+    "ward": "Yerawada - Kalas - Dhanori",
+    "loss_cells_count": 0,
+    "total_loss_area_ha": 0.0,
+    "mean_ndvi_drop": 0.0,
+    "mean_extra_heat_celsius": null,
+    "affected_population": 0
+  },
+  {
+    "ward": "Khadki Cantonment Area",
+    "loss_cells_count": 0,
+    "total_loss_area_ha": 0.0,
+    "mean_ndvi_drop": 0.0,
+    "mean_extra_heat_celsius": null,
+    "affected_population": 0
+  },
+  {
+    "ward": "Pune Cantonment Area",
+    "loss_cells_count": 0,
+    "total_loss_area_ha": 0.0,
+    "mean_ndvi_drop": 0.0,
+    "mean_extra_heat_celsius": null,
+    "affected_population": 0
+  },
+  {
+    "ward": "Pashan - Sus",
+    "loss_cells_count": 0,
+    "total_loss_area_ha": 0.0,
+    "mean_ndvi_drop": 0.0,
+    "mean_extra_heat_celsius": null,
+    "affected_population": 0
+  },
+  {
+    "ward": "Wagholi",
+    "loss_cells_count": 0,
+    "total_loss_area_ha": 0.0,
+    "mean_ndvi_drop": 0.0,
+    "mean_extra_heat_celsius": null,
+    "affected_population": 0
+  },
+  {
+    "ward": "Ambegaon - Narhe",
+    "loss_cells_count": 0,
+    "total_loss_area_ha": 0.0,
+    "mean_ndvi_drop": 0.0,
+    "mean_extra_heat_celsius": null,
+    "affected_population": 0
+  },
+  {
+    "ward": "Katraj - Gujar Nimbalkarwadi",
+    "loss_cells_count": 0,
+    "total_loss_area_ha": 0.0,
+    "mean_ndvi_drop": 0.0,
+    "mean_extra_heat_celsius": null,
+    "affected_population": 0
+  }
+]

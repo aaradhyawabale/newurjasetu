@@ -1,7 +1,7 @@
 {
   "manifest_version": "1.0.0",
   "pipeline_script": "scripts/pipeline/build_dataset.py",
-  "generated_at": "2026-11-04T16:07:08.299519+00:00",
+  "generated_at": "2026-11-05T06:24:11.469478+00:00",
   "study_area": {
     "name": "Pune Urban Agglomeration (PMC Candidate Boundary)",
     "bbox_wgs84": [

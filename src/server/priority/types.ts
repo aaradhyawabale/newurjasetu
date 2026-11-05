@@ -60,11 +60,23 @@ export interface PriorityCell {
   /** Relative solar PV power output loss (%) from heat excess [Modelled] */
   solar_penalty_mean?: number | null;
 
+  /** Relative solar PV output loss at low alpha coupling (0.2) [Modelled / Assumed] */
+  solar_penalty_low?: number | null;
+
+  /** Relative solar PV output loss at default alpha coupling (0.5) [Modelled / Assumed] */
+  solar_penalty_mid?: number | null;
+
+  /** Relative solar PV output loss at high alpha coupling (0.8) [Modelled / Assumed] */
+  solar_penalty_high?: number | null;
+
   /** 10th percentile relative solar PV output loss (%) [Modelled] */
   solar_penalty_p10?: number | null;
 
   /** 90th percentile relative solar PV output loss (%) [Modelled] */
   solar_penalty_p90?: number | null;
+
+  /** Alpha-independent rank of cell heat excess across study area (1 = highest heat excess) [Modelled] */
+  solar_penalty_rank?: number | null;
 }
 
 /**
@@ -96,6 +108,16 @@ export interface SolarModelCard {
     percent_change_per_10c_p90: number;
     bootstrap_samples: number;
     penalty_per_celsius_mean: number;
+    gamma_derating_per_celsius?: number;
+    gamma_confidence_interval_90?: [number, number];
+    datasheet_coefficient_per_celsius?: number;
+    comparison_explanation?: string;
+    coupling_factor_alpha?: {
+      default: number;
+      range: [number, number];
+      provenance: ProvenanceCategory;
+      description: string;
+    };
   };
   limitations: string[];
   governance: {

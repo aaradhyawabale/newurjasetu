@@ -1,0 +1,75 @@
+{
+  "manifest_version": "1.0.0",
+  "created_at": "2026-11-05T07:00:18Z",
+  "model_name": "UrjaSetu 30-Member Spatial-Block Bootstrap Ensemble",
+  "ensemble_members": 30,
+  "seeds": [
+    99,
+    100,
+    101,
+    102,
+    103,
+    104,
+    105,
+    106,
+    107,
+    108,
+    109,
+    110,
+    111,
+    112,
+    113,
+    114,
+    115,
+    116,
+    117,
+    118,
+    119,
+    120,
+    121,
+    122,
+    123,
+    124,
+    125,
+    126,
+    127,
+    128
+  ],
+  "features": [
+    "ndvi",
+    "ndbi",
+    "ndwi",
+    "built_frac",
+    "elevation",
+    "dist_to_water"
+  ],
+  "training_rows": 350,
+  "dates": {
+    "landsat9_overpass": "2023-04-22T05:27:00Z",
+    "sentinel2b_overpass": "2023-04-24T05:32:00Z",
+    "held_out_scene_date": "2024-04-24T05:27:15Z"
+  },
+  "spatial_cv": {
+    "rmse_celsius": 0.91,
+    "mae_celsius": 0.61,
+    "r2_score": 0.7,
+    "folds": 5,
+    "spatial_blocks_count": 136,
+    "block_size_km": 2.0
+  },
+  "unconstrained_diagnostic_gate": {
+    "gate_name": "Unconstrained Diagnostic Direction Gate",
+    "passed": false,
+    "negative_response_pct": 95.9,
+    "monotone_constraints_enforced": false,
+    "status": "FAILED_THERMODYNAMIC_DIRECTION"
+  },
+  "p10_p90_width_distribution": {
+    "min_celsius": 0.0,
+    "p10_celsius": 0.0,
+    "median_celsius": 0.0,
+    "p90_celsius": 0.0,
+    "max_celsius": 0.0,
+    "label": "model variance only"
+  }
+}

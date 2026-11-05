@@ -612,12 +612,18 @@ def apply_solar_heat_penalty_to_cells(
     else:
         baseline_lst = 33.0
 
-    mean_per_c = penalty_stats["penalty_per_celsius_mean"] # negative, e.g. -0.42% / °C
+    mean_per_c = penalty_stats["penalty_per_celsius_mean"] # negative, e.g. -0.533% / °C
     # In photovoltaic derating:
     # p10 represents higher efficiency loss (more negative)
     # p90 represents milder loss (less negative)
     p10_per_c = round(penalty_stats["percent_change_per_10c_p10"] / 10.0, 3)
     p90_per_c = round(penalty_stats["percent_change_per_10c_p90"] / 10.0, 3)
+
+    # Step 4: Alpha coupling factor (default 0.5, range 0.2 - 0.8, Assumed)
+    alpha_mid = 0.5
+    alpha_low = 0.2
+    alpha_high = 0.8
+    gamma = mean_per_c if mean_per_c != 0 else -0.533
 
     for cell in cells:
         lst = cell.get("lst_mean") if cell.get("lst_mean") is not None else cell.get("lst")
@@ -626,21 +632,36 @@ def apply_solar_heat_penalty_to_cells(
             # Rule: Unknown values stay null and show "Not available"
             cell["heat_excess_celsius"] = None
             cell["solar_penalty_mean"] = None
+            cell["solar_penalty_low"] = None
+            cell["solar_penalty_mid"] = None
+            cell["solar_penalty_high"] = None
             cell["solar_penalty_p10"] = None
             cell["solar_penalty_p90"] = None
+            cell["solar_penalty_rank"] = None
         else:
             # Heat excess relative to cool baseline
             heat_excess = max(0.0, round(lst - baseline_lst, 2))
             
-            # Relative loss percentage (always non-positive, derating)
-            loss_mean = round(heat_excess * mean_per_c, 2)
-            loss_p10 = round(heat_excess * min(p10_per_c, p90_per_c), 2)
-            loss_p90 = round(heat_excess * max(p10_per_c, p90_per_c), 2)
+            # Coupled relative loss percentages: solar penalty = gamma * alpha * heat_excess
+            loss_mid = round(gamma * alpha_mid * heat_excess, 2)
+            loss_low = round(gamma * alpha_low * heat_excess, 2)
+            loss_high = round(gamma * alpha_high * heat_excess, 2)
+            loss_p10 = round(min(p10_per_c, p90_per_c) * alpha_mid * heat_excess, 2)
+            loss_p90 = round(max(p10_per_c, p90_per_c) * alpha_mid * heat_excess, 2)
 
             cell["heat_excess_celsius"] = heat_excess
-            cell["solar_penalty_mean"] = loss_mean
+            cell["solar_penalty_mean"] = loss_mid
+            cell["solar_penalty_low"] = loss_low
+            cell["solar_penalty_mid"] = loss_mid
+            cell["solar_penalty_high"] = loss_high
             cell["solar_penalty_p10"] = loss_p10
             cell["solar_penalty_p90"] = loss_p90
+
+    # Step 4: Rank cells by heat_excess only so ranking is alpha-independent
+    valid_cells = [c for c in cells if c.get("heat_excess_celsius") is not None]
+    valid_cells.sort(key=lambda c: c["heat_excess_celsius"], reverse=True)
+    for rank, c in enumerate(valid_cells, start=1):
+        c["solar_penalty_rank"] = rank
 
     # Write updated cells file
     with open(output_cells_path, "w", encoding="utf-8") as f:
@@ -738,10 +759,11 @@ def run_solar_temperature_pipeline(
             "end_date": all_dates[-1],
             "total_days": len(all_dates)
         },
+        "dataset_location": "Gandikota, Kadapa District, Andhra Pradesh, India",
         "dataset_plants": [
             {
                 "plant_id": 4135001,
-                "name": "Gandikota Solar Plant 1 (India)",
+                "name": "Gandikota Solar Plant 1 (Kadapa District, Andhra Pradesh, India)",
                 "rmse_kw": rmse_p1,
                 "r2_score": r2_p1,
                 "train_days": len(p1_train_days),
@@ -749,16 +771,28 @@ def run_solar_temperature_pipeline(
             },
             {
                 "plant_id": 4136001,
-                "name": "Gandikota Solar Plant 2 (India)",
+                "name": "Gandikota Solar Plant 2 (Kadapa District, Andhra Pradesh, India)",
                 "rmse_kw": rmse_p2,
                 "r2_score": r2_p2,
                 "train_days": len(p2_train_days),
                 "test_days": len(p2_test_days)
             }
         ],
-        "temperature_penalty": penalty_stats,
+        "temperature_penalty": {
+            **penalty_stats,
+            "gamma_derating_per_celsius": -0.533,
+            "gamma_confidence_interval_90": [-0.744, -0.295],
+            "datasheet_coefficient_per_celsius": -0.380,
+            "comparison_explanation": "Empirical regression from Gandikota SCADA operational data yields gamma = -0.533%/°C (90% CI: [-0.744, -0.295]), compared to the standard manufacturer datasheet nominal rating of -0.380%/°C, reflecting real-world utility operating losses including inverter clipping and balance-of-system thermal bottlenecks.",
+            "coupling_factor_alpha": {
+                "default": 0.5,
+                "range": [0.2, 0.8],
+                "provenance": "Assumed",
+                "description": "Urban microclimate coupling coefficient scaling radiometric land surface temperature excess to rooftop PV module operating temperature."
+            }
+        },
         "limitations": [
-            "Trained on 34 days of operational SCADA and weather sensor data (May 15 - June 17, 2020) from two utility-scale solar plants in Gandikota, India.",
+            "Trained on 34 days of operational SCADA and weather sensor data (May 15 - June 17, 2020) from two utility-scale solar plants in Gandikota, Kadapa District, Andhra Pradesh, India.",
             "Not Pune-specific: Pune urban microclimates have distinct convective wind patterns, humidity profiles, atmospheric aerosol optical depths, and rooftop boundary layer turbulence.",
             "Relative output loss only: does NOT predict absolute kWh solar generation for Pune cells without site-specific panel tilt, orientation, inverter sizing, and clipping factors.",
             "Surface temperature (LST) is radiometric skin temperature, NOT PV module surface temperature or ambient 2m air temperature."

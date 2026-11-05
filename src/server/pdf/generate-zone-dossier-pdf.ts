@@ -109,10 +109,10 @@ export async function generateZoneDossierPdf(input: ZoneDossierInput): Promise<U
   });
 
   const [lng, lat] = zone.centroid || [73.8567, 18.5204];
-  page1.drawText(`WARD: ${zone.ward || "Unknown Ward"}`, {
+  page1.drawText(`WARD: ${zone.ward || "Unknown Ward"} (approximate)`, {
     x: 260,
     y: y - 18,
-    size: 9,
+    size: 8.5,
     font: boldFont,
     color: darkStone,
   });
@@ -282,25 +282,25 @@ export async function generateZoneDossierPdf(input: ZoneDossierInput): Promise<U
       metric: "Conservative Cooling (P10)",
       tag: "[Modelled]",
       value: coolingP10,
-      note: "10th percentile outcome across 30 spatial-block bootstrap ensemble runs",
+      note: "10th percentile outcome (model variance only; Spatial-CV RMSE: 0.91°C)",
     },
     {
       metric: "Expected Mean Cooling",
       tag: "[Modelled]",
       value: coolingMean,
-      note: "Expected portfolio thermal relief when greenable land reaches target NDVI",
+      note: "Expected portfolio thermal relief (model variance only; Spatial-CV RMSE: 0.91°C)",
     },
     {
       metric: "Optimistic Cooling (P90)",
       tag: "[Modelled]",
       value: coolingP90,
-      note: "90th percentile upper boundary under favorable microclimatic conditions",
+      note: "90th percentile upper boundary (model variance only; Spatial-CV RMSE: 0.91°C)",
     },
     {
       metric: "Benefited Population",
-      tag: "[Modelled]",
+      tag: "[Assumed]",
       value: popVal,
-      note: "Copernicus GHS-POP / LandScan 2023-2025 population count in 250m cell",
+      note: "WorldPop 2022 projections downscaled [Assumed] to 250m cell envelope",
     },
     {
       metric: "Ensemble Selection Frequency",
