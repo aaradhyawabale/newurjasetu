@@ -33,29 +33,53 @@ export interface MapViewProps {
   zoom?: number;
 }
 
-const DEFAULT_RASTER_STYLE: maplibregl.StyleSpecification = {
+// Basemap style URLs: OpenFreeMap Positron (vector/json) by default, or env override
+const POSITRON_STYLE_URL =
+  process.env.NEXT_PUBLIC_MAP_STYLE_URL ||
+  (typeof window !== 'undefined' && (window as any).VITE_MAP_STYLE_URL) ||
+  'https://tiles.openfreemap.org/styles/positron';
+
+const OSM_FALLBACK_STYLE: maplibregl.StyleSpecification = {
   version: 8,
   sources: {
-    'carto-tiles': {
+    'osm-tiles': {
       type: 'raster',
-      tiles: [
-        'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
-        'https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
-        'https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
-      ],
+      tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
       tileSize: 256,
-      attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+      attribution: '&copy; OpenStreetMap contributors',
     },
   },
   layers: [
     {
-      id: 'carto-layer',
+      id: 'osm-layer',
       type: 'raster',
-      source: 'carto-tiles',
+      source: 'osm-tiles',
       minzoom: 0,
       maxzoom: 19,
     },
   ],
+};
+
+const BLANK_FALLBACK_STYLE: maplibregl.StyleSpecification = {
+  version: 8,
+  sources: {},
+  layers: [
+    {
+      id: 'blank-background',
+      type: 'background',
+      paint: {
+        'background-color': '#f8fafc',
+      },
+    },
+  ],
+};
+
+const FIVE_CLASS_PALETTES = {
+  burden: ['#FEF3C7', '#FCD34D', '#F5A524', '#EA580C', '#B91C1C'],
+  lst: ['#FEF08A', '#FBBF24', '#F97316', '#DC2626', '#991B1B'],
+  ndvi: ['#FEF3C7', '#D1FAE5', '#6EE7B7', '#10B981', '#047857'],
+  population: ['#EEF2FF', '#C7D2FE', '#818CF8', '#4F46E5', '#312E81'],
+  loss: ['#E2E8F0', '#FECDD3', '#FB7185', '#E11D48', '#881337'],
 };
 
 const LAYER_CONFIGS: Record<
@@ -79,7 +103,7 @@ const LAYER_CONFIGS: Record<
     truth: 'Measured',
   },
   ndvi: {
-    label: 'Canopy Density (NDVI)',
+    label: 'Vegetation Index (NDVI)',
     unit: 'Ratio (Sentinel-2)',
     min: '0.05 (Sparse)',
     max: '0.65+ (Dense)',
@@ -190,23 +214,68 @@ export const MapView: React.FC<MapViewProps> = ({
     };
   }, [cells, selectedSet]);
 
-  // Initialize MapLibre GL Map
+  const [webglError, setWebglError] = useState<string | null>(null);
+
+  // Initialize MapLibre GL Map with OpenFreeMap and fallback chain
   useEffect(() => {
     if (!mapContainerRef.current) return;
     if (mapRef.current) return;
 
-    const [initLat, initLng] = center;
+    if (typeof (maplibregl as any).supported === 'function' && !(maplibregl as any).supported()) {
+      setWebglError('WebGL is disabled or unsupported in this browser environment.');
+      return;
+    }
 
-    const map = new maplibregl.Map({
-      container: mapContainerRef.current,
-      style: DEFAULT_RASTER_STYLE,
-      center: [initLng, initLat],
-      zoom: zoom,
-      attributionControl: false,
-      interactive: interactive,
+    const [initLat, initLng] = center;
+    let map: maplibregl.Map;
+
+    try {
+      map = new maplibregl.Map({
+        container: mapContainerRef.current,
+        style: POSITRON_STYLE_URL,
+        center: [initLng, initLat],
+        zoom: zoom,
+        attributionControl: false,
+        interactive: interactive,
+      });
+    } catch (err: any) {
+      console.warn('MapLibre GL Map creation failed:', err);
+      setWebglError(err?.message || 'Basemap unavailable');
+      return;
+    }
+
+    // Add attribution
+    map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-left');
+
+    let fallbackStage = 0; // 0 = Positron, 1 = OSM raster, 2 = Blank
+
+    map.on('error', (e) => {
+      // Check if error is related to style / tile loading
+      if (fallbackStage === 0) {
+        console.warn('Positron style failed to load, switching to OSM raster fallback:', e);
+        fallbackStage = 1;
+        try {
+          map.setStyle(OSM_FALLBACK_STYLE);
+        } catch {
+          fallbackStage = 2;
+          map.setStyle(BLANK_FALLBACK_STYLE);
+        }
+      } else if (fallbackStage === 1) {
+        console.warn('OSM fallback failed, using blank canvas with notice:', e);
+        fallbackStage = 2;
+        try {
+          map.setStyle(BLANK_FALLBACK_STYLE);
+        } catch {
+          // ignore
+        }
+      }
     });
 
     map.on('load', () => {
+      setMapLoaded(true);
+    });
+
+    map.on('styledata', () => {
       setMapLoaded(true);
     });
 
@@ -217,6 +286,61 @@ export const MapView: React.FC<MapViewProps> = ({
       mapRef.current = null;
     };
   }, []);
+
+  // Compute data-driven quantiles (5 classes) and min/max for active layer
+  const { quantiles, dataMin, dataMax } = useMemo(() => {
+    if (!cells.length) {
+      return { quantiles: [0, 1, 2, 3, 4], dataMin: '0', dataMax: '1' };
+    }
+
+    const extractVal = (c: Cell): number => {
+      if (currentLayer === 'lst') return c.lst_mean ?? 0;
+      if (currentLayer === 'ndvi') return c.ndvi ?? 0;
+      if (currentLayer === 'population') return c.population ?? 0;
+      if (currentLayer === 'loss') return c.loss_ha ?? 0;
+      return c.burden ?? 0;
+    };
+
+    const vals = cells.map(extractVal).filter((v) => !isNaN(v)).sort((a, b) => a - b);
+    if (!vals.length) return { quantiles: [0, 1, 2, 3, 4], dataMin: '0', dataMax: '1' };
+
+    const minVal = vals[0];
+    const maxVal = vals[vals.length - 1];
+
+    // Compute 5 quantile break points: q0, q20, q40, q60, q80, q100
+    const q = (p: number) => vals[Math.min(vals.length - 1, Math.floor(vals.length * p))];
+    const q0 = minVal;
+    const q1 = q(0.2);
+    const q2 = q(0.4);
+    const q3 = q(0.6);
+    const q4 = q(0.8);
+
+    let formatMin = `${minVal}`;
+    let formatMax = `${maxVal}`;
+
+    if (currentLayer === 'lst') {
+      formatMin = `${minVal.toFixed(1)}°C`;
+      formatMax = `${maxVal.toFixed(1)}°C`;
+    } else if (currentLayer === 'ndvi') {
+      formatMin = `${minVal.toFixed(2)}`;
+      formatMax = `${maxVal.toFixed(2)}`;
+    } else if (currentLayer === 'population') {
+      formatMin = minVal.toLocaleString('en-IN');
+      formatMax = maxVal.toLocaleString('en-IN');
+    } else if (currentLayer === 'loss') {
+      formatMin = `${minVal.toFixed(1)} ha`;
+      formatMax = `${maxVal.toFixed(1)} ha`;
+    } else if (currentLayer === 'burden') {
+      formatMin = `${Math.round(minVal)}`;
+      formatMax = `${Math.round(maxVal)}`;
+    }
+
+    return {
+      quantiles: [q0, q1, q2, q3, q4],
+      dataMin: formatMin,
+      dataMax: formatMax,
+    };
+  }, [cells, currentLayer]);
 
   // Update GeoJSON Source & Layers when map loads or data changes
   useEffect(() => {
@@ -238,70 +362,9 @@ export const MapView: React.FC<MapViewProps> = ({
       });
     }
 
-    // Dynamic fill color expression based on currentLayer and selection
+    // Dynamic fill color expression based on currentLayer and quantile classes
     let colorExpr: any;
-    if (currentLayer === 'lst') {
-      colorExpr = [
-        'case',
-        ['==', ['get', 'isSelected'], 1],
-        '#0F5C63',
-        [
-          'interpolate',
-          ['linear'],
-          ['get', 'lst_mean'],
-          32, '#FDE68A',
-          36, '#F59E0B',
-          40, '#EA580C',
-          44, '#DC2626',
-        ],
-      ];
-    } else if (currentLayer === 'ndvi') {
-      colorExpr = [
-        'case',
-        ['==', ['get', 'isSelected'], 1],
-        '#0F5C63',
-        [
-          'interpolate',
-          ['linear'],
-          ['get', 'ndvi'],
-          0.05, '#FEF3C7',
-          0.20, '#A7F3D0',
-          0.40, '#34D399',
-          0.65, '#059669',
-        ],
-      ];
-    } else if (currentLayer === 'population') {
-      colorExpr = [
-        'case',
-        ['==', ['get', 'isSelected'], 1],
-        '#0F5C63',
-        [
-          'interpolate',
-          ['linear'],
-          ['get', 'population'],
-          1000, '#E0E7FF',
-          5000, '#818CF8',
-          10000, '#4F46E5',
-          16000, '#312E81',
-        ],
-      ];
-    } else if (currentLayer === 'loss') {
-      colorExpr = [
-        'case',
-        ['==', ['get', 'isSelected'], 1],
-        '#0F5C63',
-        ['<=', ['get', 'loss_ha'], 0],
-        '#E2E8F0',
-        [
-          'interpolate',
-          ['linear'],
-          ['get', 'loss_ha'],
-          0.1, '#FECDD3',
-          1.0, '#F43F5E',
-          2.5, '#9F1239',
-        ],
-      ];
-    } else if (currentLayer === 'selected') {
+    if (currentLayer === 'selected') {
       colorExpr = [
         'case',
         ['==', ['get', 'isSelected'], 1],
@@ -309,7 +372,15 @@ export const MapView: React.FC<MapViewProps> = ({
         '#E2E8F0',
       ];
     } else {
-      // Default: 'burden'
+      const field =
+        currentLayer === 'lst' ? 'lst_mean' :
+        currentLayer === 'ndvi' ? 'ndvi' :
+        currentLayer === 'population' ? 'population' :
+        currentLayer === 'loss' ? 'loss_ha' : 'burden';
+
+      const palette = FIVE_CLASS_PALETTES[currentLayer as keyof typeof FIVE_CLASS_PALETTES] || FIVE_CLASS_PALETTES.burden;
+      const [q0, q1, q2, q3, q4] = quantiles;
+
       colorExpr = [
         'case',
         ['==', ['get', 'isSelected'], 1],
@@ -317,12 +388,12 @@ export const MapView: React.FC<MapViewProps> = ({
         [
           'interpolate',
           ['linear'],
-          ['get', 'burden'],
-          0, '#FEF3C7',
-          200, '#FCD34D',
-          450, '#F5A524',
-          700, '#EA580C',
-          950, '#D64530',
+          ['get', field],
+          q0, palette[0],
+          q1, palette[1],
+          q2, palette[2],
+          q3, palette[3],
+          q4, palette[4],
         ],
       ];
     }
@@ -430,6 +501,17 @@ export const MapView: React.FC<MapViewProps> = ({
       {/* MapLibre Canvas Container */}
       <div ref={mapContainerRef} className="w-full h-full" />
 
+      {webglError && (
+        <div className="absolute inset-0 flex items-center justify-center bg-slate-50/90 z-10 p-6 text-center">
+          <div className="max-w-md bg-white border border-slate-200 rounded-xl p-4 shadow-md space-y-1">
+            <span className="font-semibold text-xs text-slate-800 block">Basemap unavailable</span>
+            <span className="text-[11px] text-slate-500 block leading-tight">
+              Rendering data layers directly (software rasterizer mode).
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Layer Switcher Pill */}
       {showLayerControl && (
         <div className="absolute top-3 left-3 z-20 flex flex-wrap gap-1 bg-white/95 backdrop-blur-md p-1.5 rounded-lg border border-slate-200 shadow-md">
@@ -488,13 +570,13 @@ export const MapView: React.FC<MapViewProps> = ({
           <TruthChip provenance={config.truth} size="sm" />
         </div>
         <div className="w-full h-2 rounded overflow-hidden flex border border-slate-200">
-          {config.colors.map((c, i) => (
+          {(FIVE_CLASS_PALETTES[currentLayer as keyof typeof FIVE_CLASS_PALETTES] || config.colors).map((c, i) => (
             <div key={i} className="flex-1 h-full" style={{ backgroundColor: c }} />
           ))}
         </div>
-        <div className="flex justify-between text-[10px] text-slate-500 font-mono">
-          <span>{config.min}</span>
-          <span>{config.max}</span>
+        <div className="flex justify-between text-[10px] text-slate-600 font-mono">
+          <span>{dataMin}</span>
+          <span>{dataMax}</span>
         </div>
       </div>
     </div>

@@ -45,7 +45,7 @@ export const PortfolioSummary: React.FC<PortfolioSummaryProps> = ({
                 <Compass className="w-3 h-3 text-[#0F5C63]" />
                 Priority Zones
               </span>
-              <TruthChip type="Modelled" label="Ranked" compact />
+              <TruthChip type="Modelled" compact />
             </div>
             <div className="flex items-baseline gap-1.5">
               <span className="text-xl sm:text-2xl font-bold font-mono text-[#14212B] tabular-nums">
@@ -65,17 +65,17 @@ export const PortfolioSummary: React.FC<PortfolioSummaryProps> = ({
             <div className="flex items-center justify-between gap-1 mb-1">
               <span className="text-[11px] font-medium text-slate-500 flex items-center gap-1">
                 <Users className="w-3 h-3 text-sky-600" />
-                People Protected
+                People Benefiting
               </span>
-              <TruthChip type="Measured" compact />
+              <TruthChip type="Modelled" compact />
             </div>
             <div className="flex items-baseline gap-1.5">
               <span className="text-xl sm:text-2xl font-bold font-mono text-[#14212B] tabular-nums">
-                {totals.people_covered.toLocaleString()}
+                {totals.people_covered.toLocaleString('en-IN')}
               </span>
             </div>
             <span className="text-[10px] text-slate-400 block truncate mt-0.5">
-              High-burden ward residents
+              High-burden ward residents [Modelled]
             </span>
           </div>
 
@@ -90,16 +90,16 @@ export const PortfolioSummary: React.FC<PortfolioSummaryProps> = ({
             </div>
             <div className="flex items-baseline gap-1.5 flex-wrap">
               <span className="text-xl sm:text-2xl font-bold font-mono text-sky-900 tabular-nums">
-                -{totals.cooling_mid}°C
+                -{totals.cooling_mid.toFixed(1)}°C
               </span>
               <span className="text-[11px] font-mono text-slate-600">
-                ({totals.cooling_low} to {totals.cooling_high}°C)
+                (-{totals.cooling_high.toFixed(1)} to -{totals.cooling_low.toFixed(1)}°C)
               </span>
             </div>
             <div className="text-[10px] text-slate-600 mt-0.5 flex items-center gap-1">
               <span>Model CV RMSE:</span>
               <span className="font-mono font-semibold text-slate-800 tabular-nums">
-                ±{modelCard?.cv_rmse_c ?? 1.18}°C
+                ±{modelCard?.cv_rmse_c ?? 0.91}°C
               </span>
             </div>
           </div>
@@ -111,7 +111,7 @@ export const PortfolioSummary: React.FC<PortfolioSummaryProps> = ({
                 <ShieldCheck className="w-3 h-3 text-emerald-600" />
                 Plan Robustness
               </span>
-              <TruthChip type="Modelled" label="Ensemble" compact />
+              <TruthChip type="Modelled" compact />
             </div>
             <div className="flex items-baseline gap-1.5">
               <span className="text-xl sm:text-2xl font-bold font-mono text-emerald-900 tabular-nums">

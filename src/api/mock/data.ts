@@ -185,13 +185,13 @@ export function generateMockCells(): Cell[] {
 export const MOCK_CELLS = generateMockCells();
 
 export const MOCK_MODEL_CARD: ModelCard = {
-  cv_rmse_c: 1.18,
-  cv_r2: 0.82,
-  held_out_rmse_c: 1.31,
-  ensemble_members: 12,
+  cv_rmse_c: 0.91,
+  cv_r2: 0.70,
+  held_out_rmse_c: 0.96,
+  ensemble_members: 30,
   gate: {
     passed: true,
-    text: 'Quality Gate PASSED: Cross-validation RMSE of 1.18°C is within the municipal decision threshold (<= 1.25°C). Safe for budget prioritization.',
+    text: 'Quality Gate PASSED: Verified unconstrained diagnostic direction gate: 95.9% negative response rate without monotone constraints.',
   },
   scenes: [
     { sensor: 'Landsat-9 TIRS-2', date: '2024-04-18' },
@@ -453,11 +453,10 @@ export function runMockOptimizer(req: OptimizeRequest): OptimizeResult {
     const selectedIds: string[] = [];
 
     for (const cell of candidates) {
-      if (currentAllocatedHa + cell.greenable_ha <= budget_ha * 1.05) {
+      if (currentAllocatedHa + cell.greenable_ha <= budget_ha) {
         selectedIds.push(cell.id);
         currentAllocatedHa += cell.greenable_ha;
       }
-      if (currentAllocatedHa >= budget_ha) break;
     }
     ensembleRuns.push(selectedIds);
   }
@@ -486,7 +485,7 @@ export function runMockOptimizer(req: OptimizeRequest): OptimizeResult {
 
   let rank = 1;
   for (const cell of sortedCells) {
-    if (allocatedHa + cell.greenable_ha <= budget_ha * 1.05 || selectedZones.length === 0) {
+    if (allocatedHa + cell.greenable_ha <= budget_ha) {
       const freq = (frequencyMap.get(cell.id) || 0) / runCount;
       const benefitMean = cell.cooling_mean || 1.2;
 
@@ -504,7 +503,6 @@ export function runMockOptimizer(req: OptimizeRequest): OptimizeResult {
       weightedLowSum += (cell.cooling_p10 || benefitMean * 0.7) * cell.population;
       weightedHighSum += (cell.cooling_p90 || benefitMean * 1.3) * cell.population;
     }
-    if (allocatedHa >= budget_ha) break;
   }
 
   const peopleWeight = Math.max(1, totalPeople);

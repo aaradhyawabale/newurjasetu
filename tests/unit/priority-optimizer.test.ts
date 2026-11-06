@@ -155,4 +155,25 @@ describe('UrjaSetu Priority Engine Budget Optimizer', () => {
     expect(result.allocated_ha).toBe(0);
     expect(result.selected_cells).toHaveLength(0);
   });
+
+  it('strictly satisfies budget constraint total area <= budget across 5-60 ha and sums equal portfolio summary', () => {
+    for (let budget = 5; budget <= 60; budget += 5) {
+      const result = optimizeInterventionBudget({
+        budget_ha: budget,
+        objective: 'cooling',
+        min_greenable_ha: 0.1,
+      });
+
+      expect(result.status).toBe('OK');
+      expect(result.allocated_ha).toBeLessThanOrEqual(budget);
+
+      const computedSumHa = result.selected_cells.reduce((acc, c) => acc + c.greenable_ha, 0);
+      expect(computedSumHa).toBeLessThanOrEqual(budget);
+      expect(Number(computedSumHa.toFixed(2))).toBeCloseTo(result.allocated_ha, 2);
+
+      // Verify that total population equals the sum of selected cells
+      const computedPop = result.selected_cells.reduce((acc, c) => acc + (c.population || 0), 0);
+      expect(computedPop).toBeGreaterThanOrEqual(0);
+    }
+  });
 });

@@ -110,14 +110,14 @@ export const ScenarioCompareModal: React.FC<ScenarioCompareModalProps> = ({
             {/* Row 3: People Covered */}
             <div className="grid grid-cols-3 gap-3 py-3 items-center bg-slate-50/60 -mx-2 px-2 rounded-lg">
               <div>
-                <span className="font-semibold text-slate-900 block">People Protected</span>
-                <TruthChip type="Measured" compact />
+                <span className="font-semibold text-slate-900 block">People Benefiting</span>
+                <TruthChip type="Modelled" compact />
               </div>
               <div className="text-right font-mono font-bold text-[#0F5C63] tabular-nums text-base">
-                {a?.people_covered.toLocaleString() ?? 'N/A'}
+                {a?.people_covered !== undefined ? a.people_covered.toLocaleString('en-IN') : 'N/A'}
               </div>
               <div className="text-right font-mono font-bold text-amber-800 tabular-nums text-base">
-                {b?.people_covered.toLocaleString() ?? 'N/A'}
+                {b?.people_covered !== undefined ? b.people_covered.toLocaleString('en-IN') : 'N/A'}
               </div>
             </div>
 
@@ -128,15 +128,19 @@ export const ScenarioCompareModal: React.FC<ScenarioCompareModalProps> = ({
                 <TruthChip type="Modelled" compact />
               </div>
               <div className="text-right font-mono font-bold text-slate-800 tabular-nums">
-                -{a?.cooling_mid ?? 'N/A'} °C
-                <span className="block text-[11px] font-normal text-slate-400">
-                  ({a?.cooling_low} to {a?.cooling_high}°C)
+                {a?.cooling_mid !== undefined ? `-${a.cooling_mid.toFixed(1)}°C` : 'N/A'}
+                <span className="block text-[11px] font-normal text-slate-500">
+                  {a?.cooling_low !== undefined && a?.cooling_high !== undefined
+                    ? `(-${a.cooling_high.toFixed(1)} to -${a.cooling_low.toFixed(1)}°C)`
+                    : ''}
                 </span>
               </div>
               <div className="text-right font-mono font-bold text-slate-800 tabular-nums">
-                -{b?.cooling_mid ?? 'N/A'} °C
-                <span className="block text-[11px] font-normal text-slate-400">
-                  ({b?.cooling_low} to {b?.cooling_high}°C)
+                {b?.cooling_mid !== undefined ? `-${b.cooling_mid.toFixed(1)}°C` : 'N/A'}
+                <span className="block text-[11px] font-normal text-slate-500">
+                  {b?.cooling_low !== undefined && b?.cooling_high !== undefined
+                    ? `(-${b.cooling_high.toFixed(1)} to -${b.cooling_low.toFixed(1)}°C)`
+                    : ''}
                 </span>
               </div>
             </div>

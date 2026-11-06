@@ -104,10 +104,10 @@ export const GreenLossPage: React.FC = () => {
     <main className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-6">
       <ToolPageHeader
         title="Green Loss Watch"
-        purpose="Monitor multi-year tree canopy depletion across Pune, and prioritize sites for rapid restoration where vegetation loss is associated with severe surface heat excess."
+        purpose="Monitor multi-year vegetation depletion across Pune, and prioritize sites for rapid restoration where vegetation loss is associated with severe surface heat excess."
         steps={[
           'Examine the satellite loss layer to find cells with verified baseline-to-current vegetation loss.',
-          'Review the approximate ward breakdown to locate clusters of historical canopy depletion.',
+          'Review the approximate ward breakdown to locate clusters of historical vegetation depletion.',
           'Switch to the "Restore first" tab to generate a budget-constrained re-greening recovery plan.',
         ]}
         dataUsed={[
@@ -240,9 +240,9 @@ export const GreenLossPage: React.FC = () => {
                 max={40}
                 step={1}
                 unit="ha"
-                truth="Assumed"
+                truth="Input"
                 onChange={setRestoreBudgetHa}
-                helpText="Hectares of lost canopy to restore"
+                helpText="Hectares of lost vegetation to restore"
               />
             </div>
 
@@ -272,7 +272,7 @@ export const GreenLossPage: React.FC = () => {
                   Ranked by population-weighted heat penalty associated with loss
                 </span>
               </div>
-              <TruthChip type="Modelled" label="Ranked" compact />
+              <TruthChip type="Modelled" compact />
             </div>
 
             <div className="overflow-x-auto">

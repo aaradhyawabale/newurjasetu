@@ -197,10 +197,10 @@ export const GreenCoverPage: React.FC = () => {
                 Corridors &amp; Parks Ranking
               </h2>
               <span className="text-xs text-slate-500">
-                Sorted by pedestrian volume &amp; canopy deficit
+                Sorted by pedestrian volume &amp; vegetation deficit
               </span>
             </div>
-            <TruthChip type="Modelled" label="Ranked" compact />
+            <TruthChip type="Modelled" compact />
           </div>
 
           {/* Budget Slider */}
@@ -213,7 +213,7 @@ export const GreenCoverPage: React.FC = () => {
               max={60}
               step={2}
               unit="ha"
-              truth="Assumed"
+              truth="Input"
               onChange={setBudgetHa}
             />
           </div>

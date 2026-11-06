@@ -219,7 +219,8 @@ export async function optimize(req: OptimizeRequest): Promise<OptimizeResult> {
       throw new Error(`Optimization API failed: ${res.statusText}`);
     }
 
-    const real = await res.json();
+    const raw = await res.json();
+    const real = raw.data || raw;
 
     if (real.status === 'OK' && Array.isArray(real.selected_cells)) {
       const selected: SelectedZone[] = real.selected_cells.map((sc: any) => ({

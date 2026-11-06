@@ -8,7 +8,7 @@
  */
 
 import React from 'react';
-import { Satellite, Cpu, AlertCircle } from 'lucide-react';
+import { Satellite, Cpu, AlertCircle, Sliders } from 'lucide-react';
 import { TruthLabel } from '../../api/contract';
 
 export interface TruthChipProps {
@@ -31,26 +31,32 @@ export const TruthChip: React.FC<TruthChipProps> = ({
   const actualType = (type || provenance || 'Modelled') as TruthLabel;
   const config = {
     Measured: {
-      text: label || 'Measured',
-      tooltip: 'Direct satellite observation or civic municipal registry',
+      text: 'Measured',
+      tooltip: label ? `${label} — Direct satellite observation or civic registry` : 'Direct satellite observation or civic municipal registry',
       icon: Satellite,
       bg: 'bg-emerald-50 text-emerald-900 border-emerald-300',
     },
     Modelled: {
-      text: label || 'Modelled',
-      tooltip: 'AI ensemble prediction (shown with uncertainty bounds)',
+      text: 'Modelled',
+      tooltip: label ? `${label} — AI ensemble prediction with uncertainty bounds` : 'AI ensemble prediction (shown with uncertainty bounds)',
       icon: Cpu,
       bg: 'bg-sky-50 text-sky-900 border-sky-300',
     },
     Assumed: {
-      text: label || 'Assumed',
-      tooltip: 'Configured planning parameter / engineering assumption',
+      text: 'Assumed',
+      tooltip: label ? `${label} — Configured planning parameter or engineering assumption` : 'Configured planning parameter / engineering assumption',
       icon: AlertCircle,
       bg: 'bg-amber-50 text-amber-900 border-amber-300',
     },
+    Input: {
+      text: 'Input',
+      tooltip: label ? `${label} — User-controlled policy or scenario constraint` : 'User-controlled policy or scenario constraint',
+      icon: Sliders,
+      bg: 'bg-slate-100 text-slate-800 border-slate-300',
+    },
   }[actualType] || {
-    text: label || actualType,
-    tooltip: '',
+    text: actualType,
+    tooltip: label || '',
     icon: AlertCircle,
     bg: 'bg-stone-50 text-stone-900 border-stone-300',
   };

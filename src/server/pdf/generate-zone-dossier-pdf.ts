@@ -270,10 +270,10 @@ export async function generateZoneDossierPdf(input: ZoneDossierInput): Promise<U
 
   y -= 14;
 
-  const coolingP10 = zone.cooling_p10 !== null ? `+${zone.cooling_p10.toFixed(2)} °C` : "Not available";
-  const coolingMean = zone.cooling_mean !== null ? `+${zone.cooling_mean.toFixed(2)} °C` : "Not available";
-  const coolingP90 = zone.cooling_p90 !== null ? `+${zone.cooling_p90.toFixed(2)} °C` : "Not available";
-  const popVal = zone.population !== null ? `${zone.population.toLocaleString()} residents` : "Not available";
+  const coolingP10 = zone.cooling_p10 !== null ? `-${zone.cooling_p10.toFixed(1)} °C` : "Not available";
+  const coolingMean = zone.cooling_mean !== null ? `-${zone.cooling_mean.toFixed(1)} °C` : "Not available";
+  const coolingP90 = zone.cooling_p90 !== null ? `-${zone.cooling_p90.toFixed(1)} °C` : "Not available";
+  const popVal = zone.population !== null ? `${zone.population.toLocaleString('en-IN')} residents` : "Not available";
   const freqVal = zone.selection_frequency !== undefined ? `${(zone.selection_frequency * 100).toFixed(0)}%` : "Not available";
   const convRuns = zone.selection_frequency !== undefined ? `${Math.round(zone.selection_frequency * 30)} / 30 runs` : "Not available";
 

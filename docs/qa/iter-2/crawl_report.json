@@ -1,0 +1,17 @@
+{
+  "timestamp": "2026-11-05T17:57:14.857Z",
+  "routesChecked": [
+    "/",
+    "/heat-planner",
+    "/green-loss",
+    "/interventions",
+    "/green-cover",
+    "/infrastructure",
+    "/solar",
+    "/method"
+  ],
+  "consoleErrors": [],
+  "failedRequests": [],
+  "overflows": [],
+  "anomalousTexts": []
+}

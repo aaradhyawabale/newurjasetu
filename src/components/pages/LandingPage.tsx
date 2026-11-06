@@ -206,7 +206,7 @@ export const LandingPage: React.FC = () => {
                 Set a budget
               </h3>
               <p className="text-sm text-slate-600 leading-relaxed">
-                Define available municipal unbuilt land in hectares and target canopy density to bound
+                Define available municipal unbuilt land in hectares and target vegetation index (NDVI) to bound
                 planning realistic parameters.
               </p>
             </div>
@@ -407,7 +407,7 @@ export const LandingPage: React.FC = () => {
                 <span className="text-xs font-semibold text-amber-900">Configured Parameters</span>
               </div>
               <p className="text-xs text-slate-700 leading-relaxed">
-                Greening budget allocations, target canopy NDVI objectives, unit intervention costs,
+                Greening budget allocations, target vegetation index (NDVI) objectives, unit intervention costs,
                 and thermal transfer factors (alpha). Clearly tagged for sensitivity analysis.
               </p>
             </div>
@@ -423,14 +423,14 @@ export const LandingPage: React.FC = () => {
                 <span>
                   Cross-validation RMSE:{' '}
                   <strong className="font-mono text-slate-900">
-                    ±{modelCard?.cv_rmse_c ?? '1.18'} °C
+                    {modelCard?.cv_rmse_c != null ? `±${modelCard.cv_rmse_c} °C` : 'Not available'}
                   </strong>
                 </span>
                 <span aria-hidden="true">·</span>
                 <span>
                   Held-out Test RMSE:{' '}
                   <strong className="font-mono text-slate-900">
-                    ±{modelCard?.held_out_rmse_c ?? '1.31'} °C
+                    {modelCard?.held_out_rmse_c != null ? `±${modelCard.held_out_rmse_c} °C` : 'Not available'}
                   </strong>
                 </span>
                 <span aria-hidden="true">·</span>

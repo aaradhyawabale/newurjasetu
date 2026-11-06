@@ -208,17 +208,17 @@ Built for Indradhanu - PCCOE International Grand Challenge 2026 (SDG 13).
                   Estimated Surface Cooling if Greened
                 </span>
                 <span className="text-xs font-mono font-bold text-sky-900 tabular-nums">
-                  {cell.cooling_mean !== null ? `-${cell.cooling_mean} °C` : 'Not available'}
+                  {cell.cooling_mean !== null ? `-${cell.cooling_mean.toFixed(1)} °C` : 'Not available'}
                 </span>
               </div>
               <p className="text-[11px] text-slate-600 leading-normal">
-                Estimated range:{' '}
+                Modelled uncertainty:{' '}
                 <span className="font-mono font-medium text-slate-800 tabular-nums">
                   {cell.cooling_p10 !== null && cell.cooling_p90 !== null
-                    ? `-${cell.cooling_p10} °C to -${cell.cooling_p90} °C`
+                    ? `-${cell.cooling_p90.toFixed(1)} °C to -${cell.cooling_p10.toFixed(1)} °C`
                     : 'Not available'}
                 </span>{' '}
-                (P10–P90 uncertainty across 12 ensemble models).
+                (P10–P90 ensemble spread; Spatial-CV RMSE: ±{modelCard?.cv_rmse_c ?? 0.91}°C).
               </p>
             </div>
 

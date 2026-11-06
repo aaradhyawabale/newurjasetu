@@ -606,7 +606,7 @@ export const SolarSimulatorPage: React.FC = () => {
                   max={0.8}
                   step={0.05}
                   unit="α"
-                  truth="Assumed"
+                  truth="Input"
                   onChange={setAlpha}
                   helpText="0.2 = well-ventilated mount, 0.8 = unventilated asphalt roof"
                 />

@@ -72,9 +72,9 @@ export const ScenarioPanel: React.FC<ScenarioPanelProps> = ({
               max={60}
               step={1}
               unit="ha"
-              truth="Assumed"
+              truth="Input"
               onChange={onBudgetChange}
-              helpText="Available unbuilt surface to plant"
+              helpText="Min 5 ha / Max 60 ha"
             />
           </div>
 
@@ -82,15 +82,15 @@ export const ScenarioPanel: React.FC<ScenarioPanelProps> = ({
           <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80">
             <Slider
               id="target-ndvi-slider"
-              label="Target Green Canopy (NDVI)"
+              label="Target vegetation index (NDVI)"
               value={targetNdvi}
               min={0.3}
               max={0.7}
               step={0.05}
               unit="NDVI"
-              truth="Assumed"
+              truth="Input"
               onChange={onTargetNdviChange}
-              helpText="0.45 = dense native shrubs, 0.65 = full tree canopy"
+              helpText="Indicative guidance: 0.45 dense shrubs, 0.65 dense vegetation"
             />
           </div>
 
@@ -104,7 +104,7 @@ export const ScenarioPanel: React.FC<ScenarioPanelProps> = ({
                 <Filter className="w-3.5 h-3.5 text-slate-500" />
                 <span>Geographic Scope</span>
               </label>
-              <TruthChip type="Measured" label="Ward Map" compact />
+              <TruthChip type="Assumed" label="Centroid" compact />
             </div>
 
             <select
@@ -148,7 +148,7 @@ export const ScenarioPanel: React.FC<ScenarioPanelProps> = ({
                   max={60}
                   step={1}
                   unit="ha"
-                  truth="Assumed"
+                  truth="Input"
                   onChange={onBudgetBChange}
                 />
               )}

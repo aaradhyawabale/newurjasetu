@@ -8,7 +8,7 @@
  * Single-page core experience for Pune municipal planners and SDG 13 judges.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Cell,
   ModelCard,
@@ -230,6 +230,11 @@ export const HeatPlannerPage: React.FC = () => {
     setToastMessage('Municipal plan exported successfully as JSON.');
   };
 
+  const displayedCells = useMemo(() => {
+    if (!selectedWard) return cells;
+    return cells.filter((c) => c.ward.toLowerCase() === selectedWard.toLowerCase());
+  }, [cells, selectedWard]);
+
   const selectedZoneIds = resultA ? resultA.selected.map((s) => s.id) : [];
 
   const selectedZoneRank =
@@ -275,13 +280,13 @@ export const HeatPlannerPage: React.FC = () => {
         purpose="Find the hottest, most crowded places in Pune, set an unbuilt greening budget, and generate a ranked cooling plan defended by 30-seed model ensembles."
         steps={[
           'Examine the 250m heat burden grid to identify thermal hotspots in densely populated wards.',
-          'Set available municipal greening hectares (ha) and target canopy NDVI on the left panel.',
+          'Set available municipal greening hectares (ha) and target vegetation index (NDVI) on the left panel.',
           'Review selected priority zones, inspect uncertainty ranges in the Evidence Dossier, and export.',
         ]}
         dataUsed={[
           { label: 'Landsat-8/9 & Sentinel-2 LST', type: 'Measured' },
-          { label: 'PMC Population Density', type: 'Measured' },
-          { label: '12-Model Cooling Ensemble', type: 'Modelled' },
+          { label: 'PMC Population Density', type: 'Assumed' },
+          { label: '30-Model Cooling Ensemble', type: 'Modelled' },
           { label: 'Greening Budget Constraints', type: 'Assumed' },
         ]}
         breadcrumbItems={[{ label: 'Heat Planner' }]}
@@ -324,11 +329,12 @@ export const HeatPlannerPage: React.FC = () => {
         {/* Centre: Map View (8 cols) */}
         <div className="lg:col-span-8 xl:col-span-9 flex flex-col min-h-[520px] lg:min-h-0">
           <MapView
-            cells={cells}
+            cells={displayedCells}
             selectedIds={selectedZoneIds}
             activeLayer={activeLayer}
             onLayerChange={setActiveLayer}
             onSelect={handleSelectCell}
+            fitBounds={true}
             height="100%"
             className="flex-1 min-h-[500px]"
           />

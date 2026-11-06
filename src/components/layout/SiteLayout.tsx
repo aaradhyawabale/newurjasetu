@@ -66,15 +66,29 @@ export const SiteHeader: React.FC = () => {
             onMouseEnter={() => setToolsOpen(true)}
             onMouseLeave={() => setToolsOpen(false)}
           >
-            <button
-              onClick={() => setToolsOpen(!toolsOpen)}
-              className="inline-flex items-center gap-1.5 py-1 text-slate-600 hover:text-[#14212B] transition-colors cursor-pointer whitespace-nowrap shrink-0"
-              aria-expanded={toolsOpen}
-              aria-haspopup="true"
-            >
-              <span>Climate Tools</span>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-            </button>
+            {(() => {
+              const isToolsActive =
+                isCurrent('/green-loss') ||
+                isCurrent('/interventions') ||
+                isCurrent('/green-cover') ||
+                isCurrent('/infrastructure') ||
+                isCurrent('/solar');
+              return (
+                <button
+                  onClick={() => setToolsOpen(!toolsOpen)}
+                  className={`inline-flex items-center gap-1.5 py-1 transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                    isToolsActive
+                      ? 'text-[#0F5C63] font-semibold border-b-2 border-[#0F5C63]'
+                      : 'text-slate-600 hover:text-[#14212B]'
+                  }`}
+                  aria-expanded={toolsOpen}
+                  aria-haspopup="true"
+                >
+                  <span>Climate Tools</span>
+                  <ChevronDown className={`w-3.5 h-3.5 ${isToolsActive ? 'text-[#0F5C63]' : 'text-slate-400'}`} />
+                </button>
+              );
+            })()}
 
             {toolsOpen && (
               <div
@@ -213,12 +227,21 @@ export const SiteHeader: React.FC = () => {
 
         {/* Zone 3: 1 primary action */}
         <div className="flex items-center gap-3 shrink-0">
-          <AppLink
-            to="/heat-planner"
-            className="px-4 py-2 text-xs sm:text-sm font-semibold text-white bg-[#0F5C63] hover:bg-[#0A3E43] rounded-xl shadow-xs transition-colors whitespace-nowrap shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0F5C63]"
-          >
-            Open Heat Planner
-          </AppLink>
+          {isCurrent('/heat-planner') ? (
+            <AppLink
+              to="/method"
+              className="px-4 py-2 text-xs sm:text-sm font-semibold text-[#0F5C63] bg-[#0F5C63]/10 hover:bg-[#0F5C63]/20 border border-[#0F5C63]/30 rounded-xl transition-colors whitespace-nowrap shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0F5C63]"
+            >
+              Method & Model Card
+            </AppLink>
+          ) : (
+            <AppLink
+              to="/heat-planner"
+              className="px-4 py-2 text-xs sm:text-sm font-semibold text-white bg-[#0F5C63] hover:bg-[#0A3E43] rounded-xl shadow-xs transition-colors whitespace-nowrap shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0F5C63]"
+            >
+              Open Heat Planner
+            </AppLink>
+          )}
 
           {/* Mobile hamburger button */}
           <button
@@ -296,7 +319,7 @@ export const SiteHeader: React.FC = () => {
 
 export const SiteFooter: React.FC = () => {
   return (
-    <footer className="border-t border-[#E5E7EB] bg-white py-8 text-xs text-slate-500">
+    <footer className="border-t border-[#E5E7EB] bg-white pt-8 pb-24 sm:pb-20 text-xs text-slate-500">
       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4">
         <div>
           <p className="font-medium text-[#14212B]">
@@ -307,7 +330,7 @@ export const SiteFooter: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-6">
+        <div className="flex flex-wrap items-center justify-center md:justify-end gap-3 sm:gap-6">
           <AppLink to="/method" className="hover:text-[#0F5C63] transition-colors">
             Method &amp; Validation Gate
           </AppLink>

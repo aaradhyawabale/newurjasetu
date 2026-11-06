@@ -6,7 +6,7 @@
  * SDG 13: Climate Action - Pune Surface Heat Intelligence Platform
  */
 
-export type TruthLabel = 'Measured' | 'Modelled' | 'Assumed';
+export type TruthLabel = 'Measured' | 'Modelled' | 'Assumed' | 'Input';
 
 export interface Cell {
   id: string;
