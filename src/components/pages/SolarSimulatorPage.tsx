@@ -18,7 +18,7 @@ import { Tabs, Slider } from '@/components/ui/FormControls';
 import { TruthChip } from '@/components/ui/TruthChip';
 import { Skeleton, ErrorState } from '@/components/ui/FeedbackStates';
 import { MapView } from '@/components/map/MapView';
-import { useAppSearchParams } from '@/lib/nav';
+import { useAppSearchParams, AppLink } from '@/lib/nav';
 import { usePlan } from '@/context/PlanContext';
 import {
   Sun,
@@ -474,7 +474,7 @@ export const SolarSimulatorPage: React.FC = () => {
               </div>
 
               {/* Interactive SVG Rooftop & Shadow Canvas */}
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex flex-col items-center justify-center relative overflow-hidden">
+              <div data-tour="solar-simulator" className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex flex-col items-center justify-center relative overflow-hidden">
                 <div className="w-full flex items-center justify-between text-xs text-slate-500 mb-2">
                   <span className="font-semibold text-slate-700">
                     Analytical 2D Plan View (Top-Down Rooftop Plane)
@@ -698,7 +698,7 @@ export const SolarSimulatorPage: React.FC = () => {
 
       {/* ===================== TAB 2: SOLAR HEAT PENALTY ===================== */}
       {activeTab === 'penalty' && (
-        <div className="space-y-6">
+        <div data-tour="solar-penalty-tab" className="space-y-6">
           {/* Transparent Model Calibration Card */}
           <div className="p-4 bg-white border border-slate-200 rounded-xl shadow-xs space-y-3">
             <div className="flex items-start justify-between gap-4">
@@ -718,7 +718,7 @@ export const SolarSimulatorPage: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-slate-100 text-xs">
-              <div className="p-2.5 bg-sky-50 rounded-lg">
+              <div data-tour="solar-gamma" className="p-2.5 bg-sky-50 rounded-lg">
                 <span className="text-slate-500 block text-[11px]">Data-Derived Gamma</span>
                 <span className="text-lg font-bold font-mono text-sky-900 tabular-nums">
                   {empiricalGamma} %/°C
@@ -786,7 +786,7 @@ export const SolarSimulatorPage: React.FC = () => {
               </div>
 
               {/* Alpha Slider */}
-              <div className="p-3 bg-amber-50/60 rounded-xl border border-amber-200">
+              <div data-tour="solar-alpha-slider" className="p-3 bg-amber-50/60 rounded-xl border border-amber-200">
                 <Slider
                   id="alpha-slider"
                   label="Thermal Transfer Coefficient (Alpha)"
@@ -803,7 +803,7 @@ export const SolarSimulatorPage: React.FC = () => {
 
               {/* Active Selected Cell Output Loss Highlight */}
               {activePenaltyCell && (
-                <div className="p-3 bg-sky-50/60 border border-sky-200 rounded-xl space-y-2 text-xs">
+                <div data-tour="solar-derate-curve" className="p-3 bg-sky-50/60 border border-sky-200 rounded-xl space-y-2 text-xs">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-slate-900">
                       {activePenaltyCell.ward} - {activePenaltyCell.locality || activePenaltyCell.ward} ({activePenaltyCell.id})
@@ -905,6 +905,20 @@ export const SolarSimulatorPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Methodological Limits Notice */}
+      <div
+        data-tour="solar-limits"
+        className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-slate-500 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+      >
+        <div>
+          <span className="font-semibold text-slate-700">Solar Analysis Boundaries:</span>{' '}
+          Calculations estimate percentage photovoltaic efficiency loss relative to baseline. Absolute energy generation (kWh) requires site-specific panel tilt, orientation, inverter sizing, and clipping factors.
+        </div>
+        <AppLink to="/method" className="text-[#0F5C63] hover:underline font-semibold whitespace-nowrap">
+          Read Method Card &rarr;
+        </AppLink>
+      </div>
     </main>
   );
 };

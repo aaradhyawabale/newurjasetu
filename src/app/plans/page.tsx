@@ -44,7 +44,7 @@ interface PlanSummary {
   events?: Array<{ id: string; eventType: string; recipient?: string; timestamp: string }>;
 }
 
-export default function PlansPage() {
+function PlansPageContent() {
   const { plan: activePlan, loadPlan, resetPlan, openDrawer } = usePlan();
   const [plans, setPlans] = useState<PlanSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -152,26 +152,30 @@ export default function PlansPage() {
         breadcrumbItems={[{ label: 'Plans Portfolio' }]}
         actions={
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={openDrawer}
-              className="bg-white text-xs"
-            >
-              Open Plan Drawer
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => {
-                resetPlan();
-                openDrawer();
-              }}
-              icon={<Plus className="w-3.5 h-3.5" />}
-              className="text-xs"
-            >
-              Create New Plan
-            </Button>
+            <div data-tour="plans-save-version">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={openDrawer}
+                className="bg-white text-xs"
+              >
+                Open Plan Drawer
+              </Button>
+            </div>
+            <div data-tour="plans-forward">
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => {
+                  resetPlan();
+                  openDrawer();
+                }}
+                icon={<Plus className="w-3.5 h-3.5" />}
+                className="text-xs"
+              >
+                Create New Plan
+              </Button>
+            </div>
           </div>
         }
       />
@@ -245,7 +249,7 @@ export default function PlansPage() {
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 items-stretch">
+        <div data-tour="plans-list" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 items-stretch">
           {filteredPlans.map((p) => {
             const sections = typeof p.sections === 'string' ? JSON.parse(p.sections || '{}') : p.sections || {};
             const zonesCount = sections.zones?.length || 0;
@@ -372,6 +376,28 @@ export default function PlansPage() {
           })}
         </div>
       )}
+
+      {/* Administrative Status Disclaimer */}
+      <div
+        data-tour="plans-limits"
+        className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-slate-500 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+      >
+        <div>
+          <span className="font-semibold text-slate-700">Administrative Status:</span>{' '}
+          Saving or forwarding plans records internal municipal drafts for inter-agency coordination. It does not constitute statutory financial expenditure authorization.
+        </div>
+        <Link href="/method" className="text-[#0F5C63] hover:underline font-semibold whitespace-nowrap">
+          Read Method Card &rarr;
+        </Link>
+      </div>
     </main>
+  );
+}
+
+export default function PlansPage() {
+  return (
+    <React.Suspense fallback={<div className="p-8 text-center text-slate-500">Loading plans portfolio...</div>}>
+      <PlansPageContent />
+    </React.Suspense>
   );
 }

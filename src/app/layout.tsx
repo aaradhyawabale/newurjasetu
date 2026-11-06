@@ -9,6 +9,8 @@ export const metadata: Metadata = {
     "Evidence-backed, map-based urban infrastructure siting and impact analysis decision-support tool.",
 };
 
+import { TourProvider } from "@/walkthrough/engine/TourProvider";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -18,7 +20,9 @@ export default function RootLayout({
     <html lang="en">
       <body className="antialiased min-h-screen">
         <PlanProvider>
-          <ToastProvider>{children}</ToastProvider>
+          <TourProvider>
+            <ToastProvider>{children}</ToastProvider>
+          </TourProvider>
         </PlanProvider>
       </body>
     </html>

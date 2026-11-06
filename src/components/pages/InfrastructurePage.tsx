@@ -16,6 +16,7 @@ import { ToolPageHeader } from '@/components/ui/ToolPageHeader';
 import { TruthChip } from '@/components/ui/TruthChip';
 import { Skeleton, ErrorState } from '@/components/ui/FeedbackStates';
 import { MapView } from '@/components/map/MapView';
+import { AppLink } from '@/lib/nav';
 import { PUNE_WARDS } from '@/api/mock/data';
 import {
   Building2,
@@ -109,21 +110,23 @@ export const InfrastructurePage: React.FC = () => {
 
   return (
     <main className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-6">
-      <ToolPageHeader
-        title="Infrastructure Upgrades"
-        purpose="Audit high-vulnerability public institutions (hospitals, bus termini, community parks) under severe pre-monsoon heat stress, and track cooling upgrade readiness."
-        steps={[
-          'Filter civic facilities by type and municipal ward to view thermal stress rank.',
-          'Select any hospital or public building to inspect current shade coverage and cooling solutions.',
-          'Review the thermal resilience checklist to ensure emergency patient and commuter heat safety.',
-        ]}
-        dataUsed={[
-          { label: 'Public Asset Registry (PMC)', type: 'Measured' },
-          { label: 'Satellite Surface Radiometry', type: 'Measured' },
-          { label: 'Heat Burden Priority Ranking', type: 'Modelled' },
-        ]}
-        breadcrumbItems={[{ label: 'Infrastructure Upgrades' }]}
-      />
+      <div data-tour="infra-header">
+        <ToolPageHeader
+          title="Infrastructure Upgrades"
+          purpose="Audit high-vulnerability public institutions (hospitals, bus termini, community parks) under severe pre-monsoon heat stress, and track cooling upgrade readiness."
+          steps={[
+            'Filter civic facilities by type and municipal ward to view thermal stress rank.',
+            'Select any hospital or public building to inspect current shade coverage and cooling solutions.',
+            'Review the thermal resilience checklist to ensure emergency patient and commuter heat safety.',
+          ]}
+          dataUsed={[
+            { label: 'Public Asset Registry (PMC)', type: 'Measured' },
+            { label: 'Satellite Surface Radiometry', type: 'Measured' },
+            { label: 'Heat Burden Priority Ranking', type: 'Modelled' },
+          ]}
+          breadcrumbItems={[{ label: 'Infrastructure Upgrades' }]}
+        />
+      </div>
 
       {/* Filter Toolbar */}
       <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs flex flex-wrap items-center justify-between gap-4 text-xs">
@@ -179,7 +182,7 @@ export const InfrastructurePage: React.FC = () => {
             <MapView cells={cells} activeLayer="burden" height="100%" />
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-xs space-y-3">
+          <div data-tour="infra-hospitals" className="bg-white border border-slate-200 rounded-xl p-4 shadow-xs space-y-3">
             <div className="flex items-center justify-between pb-2 border-b border-slate-100">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
                 Ranked Public Assets ({filteredSites.length})
@@ -234,7 +237,7 @@ export const InfrastructurePage: React.FC = () => {
                         {site.lst_mean} °C
                       </span>
                       <span className="text-[10px] text-slate-400 font-mono">
-                        {site.current_shade_pct}% canopy
+                        {site.current_shade_pct}% shade cover
                       </span>
                     </div>
                   </button>
@@ -248,7 +251,7 @@ export const InfrastructurePage: React.FC = () => {
         {activeSite && (
           <div className="lg:col-span-6 space-y-4">
             {/* Header info */}
-            <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs space-y-4">
+            <div data-tour="infra-transit" className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs space-y-4">
               <div className="flex items-start justify-between gap-2 pb-3 border-b border-slate-100">
                 <div>
                   <span className="text-xs font-mono font-bold text-[#0F5C63] bg-[#0F5C63]/10 px-2 py-0.5 rounded">
@@ -285,7 +288,7 @@ export const InfrastructurePage: React.FC = () => {
                   <span className="text-lg font-bold font-mono text-emerald-800 tabular-nums">
                     {activeSite.current_shade_pct}%
                   </span>
-                  <span className="text-[10px] text-slate-400 block">Tree / canopy coverage</span>
+                  <span className="text-[10px] text-slate-400 block">Tree &amp; built shade</span>
                 </div>
               </div>
 
@@ -385,6 +388,20 @@ export const InfrastructurePage: React.FC = () => {
             </div>
           </div>
         )}
+      </div>
+
+      {/* Methodological Limits Notice */}
+      <div
+        data-tour="infra-limits"
+        className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-slate-500 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+      >
+        <div>
+          <span className="font-semibold text-slate-700">Internal Building Performance Boundary:</span>{' '}
+          External surface skin temperature metrics describe exterior microclimate exposure. Indoor clinical air temperatures depend on building HVAC, insulation, and architectural envelope design.
+        </div>
+        <AppLink to="/method" className="text-[#0F5C63] hover:underline font-semibold whitespace-nowrap">
+          Read Method Card &rarr;
+        </AppLink>
       </div>
     </main>
   );

@@ -5,6 +5,7 @@ import { SiteHeader, SiteFooter, DemoBanner } from '@/components/layout/SiteLayo
 import { isDemoMode } from '@/api/client';
 import { PlanProvider } from '@/context/PlanContext';
 import { PlanDrawer } from '@/components/planner/PlanDrawer';
+import { FirstVisitBanner } from '@/walkthrough/engine/FirstVisitBanner';
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const [showDemo, setShowDemo] = useState(false);
@@ -49,6 +50,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     <PlanProvider>
       <div className="min-h-screen flex flex-col bg-[#FAFAF7] text-[#14212B] overflow-x-hidden">
         {showDemo && <DemoBanner />}
+        <FirstVisitBanner />
         <SiteHeader />
         <div className="flex-1">{children}</div>
         <SiteFooter />

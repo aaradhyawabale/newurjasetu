@@ -85,8 +85,22 @@ export const MethodPage: React.FC = () => {
         breadcrumbItems={[{ label: 'Method & Model Cards' }]}
       />
 
+      {/* Surface Temperature vs Air Temperature Primer */}
+      <div
+        data-tour="method-surface-vs-air"
+        className="p-4 bg-sky-50 border border-sky-200 rounded-xl text-xs text-sky-900 flex items-start gap-3"
+      >
+        <Info className="w-5 h-5 text-sky-600 shrink-0 mt-0.5" />
+        <div className="space-y-1">
+          <span className="font-bold text-sm block">Scientific Primer: Surface Temperature is Not Air Temperature</span>
+          <p className="leading-relaxed">
+            Radiometric skin temperature is captured by Landsat-9 TIRS-2 Band 10 thermal infrared sensors, reflecting rooftop, road, and ground surface heat. It is not ambient 2m air temperature measured by meteorological weather shelters.
+          </p>
+        </div>
+      </div>
+
       {/* 1. HOW TO READ TRUTH CHIPS */}
-      <section className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-xs space-y-4">
+      <section data-tour="method-truth-chips" className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-xs space-y-4">
         <div className="flex items-center gap-2">
           <HelpCircle className="w-5 h-5 text-[#0F5C63]" />
           <h2 className="text-xl font-bold text-[#14212B]">
@@ -138,7 +152,7 @@ export const MethodPage: React.FC = () => {
       </section>
 
       {/* 2. HEAT INTELLIGENCE MODEL CARD */}
-      <section className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-xs space-y-6">
+      <section data-tour="method-model-card" className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-xs space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
           <div>
             <span className="text-xs font-bold uppercase tracking-wider text-[#0F5C63] block mb-1">
@@ -154,6 +168,7 @@ export const MethodPage: React.FC = () => {
 
           {/* Validation Gate */}
           <div
+            data-tour="method-direction-gate"
             className={`p-3 rounded-xl border flex items-center gap-3 ${
               modelCard.gate.passed
                 ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
@@ -172,7 +187,7 @@ export const MethodPage: React.FC = () => {
 
         {/* Validation Metrics Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
+          <div data-tour="method-cv-error" className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
             <span className="text-[11px] text-slate-500 block">Cross-Validation RMSE</span>
             <div className="flex items-baseline gap-1 mt-1">
               <span className="text-2xl font-bold font-mono text-[#14212B] tabular-nums">
@@ -192,7 +207,7 @@ export const MethodPage: React.FC = () => {
             <span className="text-[10px] text-slate-400 block mt-0.5">Separate test set</span>
           </div>
 
-          <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
+          <div data-tour="method-cross-validation" className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
             <span className="text-[11px] text-slate-500 block">Coefficient of Determination (R²)</span>
             <div className="flex items-baseline gap-1 mt-1">
               <span className="text-2xl font-bold font-mono text-emerald-800 tabular-nums">
@@ -215,7 +230,7 @@ export const MethodPage: React.FC = () => {
         </div>
 
         {/* Satellite Scene Inputs */}
-        <div>
+        <div data-tour="method-sources">
           <h3 className="text-sm font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5 mb-2.5">
             <Calendar className="w-4 h-4 text-slate-500" />
             Calibrated Satellite Scenes
@@ -266,7 +281,7 @@ export const MethodPage: React.FC = () => {
           </div>
 
           {/* Limitations */}
-          <div className="p-4 bg-amber-50/50 rounded-xl border border-amber-200 space-y-2">
+          <div data-tour="method-limits" className="p-4 bg-amber-50/50 rounded-xl border border-amber-200 space-y-2">
             <h4 className="text-xs font-bold uppercase tracking-wider text-amber-950 flex items-center gap-1.5">
               <AlertTriangle className="w-4 h-4 text-amber-600" />
               Documented Limitations ({modelCard.limitations.length})

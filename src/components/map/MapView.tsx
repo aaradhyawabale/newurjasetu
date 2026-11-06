@@ -678,6 +678,7 @@ export const MapView: React.FC<MapViewProps> = ({
 
   return (
     <div
+      data-tour="heat-map"
       className={`relative w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-50 shadow-sm ${className}`}
       style={{ height }}
     >
@@ -697,10 +698,11 @@ export const MapView: React.FC<MapViewProps> = ({
 
       {/* Layer Switcher Pill */}
       {showLayerControl && (
-        <div className="absolute top-3 left-3 z-20 flex flex-wrap gap-1 bg-white/95 backdrop-blur-md p-1.5 rounded-lg border border-slate-200 shadow-md">
+        <div data-tour="heat-layer-selector" className="absolute top-3 left-3 z-20 flex flex-wrap gap-1 bg-white/95 backdrop-blur-md p-1.5 rounded-lg border border-slate-200 shadow-md">
           {(['burden', 'lst', 'ndvi', 'population', 'loss'] as MapLayerType[]).map((layer) => (
             <button
               key={layer}
+              data-tour={`layer-chip-${layer}`}
               onClick={() => handleLayerSelect(layer)}
               className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer whitespace-nowrap ${
                 currentLayer === layer

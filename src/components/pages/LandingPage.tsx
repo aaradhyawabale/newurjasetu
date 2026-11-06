@@ -111,12 +111,14 @@ export const LandingPage: React.FC = () => {
                   <ArrowRight className="w-5 h-5" />
                 </AppLink>
 
-                <a
-                  href="#how-it-works"
-                  className="inline-flex items-center justify-center px-5 py-3.5 text-base font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 rounded-xl transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                <AppLink
+                  to="/walkthrough"
+                  data-tour="landing-hero-walkthrough"
+                  className="inline-flex items-center justify-center gap-2 px-5 py-3.5 text-base font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 rounded-xl transition-colors cursor-pointer whitespace-nowrap shrink-0"
                 >
-                  How it works
-                </a>
+                  <Compass className="w-4 h-4 text-[#0F5C63]" />
+                  <span>Take the walkthrough</span>
+                </AppLink>
               </div>
 
               {/* Competition Anchor */}

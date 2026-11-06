@@ -110,7 +110,7 @@ export const ScenarioPanel: React.FC<ScenarioPanelProps> = ({
         {activeTab === 'params' ? (
           <div className="space-y-4">
             {/* Slider 1: Budget in Hectares */}
-            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80">
+            <div data-tour="heat-budget-slider" className="p-3 bg-slate-50 rounded-xl border border-slate-200/80">
               <Slider
                 id="budget-ha-slider"
                 label="Greening Budget Target"
@@ -126,7 +126,7 @@ export const ScenarioPanel: React.FC<ScenarioPanelProps> = ({
             </div>
 
             {/* Slider 2: Target NDVI */}
-            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80">
+            <div data-tour="heat-ndvi-slider" className="p-3 bg-slate-50 rounded-xl border border-slate-200/80">
               <Slider
                 id="target-ndvi-slider"
                 label="Target vegetation index (NDVI)"
@@ -142,7 +142,7 @@ export const ScenarioPanel: React.FC<ScenarioPanelProps> = ({
             </div>
 
             {/* Filter: Municipal Ward Filter */}
-            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80">
+            <div data-tour="heat-ward-filter" className="p-3 bg-slate-50 rounded-xl border border-slate-200/80">
               <div className="flex items-center justify-between mb-1.5">
                 <label
                   htmlFor="ward-select"
@@ -171,7 +171,7 @@ export const ScenarioPanel: React.FC<ScenarioPanelProps> = ({
 
             {/* Scenario B Configuration (if toggled) */}
             {hasScenarioB && (
-              <div className="p-3 bg-amber-50/60 rounded-xl border border-amber-200 space-y-3 animate-in fade-in duration-200">
+              <div data-tour="heat-compare-scenario" className="p-3 bg-amber-50/60 rounded-xl border border-amber-200 space-y-3 animate-in fade-in duration-200">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-amber-900">
                     Scenario B: Alternative Budget
@@ -326,15 +326,17 @@ export const ScenarioPanel: React.FC<ScenarioPanelProps> = ({
 
       {/* Buttons */}
       <div className="space-y-2 pt-2 border-t border-slate-100">
-        <Button
-          variant="primary"
-          onClick={onRunOptimization}
-          disabled={isOptimizing}
-          icon={<Play className="w-4 h-4 fill-current" />}
-          className="w-full"
-        >
-          {isOptimizing ? 'Running Ensemble (30 seeds)...' : 'Run Budget Optimizer'}
-        </Button>
+        <div data-tour="heat-run-button">
+          <Button
+            variant="primary"
+            onClick={onRunOptimization}
+            disabled={isOptimizing}
+            icon={<Play className="w-4 h-4 fill-current" />}
+            className="w-full"
+          >
+            {isOptimizing ? 'Running Ensemble (30 seeds)...' : 'Run Budget Optimizer'}
+          </Button>
+        </div>
 
         <Button
           variant="outline"

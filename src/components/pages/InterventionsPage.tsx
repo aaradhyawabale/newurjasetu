@@ -15,7 +15,7 @@ import { ToolPageHeader } from '@/components/ui/ToolPageHeader';
 import { TruthChip } from '@/components/ui/TruthChip';
 import { Skeleton, ErrorState } from '@/components/ui/FeedbackStates';
 import { Button } from '@/components/ui/Button';
-import { useAppSearchParams } from '@/lib/nav';
+import { useAppSearchParams, AppLink } from '@/lib/nav';
 import { usePlan } from '@/context/PlanContext';
 import {
   GitCompare,
@@ -214,7 +214,7 @@ export const InterventionsPage: React.FC = () => {
           <Skeleton className="h-96" />
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
+        <div data-tour="interventions-comparison" className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
           {interventions.map((opt) => {
             const isRec = opt.is_recommended;
             const isGreening = opt.type === 'greening';
@@ -231,6 +231,7 @@ export const InterventionsPage: React.FC = () => {
             return (
               <div
                 key={opt.id}
+                data-tour={isRec ? 'interventions-recommendation' : undefined}
                 className={`p-6 rounded-2xl border flex flex-col justify-between transition-all bg-white shadow-xs ${
                   isRec
                     ? 'border-2 border-[#0F5C63] ring-4 ring-[#0F5C63]/10 relative'
@@ -260,7 +261,7 @@ export const InterventionsPage: React.FC = () => {
 
                   {/* Cooling estimate: ONLY greening has empirical AI cooling estimate */}
                   {isGreening ? (
-                    <div className="p-3 bg-sky-50/60 rounded-xl border border-sky-200 my-4 space-y-1">
+                    <div data-tour="interventions-cooling-chips" className="p-3 bg-sky-50/60 rounded-xl border border-sky-200 my-4 space-y-1">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-semibold text-slate-700">
                           Est. Surface Cooling:
@@ -300,7 +301,7 @@ export const InterventionsPage: React.FC = () => {
                   )}
 
                   {/* Capital Cost */}
-                  <div className="p-3 bg-amber-50/50 rounded-xl border border-amber-200/80 mb-4 space-y-1">
+                  <div data-tour="interventions-cost-inputs" className="p-3 bg-amber-50/50 rounded-xl border border-amber-200/80 mb-4 space-y-1">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-semibold text-slate-700">
                         Estimated Capital Outlay:
@@ -378,6 +379,20 @@ export const InterventionsPage: React.FC = () => {
           })}
         </div>
       )}
+
+      {/* Methodological Limits Notice */}
+      <div
+        data-tour="interventions-limits"
+        className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-slate-500 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+      >
+        <div>
+          <span className="font-semibold text-slate-700">Intervention Science Boundaries:</span>{' '}
+          Reflective coatings and photovoltaic shade structures lack localized boundary-layer empirical models in Pune. Numeric cooling drops are restricted exclusively to vegetative interventions to prevent fabricated science.
+        </div>
+        <AppLink to="/method" className="text-[#0F5C63] hover:underline font-semibold whitespace-nowrap">
+          Read Method Card &rarr;
+        </AppLink>
+      </div>
     </main>
   );
 };

@@ -18,6 +18,7 @@ import { TruthChip } from '@/components/ui/TruthChip';
 import { Button } from '@/components/ui/Button';
 import { Skeleton, ErrorState, Toast } from '@/components/ui/FeedbackStates';
 import { MapView } from '@/components/map/MapView';
+import { AppLink } from '@/lib/nav';
 import { Plus, Trash2, ShoppingBag, Check, TreeDeciduous, Users, Sparkles } from 'lucide-react';
 
 export const GreenCoverPage: React.FC = () => {
@@ -86,21 +87,23 @@ export const GreenCoverPage: React.FC = () => {
 
   return (
     <main className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-6">
-      <ToolPageHeader
-        title="Green Cover Plan"
-        purpose="Identify candidate green corridors and civic park upgrades, compute population served and vegetation deficit, and assemble an actionable municipal investment basket."
-        steps={[
-          'Explore candidate green corridors and park upgrades across Pune on the map.',
-          'Review the priority ranking sorted by thermal exposure and pedestrian footfall.',
-          'Add high-impact sites to your greening basket and export the aggregated summary.',
-        ]}
-        dataUsed={[
-          { label: 'Candidate Corridor Polygons', type: 'Measured' },
-          { label: 'Electoral Population Served', type: 'Measured' },
-          { label: 'Vegetation Gap (NDVI Deficit)', type: 'Modelled' },
-        ]}
-        breadcrumbItems={[{ label: 'Green Cover Plan' }]}
-      />
+      <div data-tour="greencover-header">
+        <ToolPageHeader
+          title="Green Cover Plan"
+          purpose="Identify candidate green corridors and civic park upgrades, compute population served and vegetation deficit, and assemble an actionable municipal investment basket."
+          steps={[
+            'Explore candidate green corridors and park upgrades across Pune on the map.',
+            'Review the priority ranking sorted by thermal exposure and pedestrian footfall.',
+            'Add high-impact sites to your greening basket and export the aggregated summary.',
+          ]}
+          dataUsed={[
+            { label: 'Candidate Corridor Polygons', type: 'Measured' },
+            { label: 'Electoral Population Served', type: 'Measured' },
+            { label: 'Vegetation Gap (NDVI Deficit)', type: 'Modelled' },
+          ]}
+          breadcrumbItems={[{ label: 'Green Cover Plan' }]}
+        />
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left Column: Map & Basket Summary (7 cols) */}
@@ -204,7 +207,7 @@ export const GreenCoverPage: React.FC = () => {
           </div>
 
           {/* Budget Slider */}
-          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+          <div data-tour="greencover-filters" className="p-3 bg-slate-50 rounded-xl border border-slate-200">
             <Slider
               id="cover-budget-slider"
               label="Greening Cover Allocation Target"
@@ -219,7 +222,7 @@ export const GreenCoverPage: React.FC = () => {
           </div>
 
           {/* Candidate list */}
-          <div className="space-y-2.5 max-h-[560px] overflow-y-auto pr-1">
+          <div data-tour="greencover-list" className="space-y-2.5 max-h-[560px] overflow-y-auto pr-1">
             {rankedSites.map((site, idx) => {
               const inBasket = basket.includes(site.id);
 
@@ -280,7 +283,7 @@ export const GreenCoverPage: React.FC = () => {
                       </span>
                     </div>
                     <div>
-                      <span className="text-slate-400 block">Canopy Gap</span>
+                      <span className="text-slate-400 block">Vegetation Gap</span>
                       <span className="font-bold font-mono text-emerald-800">
                         {100 - site.current_shade_pct}% deficit
                       </span>
@@ -291,6 +294,20 @@ export const GreenCoverPage: React.FC = () => {
             })}
           </div>
         </div>
+      </div>
+
+      {/* Methodological Limits Notice */}
+      <div
+        data-tour="greencover-limits"
+        className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-slate-500 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+      >
+        <div>
+          <span className="font-semibold text-slate-700">Corridor Planning Feasibility:</span>{' '}
+          Candidate corridors identified from satellite unbuilt land require municipal right-of-way cadastral verification, subsurface utility clearance, and water access before planting.
+        </div>
+        <AppLink to="/method" className="text-[#0F5C63] hover:underline font-semibold whitespace-nowrap">
+          Read Method Card &rarr;
+        </AppLink>
       </div>
 
       {toastMessage && (

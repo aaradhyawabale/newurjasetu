@@ -31,7 +31,7 @@ import { CopilotDock, CoachMarks } from '@/components/planner/CopilotDock';
 import { Skeleton, ErrorState, Toast } from '@/components/ui/FeedbackStates';
 import { ToolPageHeader } from '@/components/ui/ToolPageHeader';
 import { Button } from '@/components/ui/Button';
-import { useAppSearchParams } from '@/lib/nav';
+import { useAppSearchParams, AppLink } from '@/lib/nav';
 import { usePlan } from '@/context/PlanContext';
 import { RankedZoneItem } from '@/components/planner/ScenarioPanel';
 
@@ -465,6 +465,20 @@ export const HeatPlannerPage: React.FC = () => {
         }}
         onExportPlan={handleExportPlan}
       />
+
+      {/* Methodological Scope and Limitations */}
+      <div
+        data-tour="heat-limits"
+        className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-slate-500 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+      >
+        <div>
+          <span className="font-semibold text-slate-700">Planning Model Limits:</span>{' '}
+          Cooling predictions model daytime land surface skin temperature. Unbuilt greening requires on-site soil suitability, underground utility clearance, and municipal water access.
+        </div>
+        <AppLink to="/method" className="text-[#0F5C63] hover:underline font-semibold whitespace-nowrap">
+          Read Method Card &rarr;
+        </AppLink>
+      </div>
 
       {/* Evidence Drawer for Selected Zone */}
       <EvidenceDrawer

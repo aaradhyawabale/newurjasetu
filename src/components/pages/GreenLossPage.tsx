@@ -18,7 +18,7 @@ import { Tabs, Slider } from '@/components/ui/FormControls';
 import { TruthChip } from '@/components/ui/TruthChip';
 import { Skeleton, ErrorState } from '@/components/ui/FeedbackStates';
 import { EvidenceDrawer } from '@/components/planner/EvidenceDrawer';
-import { useAppSearchParams } from '@/lib/nav';
+import { useAppSearchParams, AppLink } from '@/lib/nav';
 import { TreeDeciduous, AlertTriangle, ArrowUpDown, ShieldAlert, Sparkles, PlusCircle, Check, Info } from 'lucide-react';
 import { usePlan } from '@/context/PlanContext';
 
@@ -123,24 +123,26 @@ export const GreenLossPage: React.FC = () => {
 
   return (
     <main className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-6">
-      <ToolPageHeader
-        title="Green Loss Watch"
-        purpose="Monitor multi-year vegetation depletion across Pune, and prioritize sites for rapid restoration where vegetation loss is associated with severe surface heat excess."
-        steps={[
-          'Examine the satellite loss layer to find cells with verified baseline-to-current vegetation loss.',
-          'Review the approximate ward breakdown to locate clusters of historical vegetation depletion.',
-          'Switch to the "Restore first" tab to generate a budget-constrained re-greening recovery plan.',
-        ]}
-        dataUsed={[
-          { label: 'Sentinel-2 Multi-Temporal NDVI', type: 'Measured' },
-          { label: 'Ward Loss Aggregation (approximate)', type: 'Measured' },
-          { label: 'Associated Heat Penalty Range', type: 'Modelled' },
-        ]}
-        breadcrumbItems={[{ label: 'Green Loss Watch' }]}
-      />
+      <div data-tour="greenloss-header">
+        <ToolPageHeader
+          title="Green Loss Watch"
+          purpose="Monitor multi-year vegetation depletion across Pune, and prioritize sites for rapid restoration where vegetation loss is associated with severe surface heat excess."
+          steps={[
+            'Examine the satellite loss layer to find cells with verified baseline-to-current vegetation loss.',
+            'Review the approximate ward breakdown to locate clusters of historical vegetation depletion.',
+            'Switch to the "Restore first" tab to generate a budget-constrained re-greening recovery plan.',
+          ]}
+          dataUsed={[
+            { label: 'Sentinel-2 Multi-Temporal NDVI', type: 'Measured' },
+            { label: 'Ward Loss Aggregation (approximate)', type: 'Measured' },
+            { label: 'Associated Heat Penalty Range', type: 'Modelled' },
+          ]}
+          breadcrumbItems={[{ label: 'Green Loss Watch' }]}
+        />
+      </div>
 
-      {/* Season Matching Note */}
-      <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-start gap-2.5">
+      {/* Season Matching Note & Loss Summary Metrics */}
+      <div data-tour="greenloss-metrics" className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-start gap-2.5">
         <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
         <div>
           <span className="font-bold">Temporal Calibration Note:</span> Same season compared:
@@ -169,7 +171,7 @@ export const GreenLossPage: React.FC = () => {
       {activeTab === 'overview' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* Map Column (7 cols) */}
-          <div className="lg:col-span-7 space-y-3">
+          <div data-tour="greenloss-map" className="lg:col-span-7 space-y-3">
             <div className="h-[520px] rounded-xl overflow-hidden border border-slate-200">
               <MapView
                 cells={cells}
@@ -189,7 +191,7 @@ export const GreenLossPage: React.FC = () => {
           </div>
 
           {/* Ward Table Column (5 cols) */}
-          <div className="lg:col-span-5 bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-xs space-y-4">
+          <div data-tour="greenloss-ward-table" className="lg:col-span-5 bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-xs space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div>
                 <h2 className="text-sm font-bold text-[#14212B]">
@@ -380,6 +382,20 @@ export const GreenLossPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Methodological Limits Notice */}
+      <div
+        data-tour="greenloss-limits"
+        className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-slate-500 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+      >
+        <div>
+          <span className="font-semibold text-slate-700">Vegetation Index Sensor Limits:</span>{' '}
+          Sentinel-2 NDVI records photosynthetic chlorophyll reflectance. It does not measure physical tree height, wood density, or understory canopy structure.
+        </div>
+        <AppLink to="/method" className="text-[#0F5C63] hover:underline font-semibold whitespace-nowrap">
+          Read Method Card &rarr;
+        </AppLink>
+      </div>
 
       {/* Evidence Drawer */}
       <EvidenceDrawer

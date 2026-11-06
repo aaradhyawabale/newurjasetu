@@ -97,6 +97,7 @@ Built for Indradhanu - PCCOE International Grand Challenge 2026 (SDG 13).
 
   return (
     <aside
+      data-tour="heat-zone-drawer"
       aria-label="Evidence and Data Provenance Dossier"
       className="fixed inset-y-0 right-0 z-40 w-full sm:w-[480px] bg-white border-l border-slate-200 shadow-2xl flex flex-col justify-between overflow-hidden animate-in slide-in-from-right duration-200"
     >
@@ -125,6 +126,7 @@ Built for Indradhanu - PCCOE International Grand Challenge 2026 (SDG 13).
         </div>
 
         <button
+          data-tour="heat-zone-drawer-close"
           onClick={onClose}
           className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors cursor-pointer"
           aria-label="Close evidence drawer"
@@ -380,15 +382,17 @@ Built for Indradhanu - PCCOE International Grand Challenge 2026 (SDG 13).
         </Button>
 
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleDownloadDossier}
-            icon={<FileDown className="w-4 h-4" />}
-            className="bg-white text-xs"
-          >
-            Download Dossier (.md)
-          </Button>
+          <div data-tour="heat-dossier-button">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleDownloadDossier}
+              icon={<FileDown className="w-4 h-4" />}
+              className="bg-white text-xs"
+            >
+              Download Dossier (.md)
+            </Button>
+          </div>
           <Button
             variant="secondary"
             size="sm"

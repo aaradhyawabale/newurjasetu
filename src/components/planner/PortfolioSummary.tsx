@@ -32,6 +32,7 @@ export const PortfolioSummary: React.FC<PortfolioSummaryProps> = ({
 
   return (
     <section
+      data-tour="heat-summary-strip"
       aria-label="Portfolio Summary of Climate Plan"
       className={`bg-white border border-slate-200 rounded-xl p-3 sm:p-4 shadow-sm ${className}`}
     >

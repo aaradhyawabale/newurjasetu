@@ -237,6 +237,18 @@ export const SiteHeader: React.FC = () => {
           >
             Method & Model Card
           </AppLink>
+
+          <AppLink
+            to="/walkthrough"
+            data-tour="nav-walkthrough"
+            className={`whitespace-nowrap shrink-0 transition-colors py-1 ${
+              isCurrent('/walkthrough')
+                ? 'text-[#0F5C63] font-semibold border-b-2 border-[#0F5C63]'
+                : 'hover:text-[#14212B]'
+            }`}
+          >
+            Walkthrough
+          </AppLink>
         </nav>
 
         {/* Zone 3: My Plan Button + Primary Action */}
@@ -336,6 +348,13 @@ export const SiteHeader: React.FC = () => {
             >
               Method &amp; Model Card
             </AppLink>
+            <AppLink
+              to="/walkthrough"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block px-3 py-2 rounded-lg text-sm font-bold text-[#0F5C63] hover:bg-slate-50"
+            >
+              Walkthrough Tour
+            </AppLink>
           </div>
         </div>
       )}
@@ -357,6 +376,10 @@ export const SiteFooter: React.FC = () => {
         </div>
 
         <div className="flex flex-wrap items-center justify-center md:justify-end gap-3 sm:gap-6">
+          <AppLink to="/walkthrough" className="hover:text-[#0F5C63] font-semibold transition-colors">
+            Walkthrough
+          </AppLink>
+          <span className="text-slate-300" aria-hidden="true">·</span>
           <AppLink to="/method" className="hover:text-[#0F5C63] transition-colors">
             Method &amp; Validation Gate
           </AppLink>

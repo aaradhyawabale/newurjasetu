@@ -6,9 +6,10 @@
  */
 
 import React, { useState } from 'react';
-import { ChevronDown, ChevronUp, Info, HelpCircle } from 'lucide-react';
+import { ChevronDown, ChevronUp, Info, HelpCircle, Compass } from 'lucide-react';
 import { TruthChip } from './TruthChip';
-import { AppLink } from '../../lib/nav';
+import { AppLink, useAppLocation } from '../../lib/nav';
+import { useTour } from '@/walkthrough/engine/TourProvider';
 
 export interface BreadcrumbItem {
   label: string;
@@ -51,7 +52,19 @@ export interface ToolPageHeaderProps {
   dataUsed: Array<{ label: string; type: 'Measured' | 'Modelled' | 'Assumed' }>;
   breadcrumbItems?: BreadcrumbItem[];
   actions?: React.ReactNode;
+  tourChapterId?: string;
 }
+
+const ROUTE_CHAPTER_MAP: Record<string, string> = {
+  '/heat-planner': 'ch2_heat_planner',
+  '/green-loss': 'ch3_green_loss',
+  '/interventions': 'ch4_interventions',
+  '/green-cover': 'ch5_green_cover',
+  '/infrastructure': 'ch6_infrastructure',
+  '/solar': 'ch7_solar',
+  '/plans': 'ch8_plans',
+  '/method': 'ch9_method',
+};
 
 export const ToolPageHeader: React.FC<ToolPageHeaderProps> = ({
   title,
@@ -60,8 +73,13 @@ export const ToolPageHeader: React.FC<ToolPageHeaderProps> = ({
   dataUsed,
   breadcrumbItems,
   actions,
+  tourChapterId,
 }) => {
   const [guideOpen, setGuideOpen] = useState(false);
+  const location = useAppLocation();
+  const { startTour } = useTour();
+
+  const chapterId = tourChapterId || ROUTE_CHAPTER_MAP[location.pathname];
 
   return (
     <div className="mb-6 bg-white border border-[#E5E7EB] rounded-xl p-4 sm:p-6 shadow-xs">
@@ -76,7 +94,19 @@ export const ToolPageHeader: React.FC<ToolPageHeaderProps> = ({
             {purpose}
           </p>
         </div>
-        {actions && <div className="shrink-0 flex items-center gap-2">{actions}</div>}
+        <div className="shrink-0 flex flex-wrap items-center gap-2">
+          {chapterId && (
+            <button
+              onClick={() => startTour(chapterId, 0)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-xs transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0F5C63]"
+              aria-label={`Tour ${title}`}
+            >
+              <Compass className="w-3.5 h-3.5 text-[#0F5C63]" />
+              <span>Tour this page</span>
+            </button>
+          )}
+          {actions}
+        </div>
       </div>
 
       {/* Provenance chips + collapsible guidance toggle */}
