@@ -83,3 +83,51 @@ model ProviderCache {
 
   @@index([expiresAt])
 }
+
+model Plan {
+  id              String        @id @default(uuid())
+  title           String        @default("Untitled Municipal Heat Plan")
+  status          String        @default("Draft") // Draft | Saved | Forwarded
+  isDeleted       Boolean       @default(false)
+  inputsSnapshot  String        @default("{}") // JSON string of budget, ward, targetNdvi, scenario
+  outputsSnapshot String        @default("{}") // JSON string of totals, selectedZones, versions
+  sections        String        @default("{}") // JSON string of tool items: zones, sites, interventions, shading
+  notes           String        @default("")
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  versions        PlanVersion[]
+  events          PlanEvent[]
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model PlanVersion {
+  id              String      @id @default(uuid())
+  planId          String
+  versionNumber   Int
+  versionName     String
+  inputsSnapshot  String      @default("{}") // JSON string
+  outputsSnapshot String      @default("{}") // JSON string
+  sections        String      @default("{}") // JSON string
+  notes           String      @default("")
+  createdAt       DateTime    @default(now())
+  plan            Plan        @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([planId])
+  @@index([createdAt])
+}
+
+model PlanEvent {
+  id         String   @id @default(uuid())
+  planId     String
+  eventType  String   // Created | Updated | VersionSaved | Forwarded
+  recipient  String?  // Recipient role/name
+  notes      String?
+  timestamp  DateTime @default(now())
+  plan       Plan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([planId])
+  @@index([timestamp])
+}
+

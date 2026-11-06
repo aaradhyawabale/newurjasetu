@@ -87,6 +87,7 @@ export async function getCells(): Promise<Cell[]> {
         id: c.id,
         centroid: c.centroid,
         ward: c.ward || 'Unknown Ward',
+        locality: c.locality || c.ward || 'Unknown Locality',
         population: c.population ?? 0,
         lst_mean: c.lst_mean ?? 0,
         lst_std: c.lst_std ?? 0,
@@ -102,13 +103,13 @@ export async function getCells(): Promise<Cell[]> {
         solar_penalty_low: c.solar_penalty_low ?? (c.solar_penalty_p10 ?? (heatExcess > 0 ? Number((-0.533 * 0.2 * heatExcess).toFixed(2)) : 0)),
         solar_penalty_mid: c.solar_penalty_mid ?? (c.solar_penalty_mean ?? (heatExcess > 0 ? Number((-0.533 * 0.5 * heatExcess).toFixed(2)) : 0)),
         solar_penalty_high: c.solar_penalty_high ?? (c.solar_penalty_p90 ?? (heatExcess > 0 ? Number((-0.533 * 0.8 * heatExcess).toFixed(2)) : 0)),
-        loss_fraction: loss?.is_loss && loss?.baseline_ndvi ? Number(Math.abs(loss.delta_ndvi / loss.baseline_ndvi).toFixed(3)) : null,
-        loss_ha: loss?.is_loss ? Number(loss.loss_area_ha.toFixed(2)) : null,
-        baseline_ndvi: loss?.baseline_ndvi ?? null,
-        current_ndvi: loss?.current_ndvi ?? null,
-        heat_penalty_mean: loss?.extra_heat_mean ?? null,
-        heat_penalty_p10: loss?.extra_heat_p10 ?? null,
-        heat_penalty_p90: loss?.extra_heat_p90 ?? null,
+        loss_fraction: loss?.is_loss && (loss.ndvi_2019 || loss.baseline_ndvi) ? Number(Math.abs((loss.delta_ndvi ?? 0) / (loss.ndvi_2019 || loss.baseline_ndvi)).toFixed(3)) : null,
+        loss_ha: loss?.is_loss ? Number((loss.loss_area_ha ?? loss.loss_ha ?? 0).toFixed(2)) : 0,
+        baseline_ndvi: loss?.ndvi_2019 ?? loss?.baseline_ndvi ?? null,
+        current_ndvi: loss?.ndvi_2026 ?? loss?.current_ndvi ?? null,
+        heat_penalty_mean: loss?.extra_heat_mean ?? loss?.heat_penalty_mean ?? null,
+        heat_penalty_p10: loss?.extra_heat_p10 ?? loss?.heat_penalty_p10 ?? null,
+        heat_penalty_p90: loss?.extra_heat_p90 ?? loss?.heat_penalty_p90 ?? null,
       };
     });
 

@@ -56,22 +56,22 @@
   "sensitivity_table": [
     {
       "delta_ndvi_threshold": -0.1,
-      "flagged_cells_count": 2449,
-      "total_loss_area_ha": 6904.85,
-      "mean_delta_ndvi": -0.205
+      "flagged_cells_count": 632,
+      "total_loss_area_ha": 2426.22,
+      "mean_delta_ndvi": -0.279
     },
     {
       "delta_ndvi_threshold": -0.15,
-      "flagged_cells_count": 2224,
-      "total_loss_area_ha": 6494.38,
-      "mean_delta_ndvi": -0.212
+      "flagged_cells_count": 585,
+      "total_loss_area_ha": 2346.05,
+      "mean_delta_ndvi": -0.292
     },
     {
       "delta_ndvi_threshold": -0.2,
-      "flagged_cells_count": 1214,
-      "total_loss_area_ha": 4089.99,
-      "mean_delta_ndvi": -0.245
+      "flagged_cells_count": 546,
+      "total_loss_area_ha": 2251.98,
+      "mean_delta_ndvi": -0.3
     }
   ],
-  "timestamp": "2026-11-06T03:13:26.612617+00:00"
+  "timestamp": "2026-11-06T06:02:18.644114+00:00"
 }

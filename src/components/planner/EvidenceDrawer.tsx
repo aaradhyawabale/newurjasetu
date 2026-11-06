@@ -20,12 +20,14 @@ import {
   Calendar,
   Satellite,
   Info,
+  Bookmark,
 } from 'lucide-react';
 import { Cell, ModelCard, TruthLabel } from '@/api/contract';
 import { TruthChip } from '@/components/ui/TruthChip';
 import { Button } from '@/components/ui/Button';
 import { AppLink, useAppNavigate } from '@/lib/nav';
 import { getDossierUrl } from '@/api/client';
+import { usePlan } from '@/context/PlanContext';
 
 export interface EvidenceDrawerProps {
   cell: Cell | null;
@@ -45,6 +47,7 @@ export const EvidenceDrawer: React.FC<EvidenceDrawerProps> = ({
   rank,
 }) => {
   const navigate = useAppNavigate();
+  const { addItem, openDrawer } = usePlan();
 
   if (!isOpen || !cell) return null;
 
@@ -101,21 +104,23 @@ Built for Indradhanu - PCCOE International Grand Challenge 2026 (SDG 13).
       <div className="p-4 sm:p-5 border-b border-slate-200 flex items-start justify-between gap-3 bg-slate-50/70">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs font-mono font-bold text-[#0F5C63] bg-[#0F5C63]/10 px-2 py-0.5 rounded">
-              {cell.id}
-            </span>
             {rank && (
-              <span className="text-xs font-semibold text-slate-700 bg-slate-200/80 px-2 py-0.5 rounded">
+              <span className="text-xs font-bold text-white bg-[#0F5C63] px-2 py-0.5 rounded">
                 Rank #{rank}
               </span>
             )}
-            <span className="text-xs text-slate-500 font-medium">{cell.ward} Ward</span>
+            <span className="text-xs font-semibold text-slate-700 bg-slate-200/80 px-2 py-0.5 rounded">
+              {cell.ward} Ward
+            </span>
+            <span className="text-[11px] font-mono text-slate-500">
+              {cell.id}
+            </span>
           </div>
           <h2 className="text-lg font-bold text-[#14212B]">
-            Evidence Dossier
+            {rank ? `#${rank} ` : ''}{cell.ward} - {cell.locality || cell.ward}
           </h2>
           <p className="text-xs text-slate-500 font-mono">
-            Centroid: [{cell.centroid[0].toFixed(4)}°E, {cell.centroid[1].toFixed(4)}°N] · ~250m cell
+            Centroid: [{cell.centroid[0].toFixed(4)}°E, {cell.centroid[1].toFixed(4)}°N] · Approx. ward centroid
           </p>
         </div>
 
@@ -347,24 +352,52 @@ Built for Indradhanu - PCCOE International Grand Challenge 2026 (SDG 13).
       </div>
 
       {/* Bottom Action Footer */}
-      <div className="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between gap-3">
+      <div className="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between gap-2 flex-wrap">
         <Button
-          variant="outline"
+          variant="primary"
           size="sm"
-          onClick={handleDownloadDossier}
-          icon={<FileDown className="w-4 h-4" />}
-          className="w-full bg-white text-xs"
-        >
-          Download Verified Dossier (.md)
-        </Button>
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={onClose}
+          onClick={() => {
+            addItem({
+              id: cell.id,
+              title: `#${rank || '•'} ${cell.ward} - ${cell.locality || cell.ward}`,
+              subtitle: `${cell.id} · ${cell.greenable_ha} ha · Surface temp ${cell.lst_mean}°C · Cooling ${cell.cooling_mean ? `-${cell.cooling_mean}°C` : 'N/A'}`,
+              section: 'zones',
+              metadata: {
+                ward: cell.ward,
+                locality: cell.locality,
+                lst_mean: cell.lst_mean,
+                greenable_ha: cell.greenable_ha,
+                cooling_mean: cell.cooling_mean,
+                population: cell.population,
+              },
+            });
+            openDrawer();
+          }}
+          icon={<Bookmark className="w-4 h-4" />}
           className="text-xs"
         >
-          Close
+          Add Zone to Plan
         </Button>
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDownloadDossier}
+            icon={<FileDown className="w-4 h-4" />}
+            className="bg-white text-xs"
+          >
+            Download Dossier (.md)
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={onClose}
+            className="text-xs"
+          >
+            Close
+          </Button>
+        </div>
       </div>
     </aside>
   );

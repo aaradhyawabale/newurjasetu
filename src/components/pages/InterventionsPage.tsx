@@ -16,6 +16,7 @@ import { TruthChip } from '@/components/ui/TruthChip';
 import { Skeleton, ErrorState } from '@/components/ui/FeedbackStates';
 import { Button } from '@/components/ui/Button';
 import { useAppSearchParams } from '@/lib/nav';
+import { usePlan } from '@/context/PlanContext';
 import {
   GitCompare,
   TreeDeciduous,
@@ -25,6 +26,8 @@ import {
   AlertCircle,
   Building2,
   Hospital,
+  PlusCircle,
+  Check,
 } from 'lucide-react';
 
 export const InterventionsPage: React.FC = () => {
@@ -76,6 +79,9 @@ export const InterventionsPage: React.FC = () => {
     loadOptions();
   }, [selectedSiteId]);
 
+  const { addItem, plan } = usePlan();
+  const addedInterventionIds = plan.sections.interventions.map((item) => item.id);
+
   if (loading) {
     return (
       <main className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4">
@@ -99,7 +105,7 @@ export const InterventionsPage: React.FC = () => {
   const selectedSite = sites.find((s) => s.id === selectedSiteId) || sites[0];
 
   return (
-    <main className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-6">
+    <main className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-6 min-w-0 max-w-full overflow-x-hidden">
       <ToolPageHeader
         title="Intervention Scenarios"
         purpose="Compare candidate thermal cooling technologies for public hospitals, transit centers, and municipal parks before allocating capital expenditure."
@@ -110,7 +116,7 @@ export const InterventionsPage: React.FC = () => {
         ]}
         dataUsed={[
           { label: 'Site Thermal Exposure & Area', type: 'Measured' },
-          { label: 'Modelled Surface Cooling Range', type: 'Modelled' },
+          { label: 'Modelled Surface Cooling Range (Greening only)', type: 'Modelled' },
           { label: 'Capital Cost Estimates (INR)', type: 'Assumed' },
         ]}
         breadcrumbItems={[{ label: 'Intervention Scenarios' }]}
@@ -191,11 +197,11 @@ export const InterventionsPage: React.FC = () => {
             <span className="text-[10px] text-slate-400 block">Available footprint</span>
           </div>
           <div>
-            <span className="text-slate-500 block">Current Tree Canopy</span>
+            <span className="text-slate-500 block">Existing Shade Coverage</span>
             <span className="text-xl font-bold font-mono text-emerald-800 tabular-nums">
               {selectedSite.current_shade_pct}%
             </span>
-            <span className="text-[10px] text-slate-400 block">Existing shade coverage</span>
+            <span className="text-[10px] text-slate-400 block">Measured tree &amp; built shade</span>
           </div>
         </div>
       )}
@@ -211,6 +217,10 @@ export const InterventionsPage: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
           {interventions.map((opt) => {
             const isRec = opt.is_recommended;
+            const isGreening = opt.type === 'greening';
+            const interventionPlanId = `${selectedSite.id}-${opt.id}`;
+            const isAdded = addedInterventionIds.includes(interventionPlanId);
+
             const Icon =
               opt.type === 'greening'
                 ? TreeDeciduous
@@ -248,25 +258,48 @@ export const InterventionsPage: React.FC = () => {
                     {opt.name}
                   </h3>
 
-                  {/* Cooling estimate (Modelled) */}
-                  <div className="p-3 bg-sky-50/60 rounded-xl border border-sky-200 my-4 space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold text-slate-700">
-                        Est. Surface Cooling:
+                  {/* Cooling estimate: ONLY greening has empirical AI cooling estimate */}
+                  {isGreening ? (
+                    <div className="p-3 bg-sky-50/60 rounded-xl border border-sky-200 my-4 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-slate-700">
+                          Est. Surface Cooling:
+                        </span>
+                        <TruthChip type="Modelled" compact />
+                      </div>
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="text-2xl font-bold font-mono text-sky-900 tabular-nums">
+                          -{opt.cooling_mean} °C
+                        </span>
+                      </div>
+                      <span className="text-[11px] font-mono text-slate-600 block">
+                        Range: -{opt.cooling_p10} °C to -{opt.cooling_p90} °C (model variance only)
                       </span>
-                      <TruthChip type="Modelled" compact />
                     </div>
-                    <div className="flex items-baseline gap-1.5">
-                      <span className="text-2xl font-bold font-mono text-sky-900 tabular-nums">
-                        -{opt.cooling_mean} °C
-                      </span>
+                  ) : (
+                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 my-4 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-slate-700">
+                          Est. Surface Cooling:
+                        </span>
+                        <span className="text-[10px] font-medium text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded">
+                          Not modelled
+                        </span>
+                      </div>
+                      <div className="text-sm font-semibold text-slate-700">
+                        {opt.type === 'cool_roof'
+                          ? 'Indoor envelope cooling only'
+                          : 'Direct shade & clean power'}
+                      </div>
+                      <p className="text-[11px] text-slate-500 leading-snug">
+                        {opt.type === 'cool_roof'
+                          ? 'Reflective coating reduces building thermal gain; spatial cooling is not modelled by the 250m satellite vegetation ensemble.'
+                          : 'Generates renewable electricity and localized physical shading; ambient cooling is not modelled.'}
+                      </p>
                     </div>
-                    <span className="text-[11px] font-mono text-slate-600 block">
-                      Range: -{opt.cooling_p10} °C to -{opt.cooling_p90} °C (P10–P90)
-                    </span>
-                  </div>
+                  )}
 
-                  {/* Capital Cost Placeholder (Assumed) */}
+                  {/* Capital Cost */}
                   <div className="p-3 bg-amber-50/50 rounded-xl border border-amber-200/80 mb-4 space-y-1">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-semibold text-slate-700">
@@ -278,7 +311,7 @@ export const InterventionsPage: React.FC = () => {
                       <span className="text-xl font-bold font-mono text-amber-950 tabular-nums">
                         ₹ {opt.cost_inr_lakh} Lakh
                       </span>
-                      <span className="text-[11px] text-slate-500">(INR benchmark)</span>
+                      <span className="text-[11px] text-slate-500">(indicative benchmark)</span>
                     </div>
                   </div>
 
@@ -289,14 +322,56 @@ export const InterventionsPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Recommendation Reason */}
-                <div className="mt-6 pt-4 border-t border-slate-100 text-xs">
-                  <span className="font-bold text-slate-800 block mb-1">
-                    Evaluation Rationale:
-                  </span>
-                  <p className="text-slate-600 leading-relaxed italic">
-                    &ldquo;{opt.recommendation_reason}&rdquo;
-                  </p>
+                {/* Bottom Action & Recommendation Reason */}
+                <div className="mt-6 pt-4 border-t border-slate-100 space-y-3">
+                  <div className="text-xs">
+                    <span className="font-bold text-slate-800 block mb-1">
+                      Evaluation Rationale:
+                    </span>
+                    <p className="text-slate-600 leading-relaxed italic text-[11px]">
+                      &ldquo;{opt.recommendation_reason}&rdquo;
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      addItem({
+                        id: interventionPlanId,
+                        title: `${selectedSite.name}: ${opt.name}`,
+                        subtitle: `${isGreening ? `-${opt.cooling_mean}°C cooling` : 'Microclimate adaptation'} · ₹${opt.cost_inr_lakh}L`,
+                        section: 'interventions',
+                        metadata: {
+                          siteId: selectedSite.id,
+                          siteName: selectedSite.name,
+                          ward: selectedSite.ward,
+                          interventionType: opt.type,
+                          costLakh: opt.cost_inr_lakh,
+                          coolingMean: isGreening ? opt.cooling_mean : null,
+                        },
+                      });
+                    }}
+                    disabled={isAdded}
+                    className={`w-full py-2 px-3 text-xs font-semibold rounded-lg transition-colors flex items-center justify-center gap-1.5 cursor-pointer ${
+                      isAdded
+                        ? 'bg-emerald-100 text-emerald-800 cursor-default'
+                        : isRec
+                        ? 'bg-[#0F5C63] text-white hover:bg-[#0B484E] shadow-xs'
+                        : 'bg-slate-800 text-white hover:bg-slate-900'
+                    }`}
+                  >
+                    {isAdded ? (
+                      <>
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Included in Plan</span>
+                      </>
+                    ) : (
+                      <>
+                        <PlusCircle className="w-3.5 h-3.5" />
+                        <span>Add Option to Plan</span>
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
             );

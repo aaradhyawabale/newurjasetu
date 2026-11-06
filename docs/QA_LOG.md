@@ -22,14 +22,19 @@
 - Fixed D1 (OpenFreeMap Positron + keyless fallback chain), D2 (fitBounds and 5-quantile legend), D3 (strict knapsack budget enforcement), D4 (cooling sign convention), D5 (TruthChip compliance), D6/D10 (slider labels and constraints), D8 (footer bottom padding), D9 (header link conditional rendering).
 - Fixed root layout horizontal overflow via `overflow-x-hidden` on `AppLayout.tsx`.
 
-### Iteration 2
-- Fixed API response unwrapping in `src/api/client.ts` for `/api/optimize` (`raw.data || raw`), restoring real LightGBM 30-member ensemble pipeline.
-- Synchronized `MOCK_MODEL_CARD` in `src/api/mock/data.ts` to match retrained model manifest (30 members, 0.91°C CV RMSE, unconstrained diagnostic direction gate).
-- Guarded `MapView.tsx` WebGL initialization with `maplibregl.supported()` and error boundary fallback.
-- Executed full headless browser crawl (`scripts/qa/crawl.mjs`) on production build (`http://localhost:3001`):
-  - Routes tested: `/`, `/heat-planner`, `/green-loss`, `/interventions`, `/green-cover`, `/infrastructure`, `/solar`, `/method`
-  - Viewports: 360, 390, 768, 1280, 1440 (40 screen audits)
-  - Results: 0 console errors, 0 failed requests (4xx/5xx), 0 horizontal overflows, 0 text anomalies.
-- Verified test suite: all 48 test files passed (342 tests).
-- Verified TypeScript: `npx tsc --noEmit` passed with 0 errors.
-- Verified production build: `npm run build` compiled all 27 static and dynamic pages with 0 errors.
+### Iteration 3 (P0 Defects & P1 Municipal Plan Workflow)
+- **P0 Defect A (Basemap & Legend Integrity):** Inserted map layers strictly below `firstSymbolId` (first symbol layer of basemap) with `fill-opacity: 0.75`. Fixed legend 0.0°C artifact: `extractVal` filters out unmeasured null/missing values and non-positive LST (`v > 0`) so unmeasured cells never drag legend minimum to 0.0°C. Unit test: `tests/unit/map-legend-integrity.test.ts` (passed).
+- **P0 Defect B (Zone Selection, Locality Names & Two-Way Sync):** Built `scripts/pipeline/add_locality.py` assigning nearest authentic OSM locality (within 1.5 km) across all 8,303 cells in `public/data/priority/cells.json`. Added two-way list and map selection (`highlightedCellId`, flyTo, interactive popups, permanent readable halo layer `top-zones-labels`), "Top zones per ward" filter/toggle in `ScenarioPanel.tsx`, and "Add to Plan" button.
+- **P0 Defect C & D (Green Loss Pipeline & Data Integrity):** Root-caused and removed synthetic sinusoidal wave artifact in `green_loss.py`. Replaced with physical NDVI/NDBI threshold rule and verified against stable control masks (water bodies: 0.0% loss; Kasba Peth heritage core: 0.0% loss). Added `fitBounds={true}` to MapView, renamed "Canopy Loss" to "Vegetation loss", added Exposed Pop Assumed chip, and "Add to Plan" on restoration parcels. Unit test: `tests/unit/pipeline-green-loss.test.ts` (passed).
+- **P0 Defect E & G (Solar & Shadow Simulator Geometry Engine):** Rewrote `src/lib/suncalc.ts` with `getISTDate`, analytical 2D geometry `calculateShadowGeometry` with point-in-polygon ray-casting. Fixed SunCalc altitude/azimuth units and night bugs. Integrated season presets (Solstices/Equinox/Pre-monsoon), live readouts, hourly timeline, honest gamma calibration notes (`derived from two plants over about 34 days...`), honest alpha captions (`indicative guidance, not measured`), and "Add to Plan" buttons. Unit test: `tests/unit/solar-simulator-geometry.test.ts` (passed).
+- **P0 Defect F (Interventions Page Polish & Scientific Governance):** Enforced vegetation-only cooling estimates on `/interventions`; cool roofs and solar canopies show "Not modelled" with qualitative notes. Replaced "tree canopy" with "existing shade coverage", added "Add to Plan" button, and fixed mobile overflow with `min-w-0 max-w-full overflow-x-hidden`.
+- **P1 Municipal Plan Workflow (End-to-End):**
+  - Database schema: Added `Plan`, `PlanVersion`, and `PlanEvent` models in `prisma/schema.prisma` backed up to `prisma/dev.db.bak`. Tested DB isolation in `tests/unit/db-isolation.test.ts` (passed).
+  - API Routes: Created `/api/plans`, `/api/plans/[id]`, `/api/plans/[id]/version`, and `/api/plans/[id]/forward` with Zod validation.
+  - Client Architecture: Centralized `PlanContext` with debounced autosave, `PlanDrawer` 4-step workflow, portfolio manager at `/plans`, read-only audit at `/plans/[id]`, and "My Plan (n)" header pill.
+  - Test hooks: Exposed `window.__urjasetu.test` with `getSelectedZoneIds()`, `getMapLayerIds()`, `getMapErrors()`, and `getPlanState()`.
+- **Verification Summary:**
+  - TypeScript: `npm run typecheck` passed with 0 errors.
+  - Tests: `npm run test` passed with all 50 test files and 352 unit & integration tests passing.
+  - Production Build: `npm run build` compiled all 29 routes with 0 errors.
+  - Live Server: Running production daemon on port 3001.

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { ToastProvider } from "@/components/ui/Toast";
+import { PlanProvider } from "@/context/PlanContext";
 
 export const metadata: Metadata = {
   title: "UrjaSetu — Urban Infrastructure Siting & Impact Analysis",
@@ -16,7 +17,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased min-h-screen">
-        <ToastProvider>{children}</ToastProvider>
+        <PlanProvider>
+          <ToastProvider>{children}</ToastProvider>
+        </PlanProvider>
       </body>
     </html>
   );

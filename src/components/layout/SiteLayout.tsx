@@ -18,11 +18,14 @@ import {
   Building2,
   Sun,
   BookOpen,
+  Bookmark,
 } from 'lucide-react';
+import { usePlan } from '@/context/PlanContext';
 
 export const SiteHeader: React.FC = () => {
   const [toolsOpen, setToolsOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { itemCount, openDrawer } = usePlan();
   const location = useAppLocation();
 
   const isCurrent = (path: string) => location.pathname === path;
@@ -214,6 +217,17 @@ export const SiteHeader: React.FC = () => {
           </div>
 
           <AppLink
+            to="/plans"
+            className={`whitespace-nowrap shrink-0 transition-colors py-1 ${
+              isCurrent('/plans')
+                ? 'text-[#0F5C63] font-semibold border-b-2 border-[#0F5C63]'
+                : 'hover:text-[#14212B]'
+            }`}
+          >
+            Plans
+          </AppLink>
+
+          <AppLink
             to="/method"
             className={`whitespace-nowrap shrink-0 transition-colors py-1 ${
               isCurrent('/method')
@@ -225,19 +239,31 @@ export const SiteHeader: React.FC = () => {
           </AppLink>
         </nav>
 
-        {/* Zone 3: 1 primary action */}
-        <div className="flex items-center gap-3 shrink-0">
+        {/* Zone 3: My Plan Button + Primary Action */}
+        <div className="flex items-center gap-2.5 shrink-0">
+          <button
+            onClick={openDrawer}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded-xl transition-colors cursor-pointer shadow-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0F5C63]"
+            aria-label={`Open My Plan Drawer (${itemCount} items)`}
+          >
+            <Bookmark className="w-3.5 h-3.5 text-[#0F5C63]" />
+            <span className="hidden xs:inline">My Plan</span>
+            <span className="px-1.5 py-0.2 text-[10px] font-bold rounded-full bg-[#0F5C63] text-white">
+              {itemCount}
+            </span>
+          </button>
+
           {isCurrent('/heat-planner') ? (
             <AppLink
               to="/method"
-              className="px-4 py-2 text-xs sm:text-sm font-semibold text-[#0F5C63] bg-[#0F5C63]/10 hover:bg-[#0F5C63]/20 border border-[#0F5C63]/30 rounded-xl transition-colors whitespace-nowrap shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0F5C63]"
+              className="px-3.5 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold text-[#0F5C63] bg-[#0F5C63]/10 hover:bg-[#0F5C63]/20 border border-[#0F5C63]/30 rounded-xl transition-colors whitespace-nowrap shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0F5C63]"
             >
               Method & Model Card
             </AppLink>
           ) : (
             <AppLink
               to="/heat-planner"
-              className="px-4 py-2 text-xs sm:text-sm font-semibold text-white bg-[#0F5C63] hover:bg-[#0A3E43] rounded-xl shadow-xs transition-colors whitespace-nowrap shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0F5C63]"
+              className="px-3.5 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold text-white bg-[#0F5C63] hover:bg-[#0A3E43] rounded-xl shadow-xs transition-colors whitespace-nowrap shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0F5C63]"
             >
               Open Heat Planner
             </AppLink>

@@ -19,7 +19,8 @@ import { TruthChip } from '@/components/ui/TruthChip';
 import { Skeleton, ErrorState } from '@/components/ui/FeedbackStates';
 import { EvidenceDrawer } from '@/components/planner/EvidenceDrawer';
 import { useAppSearchParams } from '@/lib/nav';
-import { TreeDeciduous, AlertTriangle, ArrowUpDown, ShieldAlert, Sparkles } from 'lucide-react';
+import { TreeDeciduous, AlertTriangle, ArrowUpDown, ShieldAlert, Sparkles, PlusCircle, Check, Info } from 'lucide-react';
+import { usePlan } from '@/context/PlanContext';
 
 export const GreenLossPage: React.FC = () => {
   const [searchParams] = useAppSearchParams();
@@ -63,6 +64,9 @@ export const GreenLossPage: React.FC = () => {
     load();
   }, [initialCellId]);
 
+  const { addItem, plan } = usePlan();
+  const addedLossIds = plan.sections.loss.map((item) => item.id);
+
   if (loading) {
     return (
       <main className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4">
@@ -99,6 +103,23 @@ export const GreenLossPage: React.FC = () => {
       restoreAllocatedHa += area;
     }
   }
+
+  const handleAddParcelToPlan = (c: Cell) => {
+    const loc = c.locality || c.ward;
+    addItem({
+      id: c.id,
+      title: `Restore ${c.ward} - ${loc}`,
+      subtitle: `${c.loss_ha} ha lost vegetation · ${c.population.toLocaleString('en-IN')} pop`,
+      section: 'loss',
+      metadata: {
+        loss_ha: c.loss_ha,
+        heat_penalty_mean: c.heat_penalty_mean,
+        population: c.population,
+        ward: c.ward,
+        locality: c.locality,
+      },
+    });
+  };
 
   return (
     <main className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-6">
@@ -153,6 +174,7 @@ export const GreenLossPage: React.FC = () => {
               <MapView
                 cells={cells}
                 activeLayer="loss"
+                fitBounds={true}
                 onSelect={(cell) => {
                   setSelectedCell(cell);
                   setIsEvidenceOpen(true);
@@ -171,7 +193,7 @@ export const GreenLossPage: React.FC = () => {
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div>
                 <h2 className="text-sm font-bold text-[#14212B]">
-                  Canopy Loss by Ward
+                  Vegetation Loss by Ward
                 </h2>
                 <span className="text-[11px] text-slate-500">
                   Approximate municipal ward boundaries
@@ -187,7 +209,12 @@ export const GreenLossPage: React.FC = () => {
                     <th className="py-2 px-2.5">Ward Name</th>
                     <th className="py-2 px-2.5 text-right">Lost Area (ha)</th>
                     <th className="py-2 px-2.5 text-right">% of Baseline</th>
-                    <th className="py-2 px-2.5 text-right">Exposed Pop.</th>
+                    <th className="py-2 px-2.5 text-right">
+                      <div className="inline-flex items-center gap-1 justify-end">
+                        <span>Exposed Pop.</span>
+                        <TruthChip type="Assumed" compact />
+                      </div>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -226,7 +253,7 @@ export const GreenLossPage: React.FC = () => {
                 Restoration Budget Planner
               </h2>
               <p className="text-xs text-slate-500 mt-1">
-                Greedily allocate recovery funds to zones where historical canopy loss is associated
+                Greedily allocate recovery funds to zones where historical vegetation loss is associated
                 with the highest surface temperature increase.
               </p>
             </div>
@@ -280,7 +307,7 @@ export const GreenLossPage: React.FC = () => {
                 <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold text-[11px]">
                   <tr>
                     <th className="py-2.5 px-3">Rank &amp; Zone</th>
-                    <th className="py-2.5 px-3">Ward</th>
+                    <th className="py-2.5 px-3">Ward &amp; Locality</th>
                     <th className="py-2.5 px-3 text-right">Loss Area</th>
                     <th className="py-2.5 px-3 text-right">NDVI Drop</th>
                     <th className="py-2.5 px-3 text-right">Associated Heat Increase</th>
@@ -288,37 +315,65 @@ export const GreenLossPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {restoreCandidates.map((c, idx) => (
-                    <tr key={c.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="py-2.5 px-3 font-semibold text-slate-800">
-                        #{idx + 1} · {c.id}
-                      </td>
-                      <td className="py-2.5 px-3 text-slate-600">{c.ward}</td>
-                      <td className="py-2.5 px-3 text-right font-mono font-bold text-rose-700 tabular-nums">
-                        {c.loss_ha} ha
-                      </td>
-                      <td className="py-2.5 px-3 text-right font-mono text-slate-600 tabular-nums">
-                        {c.baseline_ndvi} → {c.current_ndvi}
-                      </td>
-                      <td className="py-2.5 px-3 text-right font-mono font-bold text-amber-700 tabular-nums">
-                        +{c.heat_penalty_mean} °C
-                        <span className="block text-[10px] text-slate-400 font-normal">
-                          ({c.heat_penalty_p10} to {c.heat_penalty_p90}°C)
-                        </span>
-                      </td>
-                      <td className="py-2.5 px-3 text-right">
-                        <button
-                          onClick={() => {
-                            setSelectedCell(c);
-                            setIsEvidenceOpen(true);
-                          }}
-                          className="px-2.5 py-1 text-[11px] font-semibold text-[#0F5C63] hover:bg-[#0F5C63]/10 rounded-md transition-colors cursor-pointer"
-                        >
-                          View Dossier →
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {restoreCandidates.map((c, idx) => {
+                    const isAdded = addedLossIds.includes(c.id);
+                    const loc = c.locality || c.ward;
+                    return (
+                      <tr key={c.id} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="py-2.5 px-3 font-semibold text-slate-800">
+                          #{idx + 1}
+                        </td>
+                        <td className="py-2.5 px-3">
+                          <div className="font-bold text-slate-800">{c.ward} - {loc}</div>
+                          <div className="text-[10px] font-mono text-slate-500">{c.id} · Approx. centroid</div>
+                        </td>
+                        <td className="py-2.5 px-3 text-right font-mono font-bold text-rose-700 tabular-nums">
+                          {c.loss_ha} ha
+                        </td>
+                        <td className="py-2.5 px-3 text-right font-mono text-slate-600 tabular-nums">
+                          {c.baseline_ndvi} → {c.current_ndvi}
+                        </td>
+                        <td className="py-2.5 px-3 text-right font-mono font-bold text-amber-700 tabular-nums">
+                          +{c.heat_penalty_mean} °C
+                          <span className="block text-[10px] text-slate-400 font-normal">
+                            ({c.heat_penalty_p10} to {c.heat_penalty_p90}°C)
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 text-right space-x-1.5 whitespace-nowrap">
+                          <button
+                            onClick={() => {
+                              setSelectedCell(c);
+                              setIsEvidenceOpen(true);
+                            }}
+                            className="px-2 py-1 text-[11px] font-semibold text-[#0F5C63] hover:bg-[#0F5C63]/10 rounded-md transition-colors cursor-pointer"
+                          >
+                            Dossier
+                          </button>
+                          <button
+                            onClick={() => handleAddParcelToPlan(c)}
+                            disabled={isAdded}
+                            className={`px-2 py-1 text-[11px] font-semibold rounded-md transition-colors inline-flex items-center gap-1 cursor-pointer ${
+                              isAdded
+                                ? 'bg-emerald-100 text-emerald-800 cursor-default'
+                                : 'bg-[#0F5C63] text-white hover:bg-[#0B484E]'
+                            }`}
+                          >
+                            {isAdded ? (
+                              <>
+                                <Check className="w-3 h-3" />
+                                <span>In Plan</span>
+                              </>
+                            ) : (
+                              <>
+                                <PlusCircle className="w-3 h-3" />
+                                <span>Add to Plan</span>
+                              </>
+                            )}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

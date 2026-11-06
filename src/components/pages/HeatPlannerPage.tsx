@@ -32,6 +32,8 @@ import { Skeleton, ErrorState, Toast } from '@/components/ui/FeedbackStates';
 import { ToolPageHeader } from '@/components/ui/ToolPageHeader';
 import { Button } from '@/components/ui/Button';
 import { useAppSearchParams } from '@/lib/nav';
+import { usePlan } from '@/context/PlanContext';
+import { RankedZoneItem } from '@/components/planner/ScenarioPanel';
 
 const COACH_MARKS_KEY = 'urjasetu_planner_tour_dismissed';
 
@@ -166,11 +168,119 @@ export const HeatPlannerPage: React.FC = () => {
     }
   };
 
+  const { addItem, plan } = usePlan();
+  const addedZoneIds = useMemo(() => plan.sections.zones.map((z) => z.id), [plan.sections.zones]);
+
+  const cellsMap = useMemo(() => {
+    const map = new Map<string, Cell>();
+    cells.forEach((c) => map.set(c.id, c));
+    return map;
+  }, [cells]);
+
+  const [topPerWard, setTopPerWard] = useState(false);
+
   // Handle cell click on map
   const handleSelectCell = (cell: Cell) => {
     setSelectedCell(cell);
     setIsEvidenceOpen(true);
     setCurrentStep(3);
+    // Two-way sync: scroll list into view if available
+    setTimeout(() => {
+      const el = document.getElementById(`zone-card-${cell.id}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }, 100);
+  };
+
+  const handleSelectZoneFromList = (cellId: string) => {
+    const found = cellsMap.get(cellId);
+    if (found) {
+      setSelectedCell(found);
+      setIsEvidenceOpen(true);
+      setCurrentStep(3);
+    }
+  };
+
+  const displayedCells = useMemo(() => {
+    if (!selectedWard) return cells;
+    return cells.filter((c) => c.ward.toLowerCase() === selectedWard.toLowerCase());
+  }, [cells, selectedWard]);
+
+  // Ranked zone items for list display & map labels
+  const rankedZoneItems = useMemo<RankedZoneItem[]>(() => {
+    if (topPerWard) {
+      const byWard = new Map<string, Cell[]>();
+      displayedCells.forEach((c) => {
+        const list = byWard.get(c.ward) || [];
+        list.push(c);
+        byWard.set(c.ward, list);
+      });
+      const items: RankedZoneItem[] = [];
+      let rankCounter = 1;
+      Array.from(byWard.entries()).forEach(([, wardCells]) => {
+        const sorted = [...wardCells].sort((a, b) => {
+          const burdenA = (a.population ?? 0) * (a.lst_mean ?? 0);
+          const burdenB = (b.population ?? 0) * (b.lst_mean ?? 0);
+          return burdenB - burdenA;
+        });
+        sorted.slice(0, 3).forEach((c) => {
+          items.push({
+            id: c.id,
+            rank: rankCounter++,
+            ward: c.ward,
+            locality: c.locality,
+            greenableHa: c.greenable_ha ?? 0,
+            coolingC: c.cooling_mean ?? undefined,
+            population: c.population ?? 0,
+            lstMean: c.lst_mean ?? undefined,
+          });
+        });
+      });
+      return items;
+    }
+
+    if (!resultA) return [];
+    return resultA.selected.map((s) => {
+      const c = cellsMap.get(s.id);
+      return {
+        id: s.id,
+        rank: s.rank,
+        ward: c?.ward || '',
+        locality: c?.locality,
+        greenableHa: c?.greenable_ha ?? 0,
+        coolingC: c?.cooling_mean ?? undefined,
+        population: c?.population ?? 0,
+        lstMean: c?.lst_mean ?? undefined,
+      };
+    });
+  }, [topPerWard, displayedCells, resultA, cellsMap]);
+
+  const rankedZonesMeta = useMemo(() => {
+    return rankedZoneItems.map((rz) => ({
+      id: rz.id,
+      rank: rz.rank,
+      label: `#${rz.rank} ${rz.ward} - ${rz.locality || rz.ward}`,
+    }));
+  }, [rankedZoneItems]);
+
+  const handleAddZoneToPlan = (zone: RankedZoneItem) => {
+    const loc = zone.locality || zone.ward;
+    addItem({
+      id: zone.id,
+      title: `#${zone.rank} ${zone.ward} - ${loc}`,
+      subtitle: `${zone.greenableHa} ha unbuilt greening · ${zone.population.toLocaleString('en-IN')} pop`,
+      section: 'zones',
+      metadata: {
+        rank: zone.rank,
+        ward: zone.ward,
+        locality: zone.locality,
+        greenableHa: zone.greenableHa,
+        coolingC: zone.coolingC,
+        population: zone.population,
+      },
+    });
+    setToastMessage(`Added #${zone.rank} ${zone.ward} - ${loc} to municipal plan.`);
   };
 
   // Handle step click in progress strip
@@ -229,11 +339,6 @@ export const HeatPlannerPage: React.FC = () => {
     link.click();
     setToastMessage('Municipal plan exported successfully as JSON.');
   };
-
-  const displayedCells = useMemo(() => {
-    if (!selectedWard) return cells;
-    return cells.filter((c) => c.ward.toLowerCase() === selectedWard.toLowerCase());
-  }, [cells, selectedWard]);
 
   const selectedZoneIds = resultA ? resultA.selected.map((s) => s.id) : [];
 
@@ -322,6 +427,13 @@ export const HeatPlannerPage: React.FC = () => {
             onToggleScenarioB={() => setHasScenarioB(!hasScenarioB)}
             budgetHaB={budgetHaB}
             onBudgetBChange={setBudgetHaB}
+            topPerWard={topPerWard}
+            onToggleTopPerWard={setTopPerWard}
+            rankedZones={rankedZoneItems}
+            selectedZoneId={selectedCell?.id}
+            onSelectZone={handleSelectZoneFromList}
+            onAddZoneToPlan={handleAddZoneToPlan}
+            addedZoneIds={addedZoneIds}
             className="flex-1"
           />
         </div>
@@ -331,6 +443,8 @@ export const HeatPlannerPage: React.FC = () => {
           <MapView
             cells={displayedCells}
             selectedIds={selectedZoneIds}
+            highlightedCellId={selectedCell?.id}
+            rankedZones={rankedZonesMeta}
             activeLayer={activeLayer}
             onLayerChange={setActiveLayer}
             onSelect={handleSelectCell}

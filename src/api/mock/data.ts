@@ -153,6 +153,7 @@ export function generateMockCells(): Cell[] {
         id,
         centroid: [Number(lng.toFixed(5)), Number(lat.toFixed(5))],
         ward,
+        locality: ward,
         population,
         lst_mean,
         lst_std,

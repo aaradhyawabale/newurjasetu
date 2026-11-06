@@ -12,6 +12,7 @@ export interface Cell {
   id: string;
   centroid: [number, number]; // [lng, lat]
   ward: string;
+  locality?: string;
   population: number;
   lst_mean: number; // Surface temperature (°C)
   lst_std: number;

@@ -6,7 +6,9 @@
  * 
  * MapView Component
  * High-performance MapLibre GL 4.7 map layer rendering 250m cells around Pune, India.
- * Preserves the project's MapLibre GL engine with GPU-accelerated GeoJSON rendering.
+ * Implements keyless basemap chain (OpenFreeMap Positron -> OSM Raster -> Blank canvas),
+ * data layers inserted BELOW label symbol layers for readable place names,
+ * data-driven legends with zero-artifact filtering, and two-way ranked selection.
  */
 
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
@@ -18,9 +20,17 @@ import { TruthChip } from '../ui/TruthChip';
 
 export type MapLayerType = 'burden' | 'lst' | 'ndvi' | 'population' | 'selected' | 'loss';
 
+export interface RankedZoneMeta {
+  id: string;
+  rank: number;
+  label?: string;
+}
+
 export interface MapViewProps {
   cells: Cell[];
   selectedIds?: string[];
+  highlightedCellId?: string | null;
+  rankedZones?: RankedZoneMeta[];
   activeLayer?: MapLayerType;
   onSelect?: (cell: Cell) => void;
   fitBounds?: boolean;
@@ -96,10 +106,10 @@ const LAYER_CONFIGS: Record<
   },
   lst: {
     label: 'Land Surface Temp (LST)',
-    unit: '°C (Landsat 9)',
-    min: '32°C',
-    max: '46°C+',
-    colors: ['#FDE68A', '#F59E0B', '#EA580C', '#DC2626'],
+    unit: '°C (Landsat 8/9 & Sentinel-2)',
+    min: '29.0°C',
+    max: '55.0°C+',
+    colors: ['#FEF08A', '#FBBF24', '#F97316', '#DC2626', '#991B1B'],
     truth: 'Measured',
   },
   ndvi: {
@@ -107,7 +117,7 @@ const LAYER_CONFIGS: Record<
     unit: 'Ratio (Sentinel-2)',
     min: '0.05 (Sparse)',
     max: '0.65+ (Dense)',
-    colors: ['#FEF3C7', '#A7F3D0', '#34D399', '#059669'],
+    colors: ['#FEF3C7', '#D1FAE5', '#6EE7B7', '#10B981', '#047857'],
     truth: 'Measured',
   },
   population: {
@@ -115,16 +125,16 @@ const LAYER_CONFIGS: Record<
     unit: 'Residents / 250m cell',
     min: '1,000',
     max: '16,000+',
-    colors: ['#E0E7FF', '#818CF8', '#4F46E5', '#312E81'],
+    colors: ['#EEF2FF', '#C7D2FE', '#818CF8', '#4F46E5', '#312E81'],
     truth: 'Assumed',
   },
   loss: {
-    label: 'Verified Green Loss',
+    label: 'Verified Vegetation Loss',
     unit: 'Hectares (2019–2026)',
     min: 'Stable (0 ha)',
     max: 'Severe (2.5 ha)',
-    colors: ['#E2E8F0', '#FECDD3', '#F43F5E', '#9F1239'],
-    truth: 'Measured',
+    colors: ['#E2E8F0', '#FECDD3', '#FB7185', '#E11D48', '#881337'],
+    truth: 'Modelled',
   },
   selected: {
     label: 'Optimized Portfolio',
@@ -139,6 +149,8 @@ const LAYER_CONFIGS: Record<
 export const MapView: React.FC<MapViewProps> = ({
   cells,
   selectedIds = [],
+  highlightedCellId = null,
+  rankedZones = [],
   activeLayer = 'burden',
   onSelect,
   fitBounds = false,
@@ -152,22 +164,28 @@ export const MapView: React.FC<MapViewProps> = ({
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
+  const popupRef = useRef<maplibregl.Popup | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [currentLayer, setCurrentLayer] = useState<MapLayerType>(activeLayer);
 
-  // Sync internal layer with prop if controlled externally
   useEffect(() => {
     setCurrentLayer(activeLayer);
   }, [activeLayer]);
 
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
 
-  // Lookup map for fast click resolution
+  // Lookup map for fast click and selection resolution
   const cellsMap = useMemo(() => {
     const map = new Map<string, Cell>();
     cells.forEach((c) => map.set(c.id, c));
     return map;
   }, [cells]);
+
+  const rankedMap = useMemo(() => {
+    const map = new Map<string, RankedZoneMeta>();
+    rankedZones.forEach((rz) => map.set(rz.id, rz));
+    return map;
+  }, [rankedZones]);
 
   // Convert cells into GeoJSON FeatureCollection
   const geojson = useMemo(() => {
@@ -176,7 +194,8 @@ export const MapView: React.FC<MapViewProps> = ({
 
     const features = cells.map((cell) => {
       const [lng, lat] = cell.centroid || [73.8567, 18.5204];
-      const isSelected = selectedSet.has(cell.id) ? 1 : 0;
+      const isSelected = selectedSet.has(cell.id) || cell.id === highlightedCellId ? 1 : 0;
+      const rankMeta = rankedMap.get(cell.id);
 
       return {
         type: 'Feature' as const,
@@ -184,8 +203,10 @@ export const MapView: React.FC<MapViewProps> = ({
         properties: {
           id: cell.id,
           ward: cell.ward,
+          locality: cell.locality || cell.ward,
+          rank: rankMeta ? rankMeta.rank : null,
           burden: cell.burden ?? 0,
-          lst_mean: cell.lst_mean ?? 0,
+          lst_mean: cell.lst_mean !== null && cell.lst_mean !== undefined ? cell.lst_mean : 0,
           ndvi: cell.ndvi ?? 0,
           population: cell.population ?? 0,
           greenable_ha: cell.greenable_ha ?? 0,
@@ -212,7 +233,36 @@ export const MapView: React.FC<MapViewProps> = ({
       type: 'FeatureCollection' as const,
       features,
     };
-  }, [cells, selectedSet]);
+  }, [cells, selectedSet, highlightedCellId, rankedMap]);
+
+  // Top zones label GeoJSON FeatureCollection (for readable labels with text halo)
+  const topZonesGeojson = useMemo(() => {
+    const features: any[] = [];
+    rankedZones.forEach((rz) => {
+      const cell = cellsMap.get(rz.id);
+      if (cell && cell.centroid) {
+        const [lng, lat] = cell.centroid;
+        const loc = cell.locality || cell.ward;
+        const label = `#${rz.rank} ${cell.ward} - ${loc}`;
+        features.push({
+          type: 'Feature',
+          properties: {
+            id: cell.id,
+            rank: rz.rank,
+            label,
+          },
+          geometry: {
+            type: 'Point',
+            coordinates: [lng, lat],
+          },
+        });
+      }
+    });
+    return {
+      type: 'FeatureCollection',
+      features,
+    };
+  }, [rankedZones, cellsMap]);
 
   const [webglError, setWebglError] = useState<string | null>(null);
 
@@ -244,13 +294,12 @@ export const MapView: React.FC<MapViewProps> = ({
       return;
     }
 
-    // Add attribution
+    // Add visible attribution
     map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-left');
 
     let fallbackStage = 0; // 0 = Positron, 1 = OSM raster, 2 = Blank
 
     map.on('error', (e) => {
-      // Check if error is related to style / tile loading
       if (fallbackStage === 0) {
         console.warn('Positron style failed to load, switching to OSM raster fallback:', e);
         fallbackStage = 1;
@@ -280,6 +329,9 @@ export const MapView: React.FC<MapViewProps> = ({
     });
 
     mapRef.current = map;
+    if (typeof window !== 'undefined') {
+      (window as any).__urjasetu_map = map;
+    }
 
     return () => {
       map.remove();
@@ -288,20 +340,38 @@ export const MapView: React.FC<MapViewProps> = ({
   }, []);
 
   // Compute data-driven quantiles (5 classes) and min/max for active layer
+  // STRICT SCIENTIFIC RULE: Filter out missing/null/undefined values; LST <= 0 must not corrupt min to 0.0°C!
   const { quantiles, dataMin, dataMax } = useMemo(() => {
     if (!cells.length) {
       return { quantiles: [0, 1, 2, 3, 4], dataMin: '0', dataMax: '1' };
     }
 
-    const extractVal = (c: Cell): number => {
-      if (currentLayer === 'lst') return c.lst_mean ?? 0;
-      if (currentLayer === 'ndvi') return c.ndvi ?? 0;
-      if (currentLayer === 'population') return c.population ?? 0;
-      if (currentLayer === 'loss') return c.loss_ha ?? 0;
-      return c.burden ?? 0;
+    const extractVal = (c: Cell): number | null => {
+      if (currentLayer === 'lst') {
+        const v = c.lst_mean;
+        return v !== null && v !== undefined && !isNaN(v) && v > 0 ? v : null;
+      }
+      if (currentLayer === 'ndvi') {
+        const v = c.ndvi;
+        return v !== null && v !== undefined && !isNaN(v) ? v : null;
+      }
+      if (currentLayer === 'population') {
+        const v = c.population;
+        return v !== null && v !== undefined && !isNaN(v) && v >= 0 ? v : null;
+      }
+      if (currentLayer === 'loss') {
+        const v = c.loss_ha;
+        return v !== null && v !== undefined && !isNaN(v) && v > 0 ? v : null;
+      }
+      const v = c.burden;
+      return v !== null && v !== undefined && !isNaN(v) ? v : null;
     };
 
-    const vals = cells.map(extractVal).filter((v) => !isNaN(v)).sort((a, b) => a - b);
+    const vals = cells
+      .map(extractVal)
+      .filter((v): v is number => v !== null)
+      .sort((a, b) => a - b);
+
     if (!vals.length) return { quantiles: [0, 1, 2, 3, 4], dataMin: '0', dataMax: '1' };
 
     const minVal = vals[0];
@@ -350,8 +420,11 @@ export const MapView: React.FC<MapViewProps> = ({
     const sourceId = 'cells-source';
     const fillLayerId = 'cells-fill';
     const lineLayerId = 'cells-line';
+    const highlightLayerId = 'cells-highlight';
+    const labelsSourceId = 'top-zones-labels-source';
+    const labelsLayerId = 'top-zones-labels-layer';
 
-    // 1. Update or create Source
+    // 1. Update or create Cells GeoJSON Source
     const existingSource = map.getSource(sourceId) as maplibregl.GeoJSONSource | undefined;
     if (existingSource) {
       existingSource.setData(geojson);
@@ -360,6 +433,29 @@ export const MapView: React.FC<MapViewProps> = ({
         type: 'geojson',
         data: geojson,
       });
+    }
+
+    // Update or create Top Zones Labels Source
+    const existingLabelsSource = map.getSource(labelsSourceId) as maplibregl.GeoJSONSource | undefined;
+    if (existingLabelsSource) {
+      existingLabelsSource.setData(topZonesGeojson as any);
+    } else {
+      map.addSource(labelsSourceId, {
+        type: 'geojson',
+        data: topZonesGeojson as any,
+      });
+    }
+
+    // Find the first symbol layer in the basemap style so data layers are inserted BELOW it
+    const styleLayers = map.getStyle().layers;
+    let firstSymbolId: string | undefined;
+    if (styleLayers) {
+      for (const layer of styleLayers) {
+        if (layer.type === 'symbol') {
+          firstSymbolId = layer.id;
+          break;
+        }
+      }
     }
 
     // Dynamic fill color expression based on currentLayer and quantile classes
@@ -398,26 +494,30 @@ export const MapView: React.FC<MapViewProps> = ({
       ];
     }
 
-    // 2. Add or update Fill Layer
+    // 2. Add or update Fill Layer (Opacity 0.75, inserted BELOW first symbol layer)
     if (!map.getLayer(fillLayerId)) {
-      map.addLayer({
-        id: fillLayerId,
-        type: 'fill',
-        source: sourceId,
-        paint: {
-          'fill-color': colorExpr,
-          'fill-opacity': 0.82,
+      map.addLayer(
+        {
+          id: fillLayerId,
+          type: 'fill',
+          source: sourceId,
+          paint: {
+            'fill-color': colorExpr,
+            'fill-opacity': 0.75,
+          },
         },
-      });
+        firstSymbolId
+      );
 
-      // Hover and Click events
+      // Click & Hover events
       if (interactive) {
         map.on('click', fillLayerId, (e) => {
           if (e.features && e.features[0]) {
             const cellId = String(e.features[0].id || e.features[0].properties?.id);
             const found = cellsMap.get(cellId);
-            if (found && onSelect) {
-              onSelect(found);
+            if (found) {
+              onSelect?.(found);
+              displayPopupForCell(found);
             }
           }
         });
@@ -432,45 +532,75 @@ export const MapView: React.FC<MapViewProps> = ({
       }
     } else {
       map.setPaintProperty(fillLayerId, 'fill-color', colorExpr);
+      map.setPaintProperty(fillLayerId, 'fill-opacity', 0.75);
     }
 
-    // 3. Add Line Layer for crisp cell boundaries
+    // 3. Add Line Layer for grid boundary definition
     if (!map.getLayer(lineLayerId)) {
+      map.addLayer(
+        {
+          id: lineLayerId,
+          type: 'line',
+          source: sourceId,
+          paint: {
+            'line-color': [
+              'case',
+              ['==', ['get', 'isSelected'], 1],
+              '#0A3E43',
+              'rgba(255, 255, 255, 0.4)',
+            ],
+            'line-width': [
+              'case',
+              ['==', ['get', 'isSelected'], 1],
+              2.0,
+              0.5,
+            ],
+          },
+        },
+        firstSymbolId
+      );
+    }
+
+    // 4. Highlight Line Layer for prominent selected boundary
+    if (!map.getLayer(highlightLayerId)) {
+      map.addLayer(
+        {
+          id: highlightLayerId,
+          type: 'line',
+          source: sourceId,
+          filter: ['==', ['get', 'isSelected'], 1],
+          paint: {
+            'line-color': '#06B6D4',
+            'line-width': 3.5,
+            'line-opacity': 0.95,
+          },
+        },
+        firstSymbolId
+      );
+    }
+
+    // 5. Add permanent readable labels with text halo for top zones
+    if (!map.getLayer(labelsLayerId)) {
       map.addLayer({
-        id: lineLayerId,
-        type: 'line',
-        source: sourceId,
+        id: labelsLayerId,
+        type: 'symbol',
+        source: labelsSourceId,
+        layout: {
+          'text-field': ['get', 'label'],
+          'text-size': 11,
+          'text-offset': [0, 1.2],
+          'text-anchor': 'top',
+          'text-allow-overlap': true,
+        },
         paint: {
-          'line-color': [
-            'case',
-            ['==', ['get', 'isSelected'], 1],
-            '#0A3E43',
-            'rgba(255, 255, 255, 0.4)',
-          ],
-          'line-width': [
-            'case',
-            ['==', ['get', 'isSelected'], 1],
-            2.0,
-            0.5,
-          ],
+          'text-color': '#0F172A',
+          'text-halo-color': '#FFFFFF',
+          'text-halo-width': 2.0,
         },
       });
-    } else {
-      map.setPaintProperty(lineLayerId, 'line-color', [
-        'case',
-        ['==', ['get', 'isSelected'], 1],
-        '#0A3E43',
-        'rgba(255, 255, 255, 0.4)',
-      ]);
-      map.setPaintProperty(lineLayerId, 'line-width', [
-        'case',
-        ['==', ['get', 'isSelected'], 1],
-        2.0,
-        0.5,
-      ]);
     }
 
-    // Fit bounds if requested
+    // Fit bounds on initial load if requested
     if (fitBounds && cells.length > 0) {
       const bounds = new maplibregl.LngLatBounds();
       cells.forEach((c) => {
@@ -478,7 +608,60 @@ export const MapView: React.FC<MapViewProps> = ({
       });
       map.fitBounds(bounds, { padding: 40, maxZoom: 15, duration: 800 });
     }
-  }, [geojson, currentLayer, mapLoaded, interactive, fitBounds, cellsMap, onSelect]);
+  }, [geojson, topZonesGeojson, currentLayer, mapLoaded, interactive, fitBounds, cellsMap, onSelect]);
+
+  // Display popup with readable labels and honest data metrics
+  const displayPopupForCell = useCallback((cell: Cell) => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (popupRef.current) {
+      popupRef.current.remove();
+    }
+
+    const rankMeta = rankedMap.get(cell.id);
+    const rankPrefix = rankMeta ? `#${rankMeta.rank} ` : '';
+    const loc = cell.locality || cell.ward;
+
+    const htmlContent = `
+      <div style="font-family: inherit; padding: 4px 6px; min-width: 190px;">
+        <div style="font-weight: 700; font-size: 13px; color: #0F5C63; line-height: 1.2;">
+          ${rankPrefix}${cell.ward} - ${loc}
+        </div>
+        <div style="font-size: 10px; color: #64748B; font-family: monospace; margin-top: 2px;">
+          ${cell.id} · Approx. ward centroid
+        </div>
+        <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid #E2E8F0; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; font-size: 11px;">
+          <div>Surface Temp: <strong style="font-family: monospace;">${cell.lst_mean !== null ? `${cell.lst_mean}°C` : 'Not available'}</strong></div>
+          <div>NDVI: <strong style="font-family: monospace;">${cell.ndvi !== null ? cell.ndvi : 'Not available'}</strong></div>
+          <div>Population: <strong style="font-family: monospace;">${cell.population !== null ? cell.population.toLocaleString('en-IN') : 'Not available'}</strong></div>
+          <div>Greenable: <strong style="font-family: monospace;">${cell.greenable_ha !== null ? `${cell.greenable_ha} ha` : 'Not available'}</strong></div>
+        </div>
+      </div>
+    `;
+
+    const popup = new maplibregl.Popup({ closeButton: true, closeOnClick: false, offset: 12 })
+      .setLngLat(cell.centroid)
+      .setHTML(htmlContent)
+      .addTo(map);
+
+    popupRef.current = popup;
+  }, [rankedMap]);
+
+  // Two-way Selection: When highlightedCellId changes (from ranked list click), fly to cell and show popup
+  useEffect(() => {
+    if (!highlightedCellId || !mapRef.current) return;
+    const targetCell = cellsMap.get(highlightedCellId);
+    if (targetCell && targetCell.centroid) {
+      mapRef.current.flyTo({
+        center: targetCell.centroid,
+        zoom: Math.max(mapRef.current.getZoom(), 13.8),
+        padding: { top: 60, bottom: 60, left: 60, right: 60 },
+        duration: 700,
+      });
+      displayPopupForCell(targetCell);
+    }
+  }, [highlightedCellId, cellsMap, displayPopupForCell]);
 
   const handleZoomIn = () => mapRef.current?.zoomIn();
   const handleZoomOut = () => mapRef.current?.zoomOut();
@@ -518,11 +701,10 @@ export const MapView: React.FC<MapViewProps> = ({
           {(['burden', 'lst', 'ndvi', 'population', 'loss'] as MapLayerType[]).map((layer) => (
             <button
               key={layer}
-              type="button"
               onClick={() => handleLayerSelect(layer)}
-              className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all ${
+              className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer whitespace-nowrap ${
                 currentLayer === layer
-                  ? 'bg-[#0F5C63] text-white font-semibold shadow-xs'
+                  ? 'bg-[#0F5C63] text-white shadow-xs'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
               }`}
             >
@@ -535,50 +717,58 @@ export const MapView: React.FC<MapViewProps> = ({
         </div>
       )}
 
-      {/* Zoom / Navigation Controls */}
-      <div className="absolute top-3 right-3 z-20 flex flex-col gap-1 bg-white/95 backdrop-blur-md p-1 rounded-lg border border-slate-200 shadow-md">
-        <button
-          type="button"
-          onClick={handleZoomIn}
-          className="p-1.5 rounded hover:bg-slate-100 text-slate-700 transition-colors"
-          title="Zoom In"
-        >
-          <ZoomIn className="w-4 h-4" />
-        </button>
-        <button
-          type="button"
-          onClick={handleZoomOut}
-          className="p-1.5 rounded hover:bg-slate-100 text-slate-700 transition-colors"
-          title="Zoom Out"
-        >
-          <ZoomOut className="w-4 h-4" />
-        </button>
-        <button
-          type="button"
-          onClick={handleResetView}
-          className="p-1.5 rounded hover:bg-slate-100 text-slate-700 transition-colors border-t border-slate-100"
-          title="Reset View"
-        >
-          <Maximize2 className="w-4 h-4" />
-        </button>
-      </div>
+      {/* Dynamic Data-Driven Quantile Legend */}
+      <div className="absolute bottom-4 right-4 z-20 bg-white/95 backdrop-blur-md p-3 rounded-xl border border-slate-200 shadow-md text-xs space-y-2 min-w-[210px]">
+        <div className="flex items-center justify-between gap-2">
+          <span className="font-bold text-slate-800 text-[11px]">{config.label}</span>
+          <TruthChip type={config.truth} compact />
+        </div>
 
-      {/* Dynamic Layer Legend Box */}
-      <div className="absolute bottom-3 right-3 z-20 bg-white/95 backdrop-blur-md px-3 py-2 rounded-lg border border-slate-200 shadow-md max-w-xs text-xs space-y-1">
-        <div className="flex items-center justify-between gap-3">
-          <span className="font-semibold text-slate-800">{config.label}</span>
-          <TruthChip provenance={config.truth} size="sm" />
+        {/* Quantile Color Palette Bar */}
+        <div className="h-2.5 w-full rounded-sm flex overflow-hidden border border-slate-200">
+          {(FIVE_CLASS_PALETTES[currentLayer as keyof typeof FIVE_CLASS_PALETTES] || FIVE_CLASS_PALETTES.burden).map(
+            (c, i) => (
+              <div key={i} className="flex-1 h-full" style={{ backgroundColor: c }} />
+            )
+          )}
         </div>
-        <div className="w-full h-2 rounded overflow-hidden flex border border-slate-200">
-          {(FIVE_CLASS_PALETTES[currentLayer as keyof typeof FIVE_CLASS_PALETTES] || config.colors).map((c, i) => (
-            <div key={i} className="flex-1 h-full" style={{ backgroundColor: c }} />
-          ))}
-        </div>
-        <div className="flex justify-between text-[10px] text-slate-600 font-mono">
+
+        {/* Dynamic Data-Driven Min & Max */}
+        <div className="flex justify-between text-[11px] font-mono text-slate-600 pt-0.5">
           <span>{dataMin}</span>
           <span>{dataMax}</span>
         </div>
       </div>
+
+      {/* Zoom and Reset Controls */}
+      {interactive && (
+        <div className="absolute top-3 right-3 z-20 flex flex-col gap-1 bg-white/95 backdrop-blur-md p-1 rounded-lg border border-slate-200 shadow-md">
+          <button
+            onClick={handleZoomIn}
+            className="p-1.5 hover:bg-slate-100 text-slate-600 rounded-md transition-colors cursor-pointer"
+            title="Zoom In"
+            aria-label="Zoom In"
+          >
+            <ZoomIn className="w-4 h-4" />
+          </button>
+          <button
+            onClick={handleZoomOut}
+            className="p-1.5 hover:bg-slate-100 text-slate-600 rounded-md transition-colors cursor-pointer"
+            title="Zoom Out"
+            aria-label="Zoom Out"
+          >
+            <ZoomOut className="w-4 h-4" />
+          </button>
+          <button
+            onClick={handleResetView}
+            className="p-1.5 hover:bg-slate-100 text-slate-600 rounded-md transition-colors cursor-pointer border-t border-slate-100"
+            title="Reset to Pune View"
+            aria-label="Reset View"
+          >
+            <Maximize2 className="w-4 h-4" />
+          </button>
+        </div>
+      )}
     </div>
   );
 };
