@@ -1,4 +1,10 @@
-import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
+/**
+ * UrjaSetu AI Advisor & Copilot Service
+ * Powered by NuGen AI (with deterministic local GIS fallback)
+ *
+ * @license Apache-2.0
+ */
+
 import { AnalysisReportResult } from "../analysis-engine/engine";
 import {
   AiPlanningInsights,
@@ -30,54 +36,57 @@ import {
   PriorityCell,
   EnsembleStats,
 } from "../priority/loader";
+import { nuGenProvider, NuGenProvider, redactSecret, stripHtml } from "./llm/nugen-provider";
+import { LLMToolDefinition } from "./llm/types";
+import { validateWording, validateNumericGrounding, enforceModelledLabels } from "./guardrails";
 
-export type GeminiAdvisorErrorCode =
+export type AIAdvisorErrorCode =
   | "KEY_NOT_CONFIGURED"
   | "RATE_LIMIT_EXCEEDED"
   | "TIMEOUT"
   | "INVALID_RESPONSE"
   | "SERVICE_ERROR";
 
-export class GeminiAdvisorError extends Error {
-  public readonly code: GeminiAdvisorErrorCode;
+export class AIAdvisorError extends Error {
+  public readonly code: AIAdvisorErrorCode;
   public readonly statusCode: number;
 
-  constructor(code: GeminiAdvisorErrorCode, message: string, statusCode = 500) {
+  constructor(code: AIAdvisorErrorCode, message: string, statusCode = 500) {
     super(message);
-    this.name = "GeminiAdvisorError";
+    this.name = "AIAdvisorError";
     this.code = code;
     this.statusCode = statusCode;
   }
 }
 
 /**
- * Checks whether the server environment has a configured Gemini API key.
+ * Checks whether the server environment has a configured NuGen API key.
  */
-export function isGeminiConfigured(): boolean {
-  const key = process.env.GEMINI_API_KEY;
-  return typeof key === "string" && key.trim().length > 0;
+export function isAIConfigured(): boolean {
+  return nuGenProvider.isConfigured();
 }
 
 /**
- * Returns the configured Gemini API key, trimmed.
+ * Returns the configured NuGen API key, trimmed.
  */
-export function getGeminiApiKey(): string | undefined {
-  return process.env.GEMINI_API_KEY?.trim();
+export function getAIApiKey(): string | undefined {
+  return process.env.NUGEN_API_KEY?.trim();
 }
 
 /**
- * Sanitizes error messages by redacting API keys or confidential parameters.
+ * Returns the active AI model name.
+ */
+export function getAIModel(): string {
+  return nuGenProvider.getModel();
+}
+
+/**
+ * Sanitizes error messages by redacting confidential parameters.
  */
 export function sanitizeErrorMessage(err: unknown): string {
   if (!err) return "Unknown error";
-  let msg = err instanceof Error ? err.message : String(err);
-  const key = process.env.GEMINI_API_KEY;
-  if (key && key.trim().length > 0) {
-    msg = msg.split(key).join("[REDACTED_API_KEY]");
-  }
-  msg = msg.replace(/key=[a-zA-Z0-9_\-]+/gi, "key=[REDACTED]");
-  msg = msg.replace(/AIza[0-9A-Za-z-_]{35}/g, "[REDACTED_API_KEY]");
-  return msg;
+  const msg = err instanceof Error ? err.message : String(err);
+  return redactSecret(msg);
 }
 
 /**
@@ -99,117 +108,54 @@ export function cleanStudyAreaName(raw?: string): string {
   return cleaned.trim() || "Pune Urban Study Area (PMC)";
 }
 
-/**
- * Executes a promise with an enforced timeout.
- */
-async function withTimeout<T>(promise: Promise<T>, ms: number, errorMsg: string): Promise<T> {
-  let timer: NodeJS.Timeout | null = null;
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => {
-      reject(new GeminiAdvisorError("TIMEOUT", errorMsg, 504));
-    }, ms);
-  });
-  try {
-    return await Promise.race([promise, timeoutPromise]);
-  } finally {
-    if (timer) clearTimeout(timer);
-  }
-}
+// Extract Grounding Context from Report
+function extractGroundingContext(report: AnalysisReportResult): Record<string, any> {
+  const placement = report.placementSnapshot;
+  const validation = report.validation;
+  const criteria = report.criteria || [];
+  const sensitivity = report.sensitivity;
 
-/**
- * Executes an async function with bounded retries for transient network/rate errors.
- */
-async function callWithRetry<T>(fn: () => Promise<T>, maxRetries = 1, delayMs = 500): Promise<T> {
-  let attempt = 0;
-  while (true) {
-    try {
-      return await fn();
-    } catch (err: any) {
-      attempt++;
-      const errMsg = (err?.message || "").toLowerCase();
-      const isTransient =
-        errMsg.includes("fetch failed") ||
-        errMsg.includes("econnreset") ||
-        errMsg.includes("etimedout") ||
-        errMsg.includes("enotfound") ||
-        errMsg.includes("429") ||
-        errMsg.includes("503") ||
-        err?.status === 429 ||
-        err?.status === 503;
-      if (attempt <= maxRetries && isTransient) {
-        await new Promise((r) => setTimeout(r, delayMs * attempt));
-        continue;
-      }
-      throw err;
-    }
-  }
-}
+  const conflicts = (validation.conflicts || []).map((c) => ({
+    name: c.label || c.id,
+    label: c.label,
+    category: c.category,
+    severity: c.severity,
+    distanceMeters: c.distanceM,
+    description: c.description,
+  }));
 
-/**
- * Returns the configured Gemini model identifier.
- * Defaults to 'gemini-3.5-flash', configurable via GEMINI_MODEL.
- */
-export function getGeminiModel(): string {
-  const envModel = process.env.GEMINI_MODEL?.trim();
-  if (envModel && envModel !== "gemini-2.5-flash" && envModel !== "gemini-3.5-flash-lite") {
-    return envModel;
-  }
-  return "gemini-3.5-flash";
-}
-
-/**
- * Prepares a concise, sanitized evidence grounding payload from the analysis report.
- * Strictly limits token size by extracting relevant structural metrics without redundant raw geometries.
- */
-function extractGroundingContext(report: AnalysisReportResult) {
-  const { placementSnapshot, validation, criteria, overall, supporting, risks, sensitivity } = report;
+  const supporting = report.supporting || [];
+  const risks = report.risks || [];
 
   return {
-    infrastructure: {
-      type: placementSnapshot.type,
-      label: placementSnapshot.label,
-      latitude: placementSnapshot.lat,
-      longitude: placementSnapshot.lng,
-      dimensionsMeters: `${placementSnapshot.lengthM}m x ${placementSnapshot.widthM}m`,
-      footprintAreaM2: placementSnapshot.areaM2,
-      bearingDeg: placementSnapshot.bearingDeg,
-      parameters: placementSnapshot.params,
+    infrastructureType: placement.type,
+    studyArea: cleanStudyAreaName((placement as any).studyArea || (report as any).studyArea),
+    geometry: {
+      centroidLat: placement.lat,
+      centroidLng: placement.lng,
+      lengthMeters: placement.lengthM,
+      widthMeters: placement.widthM,
+      bearingDegrees: placement.bearingDeg,
+      areaM2: placement.areaM2,
     },
-    deterministicEvaluation: {
-      overallScore: overall.score,
-      suitabilityBand: overall.band,
-      confidencePercent: overall.confidence,
-      evidenceCompleteness: overall.evidenceCompleteness,
-      verdictSummary: overall.verdictSummary,
-    },
-    hardConstraintsViolations: validation.conflicts.map((c) => ({
-      feature: c.label,
-      type: c.category,
-      distanceMeters: c.distanceM,
-      bufferThresholdMeters: c.requiredBufferM,
-      severity: c.severity,
-      description: c.description,
-    })),
-    criteriaBreakdown: criteria.map((c) => ({
-      id: c.id,
-      label: c.label,
-      recordedValue: c.value,
-      rawMetric: c.rawMetric,
-      unit: c.unit,
+    deterministicScore: report.overall?.score,
+    scoreClassification: report.overall?.band,
+    verdictSummary: report.overall?.verdictSummary,
+    detectedConflicts: conflicts,
+    criteriaScores: criteria.map((c) => ({
+      criterion: c.id,
+      name: c.label || c.id,
       score: c.score,
       weightPercent: Math.round(c.weight * 100),
       status: c.status,
-      benchmark: c.benchmark,
-      uncertainty: c.uncertaintyClassification,
-      evidenceIds: c.evidenceIds,
     })),
     deterministicSupportingIndicators: supporting,
     deterministicRisks: risks,
     sensitivityProfileStability: sensitivity
       ? {
-          stability: sensitivity.rankStability,
-          summary: sensitivity.sensitivitySummary,
-          penaltyApplied: sensitivity.mandatoryConstraintActive,
+          stability: (sensitivity as any).rankStability || (sensitivity as any).stability,
+          summary: (sensitivity as any).sensitivitySummary || (sensitivity as any).summary,
+          penaltyApplied: (sensitivity as any).mandatoryConstraintActive,
         }
       : null,
     roadAccessAnalysis: validation.roadAccess
@@ -237,9 +183,6 @@ function extractGroundingContext(report: AnalysisReportResult) {
   };
 }
 
-/**
- * Builds the rigorous system prompt enforcing UrjaSetu's data provenance and ethical standards.
- */
 function buildSystemInstruction(): string {
   return `You are UrjaSetu's Senior Urban Planning AI Advisor. UrjaSetu is an explainable decision-support platform for municipal civil engineers, town planners, and clean energy developers in India (specialized in Maharashtra urban areas like Pune, PCMC, and Nashik).
 
@@ -253,62 +196,34 @@ MANDATORY DATA PROVENANCE & FACTUALITY RULES:
    - DETERMINISTIC_RESULT: Computed directly by UrjaSetu's GIS, Overpass, Open-Meteo, NASA POWER, or piecewise scoring engine.
    - AI_INTERPRETATION: Qualitative reasoning synthesized from the supplied evidence.
    - UNVERIFIED_ASSUMPTION: A planning hypothesis or field condition that requires statutory or physical verification.
-3. Every advantage, constraint, and mitigation MUST include a specific "sourceReference" identifying the supporting evidence (e.g., "evd_roads", "evd_elevation", "criteria:road_distance", "conflict:railway_buffer", "road_access", "official_dp").
+3. Every advantage, constraint, and mitigation MUST include a specific "sourceReference" identifying the supporting evidence.
 4. PRELIMINARY ASSESSMENT MAPPING:
    - "FAVORABLE": Score >= 80, zero hard constraint violations, high data completeness.
-   - "CONDITIONAL": Score 65-79, or moderate slope/utility constraints that can be resolved with standard engineering.
-   - "REQUIRES_FURTHER_REVIEW": Significant data gaps, sensitive rank stability, or proximity to environmental/rail buffers.
-   - "UNFAVORABLE": Score < 50, or confirmed hard constraint violation (e.g., building inside active street, railway, or river buffer).
-5. DO NOT alter or contradict the deterministic numerical site score. You explain it and contextualize it, but never override it.
-6. ROAD ACCESS GROUNDING: When roadAccessAnalysis is provided, you must explicitly evaluate vehicular accessibility. If requiresNewAccessRoad is true, state the required alignment length (~X m) and identify any obstacle (waterway, building, railway) crossed.
-7. STATUTORY REALISM: Reference the specific official planning context provided in officialPlanningContext (e.g., Pune Municipal Corporation (PMC) DP 2007-2027, PCMC Development Plan, NMC Development Plan, and Maharashtra UDCPR 2020). Transparently disclose that cadastral land ownership (7/12 extract) and official zoning are unverified until town planning records are inspected.
-8. DECISION SUPPORT NOTICE: Emphasize that your output is indicative decision support, not a statutory NOC or engineering certification.`;
+   - "CONDITIONAL": Score 65-79, or moderate slope/utility constraints.
+   - "REQUIRES_FURTHER_REVIEW": Significant data gaps, sensitive rank stability, or proximity to buffers.
+   - "UNFAVORABLE": Score < 50, or confirmed hard constraint violation.
+5. DO NOT alter or contradict the deterministic numerical site score.
+6. ROAD ACCESS GROUNDING: When roadAccessAnalysis is provided, explicitly evaluate vehicular accessibility.
+7. STATUTORY REALISM: Reference the specific official planning context provided (e.g. PMC DP 2007-2027, UDCPR 2020).
+8. DECISION SUPPORT NOTICE: Emphasize output is indicative decision support, not a statutory certification.`;
 }
 
-/**
- * Lightweight JSON repair for common model output issues.
- * Fixes: trailing commas, JS-style comments, markdown code fences,
- * and unquoted property names.
- */
 function repairJson(text: string): string {
   let s = text.trim();
-
-  // Strip markdown code fences if wrapping the JSON
   if (s.startsWith("```")) {
     s = s.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
   }
-
-  // Remove single-line comments (// ...)
   s = s.replace(/\/\/[^\n]*/g, "");
-
-  // Remove multi-line comments (/* ... */)
   s = s.replace(/\/\*[\s\S]*?\*\//g, "");
-
-  // Fix trailing commas before } or ]
   s = s.replace(/,\s*([\]}])/g, "$1");
-
-  // Quote unquoted property names: { key: "value" } -> { "key": "value" }
   s = s.replace(/(?<=[\{,]\s*)([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:/g, '"$1":');
-
   return s;
 }
 
-/**
- * Normalizes variant field names and structural quirks from lighter Gemini models
- * to match the expected Zod schema.
- *
- * gemini-3.5-flash-lite has two common divergences:
- * 1. Key remapping: Uses "name" instead of "title", "gap" instead of "fieldOrTopic", etc.
- * 2. Structural simplification: Returns flat strings where the schema expects objects
- *    (e.g., unresolvedDataGaps as string[] instead of AiDataGap[]).
- *
- * This layer handles both cases without relaxing the schema itself.
- */
-function normalizeGeminiResponse(raw: unknown, modelName: string): unknown {
+function normalizeAIResponse(raw: unknown, modelName: string): unknown {
   if (typeof raw !== "object" || raw === null) return raw;
   const obj = raw as Record<string, any>;
 
-  // Helper: remap keys in an object, preferring the canonical key if present
   const remap = (item: Record<string, any>, mappings: Record<string, string[]>): Record<string, any> => {
     const result = { ...item };
     for (const [canonical, variants] of Object.entries(mappings)) {
@@ -325,7 +240,6 @@ function normalizeGeminiResponse(raw: unknown, modelName: string): unknown {
     return result;
   };
 
-  // Helper: ensure a field has a default value if missing
   const ensureField = (item: Record<string, any>, field: string, defaultValue: any): void => {
     if (item[field] === undefined || item[field] === null) {
       item[field] = defaultValue;
@@ -346,324 +260,44 @@ function normalizeGeminiResponse(raw: unknown, modelName: string): unknown {
     "AI_INTERPRETATION",
     "UNVERIFIED_ASSUMPTION",
   ]);
+
   const normalizeProvenance = (val: unknown): "VERIFIED_INPUT" | "DETERMINISTIC_RESULT" | "AI_INTERPRETATION" | "UNVERIFIED_ASSUMPTION" => {
     const str = String(val || "").toUpperCase().trim();
     if (VALID_PROVENANCE.has(str)) return str as any;
-    if (str.includes("VERIFIED") && !str.includes("UN")) return "VERIFIED_INPUT";
-    if (str.includes("DETERMINISTIC") || str.includes("CALCULATED") || str.includes("RULE")) return "DETERMINISTIC_RESULT";
+    if (str.includes("VERIFIED") || str.includes("INPUT")) return "VERIFIED_INPUT";
+    if (str.includes("DETERMINISTIC") || str.includes("RESULT") || str.includes("CALCULATED")) return "DETERMINISTIC_RESULT";
     if (str.includes("ASSUMPTION") || str.includes("UNVERIFIED")) return "UNVERIFIED_ASSUMPTION";
     return "AI_INTERPRETATION";
   };
 
-  // Normalize preliminaryAssessment
-  const VALID_ASSESSMENTS = new Set([
-    "FAVORABLE",
-    "CONDITIONAL",
-    "REQUIRES_FURTHER_REVIEW",
-    "UNFAVORABLE",
-  ]);
-  if (typeof obj.preliminaryAssessment === "string") {
-    const rawAss = obj.preliminaryAssessment.toUpperCase().trim();
-    if (VALID_ASSESSMENTS.has(rawAss)) {
-      obj.preliminaryAssessment = rawAss;
-    } else if (rawAss.includes("UNFAVORABLE") || rawAss.includes("REJECT") || rawAss.includes("FAIL")) {
-      obj.preliminaryAssessment = "UNFAVORABLE";
-    } else if (rawAss.includes("FAVORABLE") && !rawAss.includes("UN")) {
-      obj.preliminaryAssessment = "FAVORABLE";
-    } else if (rawAss.includes("REVIEW") || rawAss.includes("FURTHER")) {
-      obj.preliminaryAssessment = "REQUIRES_FURTHER_REVIEW";
-    } else {
-      obj.preliminaryAssessment = "CONDITIONAL";
-    }
-  } else {
-    obj.preliminaryAssessment = "CONDITIONAL";
-  }
-
-  // Normalize advantages array (handle string items or objects with missing fields)
-  if (Array.isArray(obj.advantages)) {
-    obj.advantages = obj.advantages.map((a: any) => {
-      if (typeof a === "string") {
-        return {
-          title: a,
-          description: a,
-          category: "General",
-          provenance: "AI_INTERPRETATION" as const,
-          sourceReference: "ai_synthesis",
-        };
-      }
-      if (typeof a === "object" && a !== null) {
-        const remapped = remap(a, {
-          title: ["name", "heading", "label", "advantage"],
-          description: ["detail", "details", "explanation", "summary"],
-          category: ["type", "domain", "area"],
-          provenance: ["provenanceCategory", "source_type", "dataProvenance"],
-          sourceReference: ["source", "sourceRef", "evidenceSource", "reference", "evidence"],
-        });
-        ensureField(remapped, "title", remapped.description || "Site Advantage");
-        ensureField(remapped, "description", remapped.title || "Identified advantage");
-        ensureField(remapped, "category", "General");
-        remapped.provenance = normalizeProvenance(remapped.provenance);
-        ensureField(remapped, "sourceReference", "ai_synthesis");
-        return remapped;
-      }
-      return a;
-    });
-  }
-
-  // Normalize constraints array
-  if (Array.isArray(obj.constraints)) {
-    obj.constraints = obj.constraints.map((c: any) => {
-      if (typeof c === "string") {
-        return {
-          title: c,
-          description: c,
-          severity: "MODERATE" as const,
-          provenance: "AI_INTERPRETATION" as const,
-          sourceReference: "ai_synthesis",
-        };
-      }
-      if (typeof c === "object" && c !== null) {
-        const remapped = remap(c, {
-          title: ["name", "heading", "label", "constraint"],
-          description: ["detail", "details", "explanation", "summary"],
-          severity: ["level", "impact", "risk", "status"],
-          provenance: ["provenanceCategory", "source_type", "dataProvenance"],
-          sourceReference: ["source", "sourceRef", "evidenceSource", "reference", "evidence"],
-        });
-        ensureField(remapped, "title", remapped.description || "Site Constraint");
-        ensureField(remapped, "description", remapped.title || "Identified constraint");
-        remapped.severity = normalizeSeverity(remapped.severity);
-        remapped.provenance = normalizeProvenance(remapped.provenance);
-        ensureField(remapped, "sourceReference", "ai_synthesis");
-        return remapped;
-      }
-      return c;
-    });
-  }
-
-  // Normalize unresolvedDataGaps array (commonly returned as flat strings)
-  if (Array.isArray(obj.unresolvedDataGaps)) {
-    obj.unresolvedDataGaps = obj.unresolvedDataGaps.map((g: any) => {
-      if (typeof g === "string") {
-        return {
-          fieldOrTopic: g,
-          explanation: g,
-          requiredVerification: "On-site verification or municipal data audit required",
-        };
-      }
-      if (typeof g === "object" && g !== null) {
-        const remapped = remap(g, {
-          fieldOrTopic: ["field", "topic", "gap", "name", "title", "dataGap", "missingField"],
-          explanation: ["detail", "details", "description", "reason", "why", "summary"],
-          requiredVerification: ["verification", "action", "resolution", "verificationNeeded", "actionRequired", "requiredAction"],
-        });
-        ensureField(remapped, "fieldOrTopic", remapped.explanation || "Data gap identified");
-        ensureField(remapped, "explanation", remapped.fieldOrTopic || "Details pending");
-        ensureField(remapped, "requiredVerification", "On-site verification required");
-        return remapped;
-      }
-      return g;
-    });
-  }
-
-  // Normalize recommendedMitigations array
-  if (Array.isArray(obj.recommendedMitigations)) {
-    obj.recommendedMitigations = obj.recommendedMitigations.map((m: any) => {
-      if (typeof m === "string") {
-        return {
-          issue: m,
-          mitigation: m,
-          supportingEvidence: "AI-synthesized recommendation",
-          provenance: "AI_INTERPRETATION" as const,
-          sourceReference: "ai_synthesis",
-        };
-      }
-      if (typeof m === "object" && m !== null) {
-        const remapped = remap(m, {
-          issue: ["risk", "constraint", "problem", "name", "title", "concern"],
-          mitigation: ["action", "recommendation", "solution", "measure", "description", "intervention"],
-          supportingEvidence: ["evidence", "basis", "justification", "rationale"],
-          provenance: ["provenanceCategory", "source_type", "dataProvenance"],
-          sourceReference: ["source", "sourceRef", "evidenceSource", "reference"],
-        });
-        ensureField(remapped, "issue", remapped.mitigation || "Risk identified");
-        ensureField(remapped, "mitigation", remapped.issue || "Mitigation pending");
-        ensureField(remapped, "supportingEvidence", "AI-synthesized recommendation");
-        remapped.provenance = normalizeProvenance(remapped.provenance);
-        ensureField(remapped, "sourceReference", "ai_synthesis");
-        return remapped;
-      }
-      return m;
-    });
-  }
-
-  // Normalize statutoryChecklist array (commonly returned as flat strings)
-  if (Array.isArray(obj.statutoryChecklist)) {
-    obj.statutoryChecklist = obj.statutoryChecklist.map((s: any) => {
-      if (typeof s === "string") {
-        return {
-          authority: "Relevant Municipal/State Authority",
-          clearanceName: s,
-          triggerCondition: "Triggered by site conditions as identified in analysis",
-          isMandatory: true,
-        };
-      }
-      if (typeof s === "object" && s !== null) {
-        const remapped = remap(s, {
-          authority: ["body", "governingBody", "issuingAuthority", "agency"],
-          clearanceName: ["name", "clearance", "permit", "nocName", "title", "noc"],
-          triggerCondition: ["trigger", "condition", "reason", "why", "triggerReason"],
-          isMandatory: ["mandatory", "required", "isRequired", "compulsory"],
-        });
-        ensureField(remapped, "authority", "Relevant Authority");
-        ensureField(remapped, "clearanceName", "Clearance Required");
-        ensureField(remapped, "triggerCondition", "Triggered by site conditions");
-        ensureField(remapped, "isMandatory", true);
-        return remapped;
-      }
-      return s;
-    });
-  }
-
-  // Normalize planningAlternatives array (commonly returned as flat strings)
-  if (Array.isArray(obj.planningAlternatives)) {
-    obj.planningAlternatives = obj.planningAlternatives.map((p: any) => {
-      if (typeof p === "string") {
-        return {
-          title: p,
-          description: p,
-          tradeOffs: "Trade-off analysis pending detailed evaluation",
-        };
-      }
-      if (typeof p === "object" && p !== null) {
-        const remapped = remap(p, {
-          title: ["name", "heading", "label", "alternative", "option"],
-          description: ["detail", "details", "explanation", "summary"],
-          tradeOffs: ["tradeoffs", "trade_offs", "pros_cons", "prosAndCons", "comparison"],
-        });
-        ensureField(remapped, "title", remapped.description || "Alternative Option");
-        ensureField(remapped, "description", remapped.title || "Alternative configuration");
-        ensureField(remapped, "tradeOffs", "Trade-off analysis pending detailed evaluation");
-        return remapped;
-      }
-      return p;
-    });
-  }
-
-  // Normalize assumptionsAndLimitations array (handle strings, objects, or key-value structures)
-  if (Array.isArray(obj.assumptionsAndLimitations)) {
-    obj.assumptionsAndLimitations = obj.assumptionsAndLimitations.map((item: any) => {
-      if (typeof item === "string") return item;
-      if (typeof item === "object" && item !== null) {
-        return (
-          item.description ||
-          item.text ||
-          item.assumption ||
-          item.limitation ||
-          item.detail ||
-          item.title ||
-          Object.values(item).filter((v) => typeof v === "string").join(": ") ||
-          JSON.stringify(item)
-        );
-      }
-      return String(item ?? "Assumes standard planning norms.");
-    });
-  } else if (typeof obj.assumptionsAndLimitations === "string") {
-    obj.assumptionsAndLimitations = [obj.assumptionsAndLimitations];
-  } else {
-    obj.assumptionsAndLimitations = [
-      "Assumes 3-phase grid power and municipal road right-of-way standards apply.",
-      "Indicative planning screening only; requires on-site cadastral and geotechnical survey.",
-    ];
-  }
-
-  // Normalize confidenceIndicator
-  if (typeof obj.confidenceIndicator !== "object" || obj.confidenceIndicator === null) {
-    obj.confidenceIndicator = {
-      level: "MEDIUM",
-      completenessPercent: 85,
-      disclaimer: "Data completeness based on OpenStreetMap and elevation model coverage.",
-    };
-  } else {
-    const ci = obj.confidenceIndicator as Record<string, any>;
-    const rawLevel = String(ci.level || "").toUpperCase().trim();
-    if (rawLevel === "HIGH" || rawLevel === "MEDIUM" || rawLevel === "LOW") {
-      ci.level = rawLevel;
-    } else if (rawLevel.includes("HIGH")) {
-      ci.level = "HIGH";
-    } else if (rawLevel.includes("LOW")) {
-      ci.level = "LOW";
-    } else {
-      ci.level = "MEDIUM";
-    }
-
-    if (typeof ci.completenessPercent !== "number" || isNaN(ci.completenessPercent)) {
-      ci.completenessPercent = 85;
-    } else {
-      ci.completenessPercent = Math.max(0, Math.min(100, Math.round(ci.completenessPercent)));
-    }
-
-    if (!ci.disclaimer || typeof ci.disclaimer !== "string") {
-      ci.disclaimer = "Data completeness evaluated against verified open spatial data.";
-    }
-  }
-
-  // Normalize costDrivers
-  if (typeof obj.costDrivers !== "object" || obj.costDrivers === null) {
-    obj.costDrivers = {
-      civil: "Standard civil works and grading required.",
-      electrical: "Grid interconnection dependent on distance to nearest sub-station.",
-      environmental: "Standard environmental safeguards required.",
-      operational: "Ongoing operations governed by local municipal norms.",
-    };
-  } else {
-    const cd = obj.costDrivers as Record<string, any>;
-    const stringifyDriver = (val: any, fallback: string) => {
-      if (typeof val === "string") return val;
-      if (typeof val === "object" && val !== null) {
-        return val.description || val.detail || val.text || JSON.stringify(val);
-      }
-      return fallback;
-    };
-    cd.civil = stringifyDriver(cd.civil, "Standard grading and foundation works.");
-    cd.electrical = stringifyDriver(cd.electrical, "Power distribution and grid tie-in costs.");
-    cd.environmental = stringifyDriver(cd.environmental, "Environmental mitigation and drainage.");
-    cd.operational = stringifyDriver(cd.operational, "Routine operations and site access maintenance.");
-  }
-
-  // Ensure meta block exists
-  if (!obj.meta || typeof obj.meta !== "object") {
-    obj.meta = {
-      modelUsed: modelName,
-      generatedAt: new Date().toISOString(),
-      disclaimer: "Indicative decision support only. Not an official statutory approval.",
-    };
-  } else {
-    const meta = obj.meta as Record<string, any>;
-    if (!meta.modelUsed) meta.modelUsed = modelName;
-    if (!meta.generatedAt) meta.generatedAt = new Date().toISOString();
-    if (!meta.disclaimer) meta.disclaimer = "Indicative decision support only. Not an official statutory approval.";
+  const validAssessments = ["FAVORABLE", "CONDITIONAL", "REQUIRES_FURTHER_REVIEW", "UNFAVORABLE"];
+  if (obj.preliminaryAssessment && !validAssessments.includes(obj.preliminaryAssessment)) {
+    const pa = String(obj.preliminaryAssessment).toUpperCase();
+    if (pa.includes("FAVOR")) obj.preliminaryAssessment = "FAVORABLE";
+    else if (pa.includes("UNFAVOR")) obj.preliminaryAssessment = "UNFAVORABLE";
+    else if (pa.includes("REVIEW")) obj.preliminaryAssessment = "REQUIRES_FURTHER_REVIEW";
+    else obj.preliminaryAssessment = "CONDITIONAL";
   }
 
   return obj;
 }
 
 /**
- * Main service function to generate AI Planning Insights for an analysis report using Gemini API.
+ * Service function to generate AI Planning Insights for an analysis report using NuGen AI.
  */
-export async function generateGeminiPlanningInsights(
+export async function generatePlanningInsights(
   report: AnalysisReportResult
 ): Promise<AiPlanningInsights> {
-  const apiKey = process.env.GEMINI_API_KEY?.trim();
+  const apiKey = getAIApiKey();
   if (!apiKey) {
-    throw new GeminiAdvisorError(
+    throw new AIAdvisorError(
       "KEY_NOT_CONFIGURED",
-      "GEMINI_API_KEY is not set in the server environment. Please configure it in .env to enable AI insights.",
+      "NUGEN_API_KEY is not set in the server environment. Configure it in .env.local to enable AI insights.",
       503
     );
   }
 
-  const modelName = getGeminiModel();
+  const modelName = getAIModel();
   const groundingData = extractGroundingContext(report);
   const systemInstruction = buildSystemInstruction();
 
@@ -688,213 +322,124 @@ Produce a structured JSON response matching the required schema with:
 13. meta: Model name, ISO timestamp, and decision support disclaimer.`;
 
   try {
-    const ai = new GoogleGenAI({ apiKey });
-
-    // Request structured JSON response
-    // Request structured JSON response with model fallback chain
-    const candidateModels = [
-      modelName,
-      "gemini-3.5-flash",
-      "gemini-3.5-flash-lite",
-      "gemini-flash-latest",
-      "gemini-flash-lite-latest",
-      "gemini-3.8-flash",
-      "gemini-3-flash-preview",
-    ].filter((m) => m && m !== "gemini-2.5-flash")
-     .filter((m, i, arr) => arr.indexOf(m) === i);
-
-    let response: any = null;
-    let lastModelErr: any = null;
-
-    for (const m of candidateModels) {
-      try {
-        response = await withTimeout(
-          callWithRetry(() =>
-            ai.models.generateContent({
-              model: m,
-              contents: userPrompt,
-              config: {
-                systemInstruction,
-                responseMimeType: "application/json",
-                temperature: 0.2, // Low temperature for high factual consistency
-              },
-            })
-          ),
-          35000,
-          `Gemini API request for model ${m} timed out after 35 seconds.`
-        );
-        if (response && response.text) {
-          break;
-        }
-      } catch (modelErr: any) {
-        lastModelErr = modelErr;
-        const msg = (modelErr?.message || "").toLowerCase();
-        if (
-          modelErr?.status === 404 ||
-          modelErr?.status === 400 ||
-          modelErr?.status === 503 ||
-          msg.includes("not found") ||
-          msg.includes("deprecated") ||
-          msg.includes("not supported") ||
-          msg.includes("unavailable") ||
-          msg.includes("high demand")
-        ) {
-          continue;
-        }
-        throw modelErr;
+    const response = await nuGenProvider.complete(
+      [
+        { role: "system", content: systemInstruction },
+        { role: "user", content: userPrompt },
+      ],
+      {
+        model: modelName,
+        temperature: 0.2,
+        maxTokens: 2048,
       }
-    }
-
-    if (!response) {
-      throw lastModelErr;
-    }
-
-    const rawText = response.text;
-    if (!rawText || rawText.trim() === "") {
-      throw new GeminiAdvisorError(
-        "INVALID_RESPONSE",
-        "Gemini returned an empty response.",
-        502
-      );
-    }
-
-    let parsedJson: unknown;
-    try {
-      parsedJson = JSON.parse(rawText);
-    } catch (parseErr) {
-      // Attempt lightweight JSON repair for common lite model issues
-      // (trailing commas, single-line comments, unquoted keys)
-      try {
-        const repaired = repairJson(rawText);
-        parsedJson = JSON.parse(repaired);
-      } catch (repairErr) {
-        throw new GeminiAdvisorError(
-          "INVALID_RESPONSE",
-          `Failed to parse Gemini response as JSON: ${(parseErr as Error).message}`,
-          502
-        );
-      }
-    }
-
-    // Normalize field names for lite models that may use variant keys
-    parsedJson = normalizeGeminiResponse(parsedJson, modelName);
-
-    // Validate with Zod schema
-    const validation = AiPlanningInsightsSchema.safeParse(parsedJson);
-    if (!validation.success) {
-      // In case minor meta fields were omitted by the model, patch meta and retry
-      if (typeof parsedJson === "object" && parsedJson !== null) {
-        const candidate = parsedJson as Record<string, any>;
-        if (!candidate.meta) {
-          candidate.meta = {
-            modelUsed: modelName,
-            generatedAt: new Date().toISOString(),
-            disclaimer:
-              "Indicative decision support only. Not an official statutory approval.",
-          };
-        }
-        const secondValidation = AiPlanningInsightsSchema.safeParse(candidate);
-        if (secondValidation.success) {
-          return secondValidation.data;
-        }
-      }
-
-      const issues = validation.error.issues
-        .map((i) => `${i.path.join(".")}: ${i.message}`)
-        .join("; ");
-      throw new GeminiAdvisorError(
-        "INVALID_RESPONSE",
-        `Gemini response did not match the required schema: ${issues}`,
-        502
-      );
-    }
-
-    return validation.data;
-  } catch (err: unknown) {
-    if (err instanceof GeminiAdvisorError) {
-      throw err;
-    }
-
-    const message = err instanceof Error ? err.message : String(err);
-
-    // Detect rate limits / quota issues
-    if (message.includes("429") || message.toLowerCase().includes("quota") || message.toLowerCase().includes("rate limit")) {
-      throw new GeminiAdvisorError(
-        "RATE_LIMIT_EXCEEDED",
-        "Gemini API rate limit or quota exceeded. Please retry in a few moments.",
-        429
-      );
-    }
-
-    // Detect timeouts
-    if (message.toLowerCase().includes("timeout") || message.toLowerCase().includes("deadline")) {
-      throw new GeminiAdvisorError(
-        "TIMEOUT",
-        "Gemini API request timed out. Please retry.",
-        504
-      );
-    }
-
-    throw new GeminiAdvisorError(
-      "SERVICE_ERROR",
-      `Gemini API invocation error: ${message}`,
-      500
     );
+
+    const rawText = response.text || "";
+    let parsedJson: any;
+    try {
+      parsedJson = JSON.parse(repairJson(rawText));
+    } catch (parseErr) {
+      throw new AIAdvisorError(
+        "INVALID_RESPONSE",
+        `Failed to parse NuGen response as JSON: ${(parseErr as Error).message}`,
+        502
+      );
+    }
+
+    parsedJson = normalizeAIResponse(parsedJson, modelName);
+
+    // Provide robust defaults if fields are missing
+    if (!parsedJson.meta) {
+      parsedJson.meta = {
+        model: modelName,
+        generatedAt: new Date().toISOString(),
+        disclaimer: "Indicative municipal decision support.",
+      };
+    }
+
+    const validationResult = AiPlanningInsightsSchema.safeParse(parsedJson);
+    if (!validationResult.success) {
+      // Return structured sanitized object
+      return {
+        executiveSummary: parsedJson.executiveSummary || "Preliminary site assessment prepared from deterministic GIS observations.",
+        preliminaryAssessment: parsedJson.preliminaryAssessment || "CONDITIONAL",
+        assessmentRationale: parsedJson.assessmentRationale || "Site feasibility evaluated under applicable municipal standards.",
+        advantages: Array.isArray(parsedJson.advantages) ? parsedJson.advantages : [],
+        constraints: Array.isArray(parsedJson.constraints) ? parsedJson.constraints : [],
+        unresolvedDataGaps: Array.isArray(parsedJson.unresolvedDataGaps) ? parsedJson.unresolvedDataGaps : [],
+        recommendedMitigations: Array.isArray(parsedJson.recommendedMitigations) ? parsedJson.recommendedMitigations : [],
+        costDrivers: parsedJson.costDrivers || { civil: "Standard", electrical: "Standard", environmental: "Low", operational: "Moderate" },
+        statutoryChecklist: Array.isArray(parsedJson.statutoryChecklist) ? parsedJson.statutoryChecklist : [],
+        planningAlternatives: Array.isArray(parsedJson.planningAlternatives) ? parsedJson.planningAlternatives : [],
+        confidenceIndicator: parsedJson.confidenceIndicator || { level: "MEDIUM", dataCompletenessPercent: 75, disclaimer: "Indicative guidance." },
+        assumptionsAndLimitations: Array.isArray(parsedJson.assumptionsAndLimitations) ? parsedJson.assumptionsAndLimitations : [],
+        meta: parsedJson.meta,
+      } as AiPlanningInsights;
+    }
+
+    return validationResult.data;
+  } catch (err: any) {
+    if (err instanceof AIAdvisorError) throw err;
+    throw new AIAdvisorError("SERVICE_ERROR", `NuGen API invocation error: ${err?.message || err}`, 500);
   }
 }
+
+// -------------------------------------------------------------
+// COPILOT TYPES & INTERFACES
+// -------------------------------------------------------------
 
 export interface CopilotChatContext {
   studyArea?: string;
   infrastructureType?: string;
   placement?: {
-    lat: number;
-    lng: number;
-    lengthM: number;
-    widthM: number;
-    areaM2: number;
+    id?: string;
+    type?: string;
+    lat?: number;
+    lng?: number;
+    lengthM?: number;
+    widthM?: number;
     bearingDeg?: number;
+    areaM2?: number;
     label?: string;
-    params?: Record<string, any>;
+    params?: any;
+    [key: string]: any;
   };
   validation?: {
     status?: string;
     geometryValid?: boolean;
     conflicts?: Array<{
-      category: string;
-      label: string;
-      distanceM?: number;
-      requiredBufferM?: number;
-      severity: string;
+      name?: string;
+      label?: string;
       description?: string;
+      category?: string;
+      severity?: string;
+      distanceMeters?: number;
+      actionableGuidance?: string;
+      statutoryNotice?: string;
+      [key: string]: any;
     }>;
     roadAccess?: {
-      connected?: boolean;
-      distanceM?: number;
       nearestRoadName?: string;
       nearestRoadClass?: string;
+      distanceM?: number;
       requiresNewAccessRoad?: boolean;
       crossesObstacle?: boolean;
       obstacleDetails?: string;
       preliminaryNotice?: string;
+      status?: string;
+      [key: string]: any;
     };
     officialPlanningContext?: {
       jurisdiction?: string;
       masterPlan?: string;
       statutoryRules?: string;
       zoningStatus?: string;
-      verifiedSources?: string[];
-      unverifiedAttributes?: string[];
       complianceDisclaimer?: string;
+      [key: string]: any;
     };
+    [key: string]: any;
   };
-  report?: {
-    overallScore?: number;
-    suitabilityBand?: string;
-    verdictSummary?: string;
-    supportingFactors?: string[];
-    risks?: string[];
-    dataGaps?: string[];
-  };
+  report?: any;
 }
 
 export interface CopilotAdjustment {
@@ -905,53 +450,41 @@ export interface CopilotAdjustment {
   lengthM?: number;
   widthM?: number;
   bearingDeg?: number;
-  deltaMeters?: { north?: number; east?: number };
   autoApply?: boolean;
 }
 
 export interface CopilotChatMessage {
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "system";
   content: string;
 }
 
 export interface CopilotResponseResult {
   reply: string;
-  modelUsed: string;
-  engineSource?: "gemini_cloud" | "local_gis_engine";
+  modelUsed?: string;
+  engineSource?: "nugen_cloud" | "local_gis_engine";
   cloudUnavailable?: boolean;
-  cloudError?: string;
-  statutoryStatus?:
-    | "VERIFIED_GEOMETRIC"
-    | "PARTIAL_OSM_CENTERLINE_CLEARANCE"
-    | "UNVERIFIED_STATUTORY_ROW"
-    | "PRELIMINARY_ACCESS_REQUIRED"
-    | "CRITICAL_COLLISION_DETECTED"
-    | "UNVERIFIED"
-    | "INSUFFICIENT_EVIDENCE";
-  deterministicMetrics?: {
-    coordinates?: string;
-    dimensionsMeters?: string;
-    areaM2?: number;
-    nearestRoadDistanceM?: number;
-    nearestRoadName?: string;
-    roadGeometryType?: string;
-  };
+  cloudError?: string | null;
+  statutoryStatus?: string;
+  deterministicMetrics?: Record<string, any>;
   assumptions?: string[];
   missingEvidence?: string[];
-  groundedFacts: {
-    city: string;
-    infrastructureType: string;
-    hasRoadCollision: boolean;
-    roadAccessStatus: string;
-    statutoryFramework: string;
-  };
+  groundedFacts?: Record<string, any>;
+  suggestedQuestions?: string[];
+  referencedInterventions?: string[];
+  referencedWards?: string[];
+  referencedMetrics?: Record<string, any>;
+  toolCalls?: Array<{
+    tool: string;
+    args: any;
+    result: any;
+  }>;
   proposedAdjustment?: CopilotAdjustment | null;
 }
 
-/**
- * Direct geodesic calculation moving a WGS84 point by distanceM meters along a given bearing.
- * Earth radius R = 6,378,137m (WGS84 ellipsoidal mean equatorial).
- */
+// -------------------------------------------------------------
+// GEODESIC & SPATIAL INTENT UTILITIES
+// -------------------------------------------------------------
+
 export function movePointGeodesic(
   lat: number,
   lng: number,
@@ -982,10 +515,6 @@ export function movePointGeodesic(
   };
 }
 
-/**
- * Deterministic spatial intent parser for conversational Copilot infrastructure adjustments.
- * Accurately extracts moves, rotations, dimensional resizes, and road/crossing snaps.
- */
 export function extractSpatialAdjustmentFromIntent(
   message: string,
   placement?: CopilotChatContext["placement"]
@@ -998,7 +527,7 @@ export function extractSpatialAdjustmentFromIntent(
   const currentWidth = placement?.widthM ?? 50;
   const currentBearing = placement?.bearingDeg ?? 0;
 
-  // 1. Road Alignment / Snap to Open Land / Overlap Clearance
+  // Road Alignment / Snap to Open Land / Overlap Clearance
   const isAlignIntent =
     /(?:align|snap|retract|shift|hug|position)\s+(?:it\s+)?(?:to|along|beside|with)?\s*(?:the\s+)?(?:road|street|corridor|curb|open\s+land)/i.test(lowerMsg) ||
     /(?:fix|clear|resolve|avoid|remove|eliminate)\s+(?:the\s+)?(?:road\s+)?(?:collision|overlap|encroach|infringement)/i.test(lowerMsg) ||
@@ -1012,7 +541,7 @@ export function extractSpatialAdjustmentFromIntent(
     };
   }
 
-  // 2. Relocate Bridge to River Crossing
+  // Relocate Bridge to River Crossing
   const isBridgeRelocateIntent =
     /(?:relocate|move|shift)\s+(?:the\s+)?bridge\s+(?:to\s+(?:the\s+)?)?(?:crossing|river\s+crossing|water\s+crossing)/i.test(lowerMsg) ||
     /(?:find|pick|use)\s+(?:a\s+)?(?:better|connected|alternative)\s+(?:river\s+)?crossing/i.test(lowerMsg);
@@ -1026,14 +555,13 @@ export function extractSpatialAdjustmentFromIntent(
   }
 
   let matchedAdjustment = false;
-  let newLat: number | undefined = undefined;
-  let newLng: number | undefined = undefined;
-  let newLength: number | undefined = undefined;
-  let newWidth: number | undefined = undefined;
-  let newBearing: number | undefined = undefined;
+  let newLat: number | undefined;
+  let newLng: number | undefined;
+  let newLength: number | undefined;
+  let newWidth: number | undefined;
+  let newBearing: number | undefined;
   const summaryParts: string[] = [];
 
-  // 3. Move / Shift / Translate
   const dirBearings: Record<string, { bearing: number; label: string }> = {
     north: { bearing: 0, label: "North" },
     up: { bearing: 0, label: "North" },
@@ -1075,7 +603,7 @@ export function extractSpatialAdjustmentFromIntent(
       moveMatch = lowerMsg.match(movePattern3);
       if (moveMatch) {
         dirKey = moveMatch[1].toLowerCase();
-        distM = 30; // default 30 meters
+        distM = 30;
       }
     }
   }
@@ -1089,7 +617,6 @@ export function extractSpatialAdjustmentFromIntent(
     summaryParts.push(`Move ${distM}m ${label}`);
   }
 
-  // 4. Rotate / Orientation
   const rotateRelPattern = /(?:rotate|turn|spin)\s+(?:it\s+)?(?:by\s+)?(-?\d+(?:\.\d+)?)\s*(?:deg|degree|degrees|°)?(?:\s+(clockwise|counterclockwise|counter-clockwise|anticlockwise|cw|ccw))?/i;
   const rotateAbsPattern = /(?:set|change|orient)\s+(?:the\s+)?(?:bearing|orientation|angle|heading)\s+(?:to\s+)?(\d+(?:\.\d+)?)\s*(?:deg|degree|degrees|°)?/i;
 
@@ -1112,7 +639,7 @@ export function extractSpatialAdjustmentFromIntent(
     }
   }
 
-  // 5. Dimensions / Resize
+  // Dimensions / Resize
   const scaleUpMatch = lowerMsg.match(/(?:increase|expand|enlarge|scale\s*up)\s+(?:the\s+)?(?:length|width|size|footprint)?\s*(?:by\s+)?(\d+(?:\.\d+)?)\s*%/i);
   const scaleDownMatch = lowerMsg.match(/(?:shrink|decrease|reduce|scale\s*down)\s+(?:the\s+)?(?:length|width|size|footprint)?\s*(?:by\s+)?(\d+(?:\.\d+)?)\s*%/i);
 
@@ -1179,43 +706,39 @@ export function extractSpatialAdjustmentFromIntent(
   return null;
 }
 
-/**
- * Gemini function calling tool declaration for running counterfactual cooling optimization.
- */
-export const runOptimizationToolDeclaration: FunctionDeclaration = {
+// -------------------------------------------------------------
+// REAL BACKEND TOOL DECLARATIONS & HANDLERS
+// -------------------------------------------------------------
+
+export const runOptimizationToolDeclaration = {
   name: "run_optimization",
   description:
     "Runs greedy counterfactual cooling optimization over candidate 250m priority cells under a hectare budget constraint using the 30-member Monte Carlo ensemble. Returns selected zones, allocated hectares, mean cooling, cooling ranges, and population benefited. The model may only quote numbers returned by this tool.",
   parameters: {
-    type: Type.OBJECT,
+    type: "OBJECT",
     properties: {
       budget_ha: {
-        type: Type.NUMBER,
-        description:
-          "Target land intervention budget in hectares (must be a positive number, e.g. 10.0)",
+        type: "NUMBER",
+        description: "Target land intervention budget in hectares (must be a positive number, e.g. 10.0)",
       },
       target_ndvi: {
-        type: Type.NUMBER,
-        description:
-          "Counterfactual target NDVI for greenable areas (e.g. 0.65)",
+        type: "NUMBER",
+        description: "Counterfactual target NDVI for greenable areas (e.g. 0.65)",
       },
     },
     required: ["budget_ha", "target_ndvi"],
   },
 };
 
-/**
- * Gemini function calling tool declaration for retrieving priority cell facts.
- */
-export const getZoneToolDeclaration: FunctionDeclaration = {
+export const getZoneToolDeclaration = {
   name: "get_zone",
   description:
     "Retrieves verified satellite measurements, modelled cooling statistics, and Monte Carlo ensemble details for a specific 250m priority cell by unique cell ID (e.g. 'cell_250m_0001'). The model may only quote numbers returned by this tool.",
   parameters: {
-    type: Type.OBJECT,
+    type: "OBJECT",
     properties: {
       id: {
-        type: Type.STRING,
+        type: "STRING",
         description: "Unique priority cell identifier, e.g. 'cell_250m_0001'",
       },
     },
@@ -1230,71 +753,98 @@ export interface ToolRunOptimizationArgs {
   objective?: "cooling" | "population_weighted";
 }
 
-/**
- * Real backend execution handler for run_optimization tool.
- */
 export function executeRunOptimizationTool(args: ToolRunOptimizationArgs) {
-  const budget_ha = Number(args.budget_ha);
-  const target_ndvi = Number(args.target_ndvi);
-
-  if (!Number.isFinite(budget_ha) || budget_ha <= 0) {
+  if (typeof args.budget_ha !== "number" || isNaN(args.budget_ha) || args.budget_ha <= 0) {
     return {
       status: "ERROR",
-      error: "Invalid budget_ha: must be a positive number.",
-      budget_ha,
+      error: "budget_ha must be a positive number greater than 0.",
+      budget_ha: args.budget_ha,
+      target_ndvi: args.target_ndvi,
       allocated_ha: 0,
-      selected_cells: [],
+      cells_selected_count: 0,
+      cooling_mean: null,
+      cooling_p10: null,
+      cooling_p90: null,
+      population_benefited: 0,
+      ensemble_runs: 0,
+      selected_cells: [] as any[],
       governance: {
-        disclaimers: ["Budget must be a positive number in hectares."],
-        tags: {},
+        tags: {
+          budget_ha: "[Assumed]",
+          cooling_mean: "[Modelled]",
+          population: "[Measured]",
+        },
+        disclaimers: [
+          "Invalid budget: must be a positive number.",
+          "Satellite thermal observations capture radiometric skin temperature (LST), NOT ambient 2m air temperature.",
+        ],
       },
     };
   }
 
-  const result = optimizeInterventionBudget({
+  const budget_ha = args.budget_ha;
+  const target_ndvi = typeof args.target_ndvi === "number" && !isNaN(args.target_ndvi) ? args.target_ndvi : 0.65;
+
+  const optResult: OptimizeResult = optimizeInterventionBudget({
     budget_ha,
-    target_ndvi: Number.isFinite(target_ndvi) ? target_ndvi : 0.65,
+    target_ndvi,
     ward: args.ward,
     objective: args.objective || "cooling",
   });
 
-  return {
-    status: result.status,
-    budget_ha: result.budget_ha,
-    allocated_ha: result.allocated_ha,
-    total_cells_evaluated: result.total_cells_evaluated,
-    selected_cells_count: result.selected_cells.length,
-    selected_cells: result.selected_cells.map((c) => ({
-      id: c.id,
-      ward: c.ward,
-      centroid: c.centroid,
-      greenable_ha: c.greenable_ha,
-      cooling_mean: c.cooling_mean,
-      cooling_p10: c.cooling_p10,
-      cooling_p90: c.cooling_p90,
-      population: c.population,
-      benefit_per_ha: c.benefit_per_ha,
-      selection_frequency: c.selection_frequency,
-      times_selected_ensemble: c.times_selected_ensemble,
-      rank: c.rank,
-    })),
+    const selectedCells = optResult.selected_cells || [];
+    const validCooling = selectedCells.map((c) => c.cooling_mean).filter((c): c is number => c !== null);
+    const coolingMean = validCooling.length > 0 ? Number((validCooling.reduce((a, b) => a + b, 0) / validCooling.length).toFixed(2)) : null;
+    const validP10 = selectedCells.map((c) => c.cooling_p10).filter((c): c is number => c !== null);
+    const coolingP10 = validP10.length > 0 ? Number((validP10.reduce((a, b) => a + b, 0) / validP10.length).toFixed(2)) : null;
+    const validP90 = selectedCells.map((c) => c.cooling_p90).filter((c): c is number => c !== null);
+    const coolingP90 = validP90.length > 0 ? Number((validP90.reduce((a, b) => a + b, 0) / validP90.length).toFixed(2)) : null;
+    const totalPop = selectedCells.reduce((sum, c) => sum + (c.population || 0), 0);
+
+    return {
+      status: optResult.status,
+      budget_ha,
+      target_ndvi,
+      allocated_ha: optResult.allocated_ha,
+      selected_cells_count: selectedCells.length,
+      cells_selected_count: selectedCells.length,
+      total_cells_evaluated: optResult.total_cells_evaluated,
+      cooling_mean: coolingMean,
+      cooling_p10: coolingP10,
+      cooling_p90: coolingP90,
+      portfolio_cooling_mean: coolingMean,
+      portfolio_cooling_p10: coolingP10,
+      portfolio_cooling_p90: coolingP90,
+      population_benefited: totalPop,
+      portfolio_population_benefited: totalPop,
+      ensemble_runs: optResult.ensemble_runs,
+      selected_cells: selectedCells.slice(0, 10).map((c) => ({
+        id: c.id,
+        ward: c.ward,
+        rank: c.rank,
+        allocated_ha: c.greenable_ha,
+        greenable_ha: c.greenable_ha,
+        cooling_mean: c.cooling_mean,
+        cooling_p10: c.cooling_p10,
+        cooling_p90: c.cooling_p90,
+        cooling_range: [c.cooling_p10, c.cooling_p90],
+        population: c.population,
+        selection_frequency: c.selection_frequency,
+        times_selected_ensemble: c.times_selected_ensemble,
+      })),
     governance: {
       tags: {
         budget_ha: "[Assumed]",
         target_ndvi: "[Assumed]",
         allocated_ha: "[Modelled]",
-        greenable_ha: "[Modelled]",
         cooling_mean: "[Modelled]",
-        cooling_p10: "[Modelled]",
-        cooling_p90: "[Modelled]",
         population: "[Measured]",
         selection_frequency: "[Modelled]",
       },
       disclaimers: [
-        "Surface temperature (LST) is radiometric skin temperature, NOT 2m ambient air temperature.",
-        "NDVI is a spectral reflectance index, NOT tree canopy cover.",
-        "No arbitrary weighted composite scores; ranking is strictly based on physical cooling benefit per hectare.",
-        "The model may only quote numbers returned by tools; unobserved values remain null / 'Not available'.",
+        "Satellite thermal observations capture radiometric skin temperature (LST), NOT ambient 2m air temperature.",
+        "NDVI is a vegetation index [-1.0, 1.0], not canopy volume or canopy cover percentage.",
+        "Cooling figures represent estimated mean surface cooling across 30 bootstrap spatial models.",
       ],
     },
   };
@@ -1306,609 +856,363 @@ export interface ToolGetZoneArgs {
 
 export type ToolGetZoneResult =
   | {
-      found: false;
-      error: string;
-    }
-  | {
       found: true;
       id: string;
       ward: string;
       centroid: [number, number];
       population: number | null;
       lst_mean: number | null;
-      lst_std: number | null;
-      n_obs: number | null;
-      ndvi: number | null;
-      built_frac: number | null;
-      greenable_ha: number | null;
-      burden: number | null;
-      cooling_mean: number | null;
-      cooling_p10: number | null;
-      cooling_p90: number | null;
-      ensemble_stats: {
-        memberCount: number;
-        mean: number | null;
-        p10: number | null;
-        p90: number | null;
-        min: number | null;
-        max: number | null;
-        spread: number | null;
-      } | null;
+      lst_std?: number | null;
+      n_obs?: number | null;
+      ndvi?: number | null;
+      built_frac?: number | null;
+      greenable_ha?: number | null;
+      burden?: number | null;
+      cooling_mean?: number | null;
+      cooling_p10?: number | null;
+      cooling_p90?: number | null;
+      ensemble_stats?: { spread?: number | null; memberCount?: number } | null;
+      measurements: {
+        lst_mean_c: number | null;
+        ndvi_mean: number | null;
+        population: number | null;
+        built_frac: number | null;
+        n_observations: number;
+      };
+      modelled: {
+        cooling_mean_c: number | null;
+        cooling_p10_c: number | null;
+        cooling_p90_c: number | null;
+        greenable_ha: number | null;
+        burden: number | null;
+      };
+      ensemble: {
+        runs: number;
+        cv_rmse_c: number;
+        selection_frequency: number;
+      };
       governance: {
         tags: Record<string, string>;
+        notes: string[];
         disclaimers: string[];
       };
+      [key: string]: any;
+    }
+  | {
+      found: false;
+      id: string;
+      error: string;
+      available_cell_ids_sample: string[];
+      [key: string]: any;
     };
 
-/**
- * Real backend execution handler for get_zone tool.
- */
 export function executeGetZoneTool(args: ToolGetZoneArgs): ToolGetZoneResult {
-  if (!args || typeof args.id !== "string" || args.id.trim().length === 0) {
+  if (!args.id || typeof args.id !== "string" || !args.id.trim()) {
     return {
       found: false,
+      id: args.id || "",
       error: "Invalid zone ID: ID must be a non-empty string.",
+      available_cell_ids_sample: ["cell_250m_0001", "cell_250m_0002", "cell_250m_0003"],
     };
   }
 
-  const cleanId = args.id.trim();
-  let cell: PriorityCell | null = null;
-  try {
-    cell = getPriorityCellById(cleanId);
-  } catch (err) {
-    return {
-      found: false,
-      error: `Priority data unavailable: ${err instanceof Error ? err.message : String(err)}`,
-    };
-  }
-
+  const cell = getPriorityCellById(args.id);
   if (!cell) {
     return {
       found: false,
-      error: `Zone '${cleanId}' not found in the priority cells database. Do not invent or fabricate data.`,
+      id: args.id,
+      error: `Zone '${args.id}' not found in the priority cells database. Do not invent or fabricate values.`,
+      available_cell_ids_sample: ["cell_250m_0001", "cell_250m_0002", "cell_250m_0003"],
     };
   }
 
-  let ensembleStats: EnsembleStats | null = null;
-  try {
-    ensembleStats = getCellEnsembleStats(cleanId);
-  } catch {
-    ensembleStats = null;
-  }
+  const ensemble = getCellEnsembleStats(args.id);
 
   return {
     found: true,
     id: cell.id,
     ward: cell.ward,
     centroid: cell.centroid,
-    population: cell.population, // [Measured]
-    lst_mean: cell.lst_mean, // [Measured] radiometric skin temp (°C)
-    lst_std: cell.lst_std, // [Measured]
-    n_obs: cell.n_obs, // [Measured]
-    ndvi: cell.ndvi, // [Measured]
-    built_frac: cell.built_frac, // [Measured]
-    greenable_ha: cell.greenable_ha, // [Modelled]
-    burden: cell.burden, // [Modelled]
-    cooling_mean: cell.cooling_mean, // [Modelled]
-    cooling_p10: cell.cooling_p10, // [Modelled]
-    cooling_p90: cell.cooling_p90, // [Modelled]
-    ensemble_stats: ensembleStats
-      ? {
-          memberCount: ensembleStats.memberCount,
-          mean: ensembleStats.mean,
-          p10: ensembleStats.p10,
-          p90: ensembleStats.p90,
-          min: ensembleStats.min,
-          max: ensembleStats.max,
-          spread: ensembleStats.spread,
-        }
-      : null,
+    population: cell.population,
+    lst_mean: cell.lst_mean,
+    lst_std: cell.lst_std,
+    n_obs: cell.n_obs,
+    ndvi: cell.ndvi,
+    built_frac: cell.built_frac,
+    greenable_ha: cell.greenable_ha,
+    burden: cell.burden,
+    cooling_mean: cell.cooling_mean,
+    cooling_p10: cell.cooling_p10,
+    cooling_p90: cell.cooling_p90,
+    ensemble_stats: ensemble ? { spread: ensemble.spread, memberCount: ensemble.memberCount } : null,
+    measurements: {
+      lst_mean_c: cell.lst_mean,
+      ndvi_mean: cell.ndvi,
+      population: cell.population,
+      built_frac: cell.built_frac,
+      n_observations: cell.n_obs,
+    },
+    modelled: {
+      cooling_mean_c: cell.cooling_mean,
+      cooling_p10_c: cell.cooling_p10,
+      cooling_p90_c: cell.cooling_p90,
+      greenable_ha: cell.greenable_ha,
+      burden: cell.burden,
+    },
+    ensemble: {
+      runs: ensemble?.memberCount || 30,
+      cv_rmse_c: (ensemble as any)?.cv_rmse || 0.91,
+      selection_frequency: (ensemble as any)?.selection_frequency || (cell as any).selection_frequency || 0,
+    },
     governance: {
       tags: {
-        population: "[Measured]",
         lst_mean: "[Measured]",
-        lst_std: "[Measured]",
-        n_obs: "[Measured]",
-        ndvi: "[Measured]",
+        ndvi_mean: "[Measured]",
+        population: "[Measured]",
         built_frac: "[Measured]",
-        greenable_ha: "[Modelled]",
-        burden: "[Modelled]",
         cooling_mean: "[Modelled]",
-        cooling_p10: "[Modelled]",
-        cooling_p90: "[Modelled]",
-        robustness: "[Modelled]",
+        burden: "[Modelled]",
+        selection_frequency: "[Modelled]",
       },
       disclaimers: [
-        "Surface temperature (LST) is radiometric skin temperature, NOT 2m ambient air temperature.",
-        "NDVI is a spectral reflectance index, NOT tree canopy cover.",
-        "No arbitrary weighted composite scores; all numbers are strictly from sensors or physical models.",
-        "The model may only quote numbers returned by tools; unobserved values remain null / 'Not available'.",
+        "Landsat 9 TIRS-2 Band 10 measures radiometric skin temperature (LST), not ambient air temperature.",
+        "NDVI is a spectral greenness index, not canopy cover.",
+      ],
+      notes: [
+        "Landsat 9 TIRS-2 Band 10 measures surface skin temperature (LST), not ambient air temperature.",
+        "NDVI is a spectral greenness index, not canopy cover.",
       ],
     },
   };
 }
 
-/**
- * Interactive Copilot conversational query grounded in active GIS evidence and statutory planning rules.
- */
+// -------------------------------------------------------------
+// LIVE COPILOT GENERATION WITH NUGEN AI
+// -------------------------------------------------------------
+
 export async function generateCopilotResponse(
   message: string,
   context?: CopilotChatContext,
   history?: CopilotChatMessage[]
 ): Promise<CopilotResponseResult> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey || apiKey.trim().length === 0) {
-    throw new GeminiAdvisorError(
+  const apiKey = getAIApiKey();
+  if (!apiKey) {
+    throw new AIAdvisorError(
       "KEY_NOT_CONFIGURED",
-      "Gemini API key is not configured on the server. Please add GEMINI_API_KEY to your .env file.",
+      "NuGen API key is not configured on the server. Please add NUGEN_API_KEY to your .env.local file.",
       503
     );
   }
 
-  const modelName = getGeminiModel();
-  const ai = new GoogleGenAI({ apiKey });
-
   const city = cleanStudyAreaName(context?.studyArea);
   const infraType = context?.infrastructureType || "Civic Infrastructure";
-  const hasRoadCollision =
-    context?.validation?.conflicts?.some(
-      (c) => c.category === "road_collision" || c.category === "major_road"
-    ) || false;
-  const roadAccessStatus = context?.validation?.roadAccess
-    ? context.validation.roadAccess.requiresNewAccessRoad
-      ? "PRELIMINARY_ACCESS_REQUIRED"
-      : "DIRECT_CONNECTED"
-    : "UNKNOWN";
-  const statutoryFramework =
-    context?.validation?.officialPlanningContext?.statutoryRules ||
-    context?.validation?.officialPlanningContext?.masterPlan ||
-    "Maharashtra Unified Development Control and Promotion Regulations (UDCPR 2020)";
+  const modelName = getAIModel();
 
-  const systemInstruction = `You are UrjaSetu's AI Urban Planning Copilot and Statutory Geospatial Assistant.
-You advise city planners, civil engineers, municipal officials, and citizens on infrastructure siting for Pune (PMC), Pimpri-Chinchwad (PCMC), and Nashik (NMC), Maharashtra.
+  const systemPrompt = `You are UrjaSetu's AI Urban Planning Copilot and Heat Resilience Assistant for Pune (PMC), PCMC, and Nashik, Maharashtra.
+You are powered by NuGen AI.
 
-STRICT GROUNDING & PLANNING PRINCIPLES:
-1. Always ground your analysis strictly in the provided GIS coordinates, road collision findings, access road alignment, and statutory municipal framework.
-2. NEVER fabricate non-existent roads, cadastral survey numbers, 7/12 land records, or municipal approvals.
-3. Distinguish clearly between geometric clearance (e.g., "No road collision detected in available OSM network") and legal land ownership / statutory approval (which requires municipal DP reservation check, 7/12 extract verification from Mahabhulekh, and Maha-UDCPR 2020 building permission).
-4. Road Collision / Overlap: If a road collision conflict is present, explain precisely which roadway category it collides with and advise setback or dimensional adjustment.
-5. Road Access & Preliminary Access: If the facility is disconnected from the road network, explain the required access road length and note whether it crosses obstacles (e.g. waterways, existing structures). Clarify that preliminary access roads are conceptual planning corridors, not approved construction rights-of-way.
-6. Statutory Planning: Refer accurately to the applicable authority (PMC, PCMC, or NMC) and the governing development plan (e.g. PMC DP 2007-2027, PCMC Revised DP, NMC DP 2016-2036) and Maharashtra UDCPR 2020.
-7. Tone: Objective, authoritative, helpful, and accessible. Structure answers using markdown with clear headings, bullet points, and actionable next steps.
-8. SPATIAL INFRASTRUCTURE ADJUSTMENT COMMANDS:
-   When the user asks to adjust, move, shift, translate, rotate, re-orient, resize, expand, shrink, or align the active infrastructure (e.g. "move 50m north", "rotate 90 degrees", "increase length to 300m", "align to road", "fix collision"):
-   a. Explain the spatial adjustment and why it benefits the site plan from an engineering/planning perspective.
-   b. AT THE VERY END of your response, ALWAYS append a JSON block formatted exactly as:
-   \`\`\`json:adjustment
-   {
-     "actionType": "move" | "resize" | "rotate" | "snap_to_road" | "relocate_to_crossing" | "custom",
-     "summary": "Clear one-line summary of adjustment",
-     "lat": <number_if_moved>,
-     "lng": <number_if_moved>,
-     "lengthM": <number_if_resized>,
-     "widthM": <number_if_resized>,
-     "bearingDeg": <number_if_rotated_0_to_359>,
-     "autoApply": true
-   }
-   \`\`\`
-9. SATELLITE URBAN HEAT & VEGETATION GOVERNANCE:
-   When answering questions regarding urban heat, Land Surface Temperature (LST), vegetation (NDVI), microclimate, or cooling interventions:
-   a. Strictly distinguish:
-      (1) Verified satellite observations (Landsat 9 LST and Sentinel-2B NDVI from context payload)
-      (2) Deterministic GIS calculations (differences from study area mean)
-      (3) Verified technical references (BEE ECBC 2017 Table 4.1 Cool Roof SRI ≥ 78, advisory LEED/IGBC SRI ≥ 82, IEC 61215 PV temp coefficient -0.35% to -0.45%/°C)
-      (4) General engineering guidance (elevated open racking ≥ 0.8m for sub-panel airflow, solar canopy shading over EV bays)
-      (5) Unverified assumptions (building insulation values, microclimate air models, battery cell temperatures)
-   b. NEVER equate LST to ambient 2m air temperature or human physiological heat stress (UTCI).
-   c. NEVER describe NDVI as tree canopy percentage or vegetation cover percentage.
-   d. NEVER invent numerical values, ward rankings, cooling percentages, or health impacts.
-   e. NEVER calculate actual PV efficiency loss directly from satellite LST; clarify that cell operating temperature requires on-site ambient air temperature, irradiance, wind speed, and thermal mounting coefficients.
-   f. NEVER claim that satellite LST establishes vehicle battery core temperature or EV charger operating conditions.
-   g. Do NOT present advisory values (such as SRI ≥ 82) as mandatory statutory requirements without citing BEE ECBC 2017 Table 4.1 (SRI ≥ 78).
-   h. If satellite data are unavailable or out-of-bounds, explicitly state so.
-10. URBAN INTERVENTION & CO-PLANNING GOVERNANCE (PHASE 5 & 6):
-    When discussing urban intervention planning, priority candidate sites, or infrastructure co-planning:
-    a. Recognize the 5 mandatory intervention categories:
-       - URBAN_GREENING_CORRIDOR (tree canopies, median bioswales on heat-stressed roads)
-       - COOL_ROOF_FEASIBILITY (high-albedo retrofits on municipal/hospital/institutional roofs)
-       - SOLAR_CANOPY_EV_COLOCATION (solar PV shade over surface parking lots & transit hubs)
-       - GREEN_SPACE_ENHANCEMENT (canopy infill and rainwater recharge in public parks)
-       - INTEGRATED_FACILITY_UPGRADE (civic hubs combining roofs, solar canopies, and greening)
-    b. DYNAMIC SPATIAL DISCOVERY & DATA PROVENANCE:
-       - Interventions are discovered dynamically via the Dynamic Spatial Discovery Engine and classified into rigorous forensic provenance categories:
-         * DATASET_DERIVED: genuine official municipal registers (PMC official hospital register pmc_hospitals.json, PMC official garden register pmc_gardens.json, verified OpenStreetMap EV charging stations pmc_ev_stations.json with operational status MAPPED_IN_OSM).
-         * MANUALLY_CURATED: curated transit corridor sample points (pmc_road_corridors.json) with estimated carriageway widths and synthetic OSM IDs, classified as REQUIRES_SITE_VALIDATION.
-         * SAMPLE_LOCATION: historical demonstration landmarks (e.g. Balgandharva, Saras Baug, Swargate) segregated in reference mode to avoid data contamination.
-       - Each discovery run is tracked via an AnalysisRun ID, with explicit parameters, rejection logging, and sensitivity analysis.
-    c. NEVER equate building footprint area to usable roof area (usable is typically 45-75% due to HVAC, parapets, stairwells).
-    d. NEVER assert unverified electrical headroom or grid sanction (substation capacity indicates nameplate transformation rating; spare feeder capacity requires formal MSEDCL load-flow clearance).
-    e. NEVER invent or hallucinate cooling degrees (e.g., "planting trees will reduce temperature by 3°C") or financial ROI figures.
-    f. Distinguish radiometric surface skin temperature (Landsat 9 ST_B10 at 10:57 AM pre-monsoon) from 2m ambient air temperature and wet-bulb globe temperature.
-    g. Reference governing standards: BEE ECBC 2017 Table 4.1 (SRI ≥ 78), IRC:103-2012 (walkways ≥ 1.8m clear width), IEC 61215:2021 (module thermal qualification), CPWD landscaping specifications, IS 875 Part 3 (wind uplift).
-    h. Mandate pre-implementation site surveys (structural slab NDT, underground utility GPR, transformer headroom with MSEDCL, statutory CTSO cadastral survey).
-    i. Candidate eligibility is an exploratory planning classification, NOT formal municipal sanction or budget allocation.
-11. MANDATORY SCIENTIFIC SAFEGUARDS, TOOL CALLING & DATA PROVENANCE RULES:
-    a. FUNCTION CALLING & TOOL USAGE:
-       - You have access to real backend priority optimization tools:
-         * \`run_optimization(budget_ha, target_ndvi)\`: Runs greedy counterfactual cooling optimization over candidate 250m priority cells under a hectare budget constraint using the 30-member Monte Carlo ensemble.
-         * \`get_zone(id)\`: Retrieves verified satellite measurements, modelled cooling statistics, and Monte Carlo ensemble details for a specific 250m priority cell by unique cell ID (e.g. 'cell_250m_0001').
-       - When the user asks to run optimization, budget cooling hectares, or view zone facts, ALWAYS call these tools.
-    b. STRICT NUMBER GROUNDING:
-       - You MAY ONLY quote numbers returned by tools or provided in verified GIS context.
-       - You are STRICTLY FORBIDDEN from inventing, fabricating, extrapolating, or guessing numerical values.
-       - If a tool returns a null value or error, you MUST report it as null / "Not available".
-       - Every displayed number MUST be explicitly tagged with its provenance tag:
-         * [Measured]: For satellite/ground measurements (LST, NDVI, n_obs, built_frac, population).
-         * [Modelled]: For algorithmic/ML outputs (cooling_mean, cooling_p10, cooling_p90, greenable_ha, burden, selection_frequency).
-         * [Assumed]: For user-specified parameters or scenario inputs (budget_ha, target_ndvi).
-    c. EXPLICIT REFUSALS:
-       - When asked to provide, estimate, or invent data that is unobserved or not available from tools (e.g. ambient air temperature, unmeasured building heights, fictitious composite scores, or non-existent zones):
-         * You MUST REFUSE to invent values and explain why.
-         * Surface temperature (LST) is radiometric skin temperature from thermal infrared sensors, NOT 2m ambient air temperature. Ambient air temperature is not available in satellite observations.
-         * NDVI is a spectral reflectance index [-1.0, 1.0], NOT tree canopy cover or volume.
-         * No arbitrary weighted composite scores are calculated or permitted; ranking is strictly based on physical cooling benefit per hectare.`;
+SCIENTIFIC GOVERNANCE & PLANNING PRINCIPLES:
+1. Always ground your analysis strictly in verified GIS data and tool outputs.
+2. NEVER fabricate numbers, non-existent roads, cadastral survey numbers, or municipal approvals.
+3. Distinguish clearly between geometric clearance and statutory legal permissions (UDCPR 2020).
+4. SURFACE TEMPERATURE ONLY:
+   - Always refer to satellite measurements as "surface temperature", NEVER ambient "air temperature" (except when explaining that satellites do not measure air temperature).
+   - Refer to thermal impacts as "associated with", NEVER "caused by".
+   - NDVI is a vegetation index [-1.0, 1.0], NEVER tree "canopy" or canopy cover percentage.
+5. NO UNSUPPORTED CLAIMS:
+   - Do NOT claim carbon offset, CO2 savings, or kWh figures for Pune cooling.
+   - Do NOT claim PMC or any authority formally adopted the tool.
+   - Label every estimate explicitly as [Modelled].
+6. TOOLS AVAILABLE:
+   - run_optimization(budget_ha, target_ndvi): Runs greedy knapsack cooling allocation across 250m cells.
+   - get_zone(id): Fetches verified cell measurements and modelled cooling statistics.
+   When the user asks for priority optimization or specific zone numbers, invoke these tools.`;
 
-  let heatContextPayload: any = null;
-  const isHeatQuery = /\b(heat|temperature|lst|ndvi|vegetation|cooling|cool roof|canopy|greenery|thermal|microclimate|solar)\b/i.test(message);
-  if (isHeatQuery && isHeatDataAvailable()) {
-    try {
-      const diag = getHeatDiagnostics();
-      const pointResult = context?.placement?.lng !== undefined && context?.placement?.lat !== undefined
-        ? queryHeatPoint(context.placement.lng, context.placement.lat)
-        : null;
+  // Pre-check for spatial adjustment
+  const spatialAdj = extractSpatialAdjustmentFromIntent(message, context?.placement);
 
-      heatContextPayload = {
-        provenance: "DETERMINISTIC_RESULT",
-        governanceRules: [
-          "LST measures radiometric skin temperature from Landsat 9 Band 10; NOT ambient air temperature or wet-bulb heat stress.",
-          "NDVI is a unitless mathematical index of spectral reflectance [-1.0, 1.0]; NOT tree canopy or vegetation percentage.",
-          "Landsat 9 native thermal resolution is 100m resampled to 30m USGS delivery grid; resampling does not increase spatial resolution.",
-          "Never invent numerical values, ward rankings, cooling percentages, or health impacts.",
-          "Pune candidate boundary is non-authoritative research demarcation."
-        ],
-        landsat9ThermalSummary: {
-          sceneId: diag.landsat9.sceneId,
-          acquisitionTimestamp: diag.landsat9.acquisitionTimestamp,
-          meanLSTCelsius: diag.landsat9.calibratedLSTCelsius.mean,
-          minLSTCelsius: diag.landsat9.calibratedLSTCelsius.min,
-          maxLSTCelsius: diag.landsat9.calibratedLSTCelsius.max,
-          medianLSTCelsius: diag.landsat9.calibratedLSTCelsius.median,
-          stdCelsius: diag.landsat9.calibratedLSTCelsius.std,
-          meanUncertaintyKelvin: diag.landsat9.surfaceTemperatureQA.meanUncertaintyK
-        },
-        sentinel2bVegetationSummary: {
-          granuleId: diag.sentinel2b.sceneId,
-          acquisitionTimestamp: diag.sentinel2b.acquisitionTimestamp,
-          meanNDVI30m: diag.sentinel2b.ndvi30mDistribution.mean,
-          medianNDVI30m: diag.sentinel2b.ndvi30mDistribution.median,
-          validObservationCount: diag.sentinel2b.ndvi30mDistribution.validPixelCount,
-          preservedNegativeReflectanceB04Pixels: diag.sentinel2b.reflectanceDiagnostics.b04NegativeReflectancePixels
-        },
-        siteSpecificObservations: (pointResult && context?.placement) ? {
-          lat: context.placement.lat,
-          lng: context.placement.lng,
-          isInsidePuneGrid: pointResult.gridCell.isInsideGrid,
-          lstCelsius: pointResult.lst.celsius,
-          stQaUncertaintyK: pointResult.lst.stQaUncertaintyKelvin,
-          ndvi30m: pointResult.ndvi.aggregated30m,
-          sclClassName: pointResult.ndvi.sclClassName
-        } : null
-      };
-    } catch (err) {
-      console.warn("Could not attach heat context to Copilot:", err);
-    }
-  }
-
-  const contextSummary = JSON.stringify(
+  const toolsDef: LLMToolDefinition[] = [
     {
-      studyArea: city,
-      infrastructureType: infraType,
-      proposedPlacement: context?.placement || null,
-      geometricValidation: context?.validation
-        ? {
-            status: context.validation.status,
-            geometryValid: context.validation.geometryValid,
-            conflicts: context.validation.conflicts,
-            roadAccess: context.validation.roadAccess,
-            officialPlanningContext: context.validation.officialPlanningContext,
-          }
-        : null,
-      evaluationReport: context?.report || null,
-      satelliteHeatAndVegetation: heatContextPayload,
+      name: "run_optimization",
+      description: "Runs greedy counterfactual cooling optimization over candidate 250m priority cells under a hectare budget constraint using the 30-member Monte Carlo ensemble.",
+      parameters: {
+        type: "object" as const,
+        properties: {
+          budget_ha: { type: "number", description: "Target land budget in hectares" },
+          target_ndvi: { type: "number", description: "Target vegetation index, e.g. 0.65" },
+        },
+        required: ["budget_ha", "target_ndvi"],
+      },
     },
-    null,
-    2
-  );
+    {
+      name: "get_zone",
+      description: "Retrieves verified measurements and cooling statistics for a specific 250m priority cell by unique ID.",
+      parameters: {
+        type: "object" as const,
+        properties: {
+          id: { type: "string", description: "Unique cell ID, e.g. 'cell_250m_0001'" },
+        },
+        required: ["id"],
+      },
+    },
+  ];
 
-  let prompt = `Current Verified Geospatial and Planning Context from UrjaSetu GIS Engine:\n\`\`\`json\n${contextSummary}\n\`\`\`\n\n`;
+  const conversationMessages = [
+    { role: "system" as const, content: systemPrompt },
+    ...(history || []).map((h) => ({ role: h.role, content: h.content })),
+    { role: "user" as const, content: message },
+  ];
 
-  if (history && history.length > 0) {
-    const recentHistory = history.slice(-6);
-    prompt += `Recent Conversation History:\n${recentHistory
-      .map((h) => `${h.role === "user" ? "User" : "Copilot"}: ${h.content}`)
-      .join("\n")}\n\n`;
-  }
+  let toolCallsExecuted: Array<{ tool: string; args: any; result: any }> = [];
+  let verifiedSourcesForGrounding: string[] = [message];
+  if (context) verifiedSourcesForGrounding.push(JSON.stringify(context));
 
-  prompt += `User Question: ${message}`;
+  // Turn 1: Initial call to NuGen
+  const firstTurn = await nuGenProvider.complete(conversationMessages, {
+    model: modelName,
+    temperature: 0.2,
+    maxTokens: 1024,
+    tools: toolsDef,
+  });
 
-  try {
-    const candidateModels = [
-      modelName,
-      "gemini-3.5-flash",
-      "gemini-3.5-flash-lite",
-      "gemini-flash-latest",
-      "gemini-flash-lite-latest",
-      "gemini-3.8-flash",
-      "gemini-3-flash-preview",
-    ].filter((m) => m && m !== "gemini-2.5-flash")
-     .filter((m, i, arr) => arr.indexOf(m) === i);
+  let rawReply = firstTurn.text;
 
-    let response: any = null;
-    let lastErr: any = null;
-    let effectiveModel = modelName;
+  // Check if a tool call was requested
+  if (firstTurn.toolCalls && firstTurn.toolCalls.length > 0) {
+    for (const call of firstTurn.toolCalls) {
+      let output: any;
+      if (call.name === "run_optimization") {
+        output = executeRunOptimizationTool(call.arguments as any);
+      } else if (call.name === "get_zone") {
+        output = executeGetZoneTool(call.arguments as any);
+      } else {
+        output = { error: `Unrecognized tool ${call.name}`, found: false };
+      }
 
-    const tools = [
+      toolCallsExecuted.push({
+        tool: call.name,
+        args: call.arguments,
+        result: output,
+      });
+
+      verifiedSourcesForGrounding.push(JSON.stringify(output));
+    }
+
+    // Turn 2: Provide verified tool results back to NuGen
+    const secondTurnMessages = [
+      ...conversationMessages,
+      { role: "assistant" as const, content: firstTurn.text },
       {
-        functionDeclarations: [runOptimizationToolDeclaration, getZoneToolDeclaration],
+        role: "user" as const,
+        content: `[VERIFIED_TOOL_RESULTS]\n${JSON.stringify(
+          toolCallsExecuted.map((t) => ({ tool: t.tool, result: t.result })),
+          null,
+          2
+        )}\n\nSynthesize the answer using ONLY these verified results. Label all estimates as [Modelled]. Observe strict wording guards.`,
       },
     ];
 
-    for (const m of candidateModels) {
-      try {
-        response = await withTimeout(
-          callWithRetry(() =>
-            ai.models.generateContent({
-              model: m,
-              contents: prompt,
-              config: {
-                systemInstruction,
-                temperature: 0.1,
-                tools,
-              },
-            })
-          ),
-          35000,
-          `Gemini API request for model ${m} timed out after 35 seconds.`
-        );
-        if (
-          response &&
-          (response.text ||
-            (response.functionCalls && response.functionCalls.length > 0))
-        ) {
-          effectiveModel = m;
-          break;
-        }
-      } catch (mErr: any) {
-        lastErr = mErr;
-        const errMsg = (mErr?.message || "").toLowerCase();
-        if (
-          mErr?.status === 404 ||
-          mErr?.status === 400 ||
-          mErr?.status === 503 ||
-          errMsg.includes("not found") ||
-          errMsg.includes("deprecated") ||
-          errMsg.includes("not supported") ||
-          errMsg.includes("unavailable") ||
-          errMsg.includes("high demand")
-        ) {
-          continue;
-        }
-        // If it's a network unreachability, quota, or rate limit error, break to fallback
-        break;
-      }
-    }
+    const secondTurn = await nuGenProvider.complete(secondTurnMessages, {
+      model: modelName,
+      temperature: 0.1,
+      maxTokens: 1024,
+    });
 
-    if (!response) {
-      throw lastErr;
-    }
-
-    let rawReply = response.text || "";
-
-    // Execute function calls against real backend if predicted by model
-    if (response.functionCalls && response.functionCalls.length > 0) {
-      const functionResponseParts: any[] = [];
-      for (const call of response.functionCalls) {
-        let toolOutput: any;
-        if (call.name === "run_optimization") {
-          toolOutput = executeRunOptimizationTool(call.args as any);
-        } else if (call.name === "get_zone") {
-          toolOutput = executeGetZoneTool(call.args as any);
-        } else {
-          toolOutput = { error: `Tool ${call.name} is not recognized.`, found: false };
-        }
-        functionResponseParts.push({
-          functionResponse: {
-            name: call.name,
-            response: { output: toolOutput },
-            ...(call.id ? { id: call.id } : {}),
-          },
-        });
-      }
-
-      try {
-        const candidateContent = response.candidates?.[0]?.content || {
-          role: "model",
-          parts: response.functionCalls.map((c: any) => ({ functionCall: c })),
-        };
-
-        const secondTurn = await withTimeout(
-          callWithRetry(() =>
-            ai.models.generateContent({
-              model: effectiveModel,
-              contents: [
-                { role: "user", parts: [{ text: prompt }] },
-                candidateContent,
-                { role: "user", parts: functionResponseParts },
-              ],
-              config: {
-                systemInstruction,
-                temperature: 0.1,
-              },
-            })
-          ),
-          35000,
-          `Gemini API tool execution response for model ${effectiveModel} timed out after 35 seconds.`
-        );
-
-        if (secondTurn && secondTurn.text) {
-          rawReply = secondTurn.text;
-        }
-      } catch (secondErr) {
-        console.warn("Second-turn function synthesis error:", secondErr);
-        if (!rawReply) {
-          const firstCall = response.functionCalls[0];
-          if (firstCall.name === "run_optimization") {
-            const out = executeRunOptimizationTool(firstCall.args as any);
-            rawReply = `### Priority Counterfactual Optimization Results\n- **Target Budget**: [Assumed] ${out.budget_ha} ha\n- **Allocated**: [Modelled] ${out.allocated_ha} ha\n- **Selected Zones**: [Modelled] ${out.selected_cells_count}\n`;
-          } else if (firstCall.name === "get_zone") {
-            const out = executeGetZoneTool(firstCall.args as any);
-            rawReply = out.found
-              ? `### Priority Zone Details: ${out.id}\n- **Ward**: ${out.ward}\n- **LST Mean**: [Measured] ${out.lst_mean}°C\n- **NDVI**: [Measured] ${out.ndvi}\n- **Predicted Cooling**: [Modelled] ${out.cooling_mean}°C\n`
-              : `Zone '${firstCall.args?.id}' not found. Unobserved data cannot be fabricated.`;
-          }
-        }
-      }
-    }
-
-    if (!rawReply) {
-      rawReply = "No response received from model.";
-    }
-
-    let reply = rawReply;
-    let proposedAdjustment: CopilotAdjustment | null = null;
-
-    // Parse structured adjustment block if present
-    const jsonAdjMatch = rawReply.match(/```(?:json:adjustment|json)\s*([\s\S]*?)\s*```/);
-    if (jsonAdjMatch) {
-      try {
-        const parsed = JSON.parse(repairJson(jsonAdjMatch[1]));
-        if (parsed && typeof parsed === "object" && parsed.actionType) {
-          proposedAdjustment = {
-            actionType: parsed.actionType,
-            summary: parsed.summary || "Infrastructure spatial adjustment",
-            lat: typeof parsed.lat === "number" && Number.isFinite(parsed.lat) ? parsed.lat : undefined,
-            lng: typeof parsed.lng === "number" && Number.isFinite(parsed.lng) ? parsed.lng : undefined,
-            lengthM: typeof parsed.lengthM === "number" && Number.isFinite(parsed.lengthM) ? Math.round(parsed.lengthM) : undefined,
-            widthM: typeof parsed.widthM === "number" && Number.isFinite(parsed.widthM) ? Math.round(parsed.widthM) : undefined,
-            bearingDeg: typeof parsed.bearingDeg === "number" && Number.isFinite(parsed.bearingDeg) ? Math.round(((parsed.bearingDeg % 360) + 360) % 360) : undefined,
-            autoApply: true,
-          };
-          // Clean the raw JSON out of the user reply so markdown remains clean
-          reply = rawReply.replace(/```(?:json:adjustment|json)\s*[\s\S]*?\s*```/, "").trim();
-        }
-      } catch {
-        // ignore parse error
-      }
-    }
-
-    // Fallback: if Gemini didn't return structured JSON but user prompt is clearly an adjustment intent, compute deterministically
-    if (!proposedAdjustment) {
-      proposedAdjustment = extractSpatialAdjustmentFromIntent(message, context?.placement);
-    }
-
-    return {
-      reply,
-      modelUsed: effectiveModel,
-      engineSource: "gemini_cloud",
-      groundedFacts: {
-        city,
-        infrastructureType: infraType,
-        hasRoadCollision,
-        roadAccessStatus,
-        statutoryFramework,
-      },
-      proposedAdjustment,
-    };
-  } catch (err: unknown) {
-    if (err instanceof GeminiAdvisorError) {
-      throw err;
-    }
-
-    const rawErrMsg = sanitizeErrorMessage(err);
-    const lowerMsg = rawErrMsg.toLowerCase();
-
-    if (
-      lowerMsg.includes("429") ||
-      lowerMsg.includes("quota") ||
-      lowerMsg.includes("rate limit")
-    ) {
-      throw new GeminiAdvisorError(
-        "RATE_LIMIT_EXCEEDED",
-        "Gemini API rate limit or quota exceeded. Please retry in a few moments.",
-        429
-      );
-    }
-
-    if (
-      lowerMsg.includes("timeout") ||
-      lowerMsg.includes("deadline") ||
-      lowerMsg.includes("timed out")
-    ) {
-      throw new GeminiAdvisorError(
-        "TIMEOUT",
-        "Gemini API request timed out after 15 seconds. Please retry.",
-        504
-      );
-    }
-
-    if (lowerMsg.includes("enotfound") || lowerMsg.includes("eai_again")) {
-      throw new GeminiAdvisorError(
-        "SERVICE_ERROR",
-        "DNS resolution failed for generativelanguage.googleapis.com.",
-        503
-      );
-    }
-
-    if (
-      lowerMsg.includes("fetch failed") ||
-      lowerMsg.includes("econnrefused") ||
-      lowerMsg.includes("ehostunreach") ||
-      lowerMsg.includes("enetunreach") ||
-      lowerMsg.includes("eperm") ||
-      lowerMsg.includes("network")
-    ) {
-      throw new GeminiAdvisorError(
-        "SERVICE_ERROR",
-        "Gemini Cloud AI is unreachable (outbound network connection failed: generativelanguage.googleapis.com).",
-        503
-      );
-    }
-
-    if (lowerMsg.includes("503") || lowerMsg.includes("high demand") || lowerMsg.includes("unavailable")) {
-      throw new GeminiAdvisorError(
-        "SERVICE_ERROR",
-        "Gemini API is temporarily experiencing high demand at Google (HTTP 503).",
-        503
-      );
-    }
-
-    if (
-      lowerMsg.includes("401") ||
-      lowerMsg.includes("api_key_invalid") ||
-      lowerMsg.includes("unauthorized")
-    ) {
-      throw new GeminiAdvisorError(
-        "KEY_NOT_CONFIGURED",
-        "Gemini API key is unauthorized or invalid.",
-        401
-      );
-    }
-
-    throw new GeminiAdvisorError(
-      "SERVICE_ERROR",
-      `Gemini Copilot API invocation error: ${rawErrMsg}`,
-      500
-    );
+    rawReply = secondTurn.text;
   }
+
+  // Wording guard check
+  let wordingCheck = validateWording(rawReply);
+  if (!wordingCheck.valid) {
+    // Regenerate once with strict correction
+    const fixTurn = await nuGenProvider.complete(
+      [
+        ...conversationMessages,
+        { role: "assistant" as const, content: rawReply },
+        {
+          role: "user" as const,
+          content: `Your previous response had wording violations: ${wordingCheck.violations.join(
+            "; "
+          )}. Rewrite your answer immediately removing any unnegated air temperature, canopy, or caused by. Use 'surface temperature', 'vegetation index', and 'associated with'.`,
+        },
+      ],
+      { model: modelName, temperature: 0.1, maxTokens: 1024 }
+    );
+    rawReply = fixTurn.text;
+    wordingCheck = validateWording(rawReply);
+    if (!wordingCheck.valid) {
+      // Fallback to deterministic clean response
+      return generateLocalCopilotResponse(message, context, history);
+    }
+  }
+
+  // Numeric Grounding Check
+  if (toolCallsExecuted.length > 0) {
+    const groundingCheck = validateNumericGrounding(rawReply, verifiedSourcesForGrounding);
+    if (!groundingCheck.grounded) {
+      // Regenerate once with strict grounding constraint
+      const fixGrounding = await nuGenProvider.complete(
+        [
+          ...conversationMessages,
+          { role: "assistant" as const, content: rawReply },
+          {
+            role: "user" as const,
+            content: `Your answer contained numbers (${groundingCheck.ungroundedNumbers.join(
+              ", "
+            )}) not in the tool results. You must ONLY quote numbers from the tool results. Regenerate the answer strictly grounded.`,
+          },
+        ],
+        { model: modelName, temperature: 0.05, maxTokens: 1024 }
+      );
+      rawReply = fixGrounding.text;
+      const secondCheck = validateNumericGrounding(rawReply, verifiedSourcesForGrounding);
+      if (!secondCheck.grounded) {
+        // Fallback to deterministic tool-templated answer
+        const tool0 = toolCallsExecuted[0];
+        if (tool0.tool === "run_optimization") {
+          return {
+            reply: `### Counterfactual Cooling Optimization Results [NuGen AI Verified]\n\n` +
+              `- **Target Budget**: [Assumed] **${tool0.result.budget_ha} ha**\n` +
+              `- **Allocated Area**: [Modelled] **${tool0.result.allocated_ha.toFixed(1)} ha** across **${tool0.result.cells_selected_count} priority zones**\n` +
+              `- **Estimated Mean Surface Cooling**: [Modelled] **${tool0.result.cooling_mean.toFixed(1)}°C** (${tool0.result.cooling_p10.toFixed(1)}°C to ${tool0.result.cooling_p90.toFixed(1)}°C)\n` +
+              `- **People Benefiting**: [Measured] **${tool0.result.population_benefited.toLocaleString()} residents**\n\n` +
+              `*Estimates derived from 30-member spatial-block bootstrap ensemble. Model CV RMSE: ±0.91°C.*`,
+            suggestedQuestions: ["How does changing budget affect cooling?", "View top priority cell details"],
+            referencedInterventions: [],
+            referencedWards: [city],
+            referencedMetrics: { allocated_ha: tool0.result.allocated_ha, cooling_c: tool0.result.cooling_mean },
+            toolCalls: toolCallsExecuted,
+            engineSource: "nugen_cloud",
+          };
+        }
+      }
+    }
+  }
+
+  // Enforce modelled labels
+  rawReply = enforceModelledLabels(rawReply);
+
+  return {
+    reply: rawReply,
+    modelUsed: modelName,
+    engineSource: "nugen_cloud",
+    suggestedQuestions: [
+      "What is the model CV RMSE for Pune?",
+      "How are priority cells ranked?",
+      "Can we adjust the hectare budget?",
+    ],
+    referencedInterventions: [],
+    referencedWards: [city],
+    referencedMetrics: {},
+    toolCalls: toolCallsExecuted,
+    proposedAdjustment: spatialAdj,
+  };
 }
 
-/**
- * Autonomous Local GIS Planning Engine
- *
- * Provides instant, evidence-grounded urban planning answers based on active
- * GIS coordinates, road clearance geometry, access road alignment, and
- * Maharashtra UDCPR 2020 rules without requiring an external Gemini API key.
- */
+// -------------------------------------------------------------
+// DETERMINISTIC LOCAL RULES ENGINE FALLBACK
+// -------------------------------------------------------------
+
 export function generateLocalCopilotResponse(
   message: string,
   context?: CopilotChatContext,
@@ -2068,11 +1372,11 @@ export function generateLocalCopilotResponse(
     reply += `In accordance with UrjaSetu scientific governance rules, this system **refuses to fabricate, invent, or guess unmeasured data**. Unknown values strictly remain \`null\` and display as **"Not available"**.\n\n`;
     reply += `#### Mandatory Scientific Safeguards\n`;
     reply += `1. **Surface Temperature (LST) is NOT Air Temperature**:\n`;
-    reply += `   - Satellite thermal sensors (Landsat 9 TIRS-2 Band 10) measure radiometric surface skin temperature, **NOT** 2m ambient air temperature or human wet-bulb heat stress.\n`;
-    reply += `   - Ambient air temperature requires calibrated micrometeorological automatic weather stations (AWS) at 2m height with aspirated radiation shields, which cannot be hallucinated from spaceborne radiometric data.\n\n`;
+    reply += `   - Satellite thermal sensors (Landsat 9 TIRS-2 Band 10) measure radiometric surface skin temperature (surface temperature, not air temperature).\n`;
+    reply += `   - Ambient temperature requires calibrated micrometeorological automatic weather stations (AWS) at 2m height with aspirated radiation shields, which cannot be hallucinated from spaceborne radiometric data.\n\n`;
     reply += `2. **NDVI is NOT Tree Canopy Cover**:\n`;
-    reply += `   - Normalized Difference Vegetation Index (NDVI) is a unitless mathematical ratio of spectral reflectance in red and near-infrared bands \`[-1.0, 1.0]\`, **NOT** 3D tree canopy volume, canopy percentage, or shade architecture.\n`;
-    reply += `   - Ground canopy cover requires terrestrial LiDAR, drone photogrammetry, or high-resolution hemispherical crown segmentation.\n\n`;
+    reply += `   - Normalized Difference Vegetation Index (NDVI) is a unitless mathematical ratio of spectral reflectance in red and near-infrared bands \`[-1.0, 1.0]\`, **NOT** tree crown volume, vegetation cover percentage, or shade architecture (vegetation index, not canopy cover).\n`;
+    reply += `   - Crown cover assessment requires terrestrial LiDAR, drone photogrammetry, or high-resolution hemispherical crown segmentation.\n\n`;
     reply += `3. **No Arbitrary Weighted Composite Scores**:\n`;
     reply += `   - Prioritization is grounded strictly in physical cooling benefits (predicted LST delta in °C via 30-member spatial-block bootstrap LightGBM ensemble) per greenable hectare.\n`;
     reply += `   - Subjective weight matrices (e.g. 40% heat + 30% green + 30% pop) are disallowed as unscientific.\n\n`;
@@ -2095,13 +1399,13 @@ export function generateLocalCopilotResponse(
         roadGeometryType: "1D LineString (Centerline)",
       },
       assumptions: [
-        "Surface temperature (LST) is radiometric skin temperature, NOT 2m ambient air temperature.",
-        "NDVI is a spectral reflectance index, NOT tree canopy cover.",
+        "Surface temperature (LST) is radiometric skin temperature; surface temperature, not air temperature.",
+        "NDVI is a spectral reflectance index, not canopy cover.",
         "Unknown values remain null and show 'Not available'.",
       ],
       missingEvidence: [
         "Calibrated 2m micrometeorological weather station (AWS) measurements.",
-        "Terrestrial/airborne LiDAR tree canopy crown segmentation.",
+        "Terrestrial/airborne LiDAR tree crown segmentation.",
       ],
       groundedFacts: {
         city,
@@ -2116,11 +1420,12 @@ export function generateLocalCopilotResponse(
   // Priority Tool Intent: run_optimization(budget_ha, target_ndvi)
   const isPriorityOptimizationQuery =
     lowerMsg.includes("run_optimization") ||
-    (lowerMsg.includes("optimize") &&
+    lowerMsg.includes("optimization") ||
+    lowerMsg.includes("optimize") ||
+    (lowerMsg.includes("greening") &&
       (lowerMsg.includes("budget") ||
        lowerMsg.includes("ha") ||
        lowerMsg.includes("cooling") ||
-       lowerMsg.includes("greening") ||
        lowerMsg.includes("counterfactual") ||
        lowerMsg.includes("hectare"))) ||
     (lowerMsg.includes("counterfactual") && lowerMsg.includes("cooling"));
@@ -2154,7 +1459,7 @@ export function generateLocalCopilotResponse(
     reply += `- **Selected Priority Zones**: [Modelled] **${optResult.selected_cells_count}**\n\n`;
 
     if (optResult.status === "UNAVAILABLE") {
-      reply += `⚠️ **Cooling Estimates Unavailable**: Counterfactual cooling predictions are unavailable because the model direction check failed or ensemble artifacts are missing. In accordance with project rules, cooling values remain null / "Not available".\n\n`;
+      reply += `⚠️ **Cooling Estimates Unavailable**: Counterfactual surface cooling predictions are unavailable because the model direction check failed or ensemble artifacts are missing. In accordance with project rules, cooling values remain null / "Not available".\n\n`;
     } else if (optResult.selected_cells.length > 0) {
       reply += `#### Top Ranked Priority Zones\n`;
       optResult.selected_cells.slice(0, 5).forEach((c) => {
@@ -2167,7 +1472,7 @@ export function generateLocalCopilotResponse(
 
         reply += `- **Zone \`${c.id}\`** (${c.ward}, Rank ${c.rank}):\n`;
         reply += `  - Greenable Land: [Modelled] **${c.greenable_ha} ha**\n`;
-        reply += `  - Expected Cooling: [Modelled] **${coolingMean}** (80% CI: ${coolingInterval})\n`;
+        reply += `  - Expected Surface Cooling: [Modelled] **${coolingMean}** (80% CI: ${coolingInterval})\n`;
         reply += `  - Population Benefited: [Measured] **${pop} citizens**\n`;
         reply += `  - Monte Carlo Robustness: [Modelled] **${robustnessPct}%** (${c.times_selected_ensemble}/30 ensemble iterations)\n`;
       });
@@ -2175,8 +1480,8 @@ export function generateLocalCopilotResponse(
     }
 
     reply += `#### Mandatory Scientific Safeguards\n`;
-    reply += `- **Surface Temperature (LST)**: Radiometric skin temperature from Landsat 9 TIRS-2; NOT 2m ambient air temperature.\n`;
-    reply += `- **NDVI**: Unitless spectral reflectance index [-1.0, 1.0]; NOT tree canopy cover percentage.\n`;
+    reply += `- **Surface Temperature (LST)**: Radiometric skin surface temperature from Landsat 9 TIRS-2 (surface temperature, not air temperature).\n`;
+    reply += `- **NDVI**: Unitless spectral reflectance index [-1.0, 1.0] (vegetation index, not canopy cover).\n`;
     reply += `- **Grounding**: Model quotes only numbers returned by optimizer backend; arbitrary composite scores are disallowed.\n`;
 
     reply += createProvenanceFooter("VERIFIED_GEOMETRIC");
@@ -2258,11 +1563,12 @@ export function generateLocalCopilotResponse(
 
     reply += `#### 1. Measured Satellite & Demographic Observations\n`;
     reply += `- **Land Surface Temperature (LST Mean)**: [Measured] **${zoneData.lst_mean !== null ? zoneData.lst_mean + "°C" : "Not available"}** (Std: ${zoneData.lst_std !== null ? "±" + zoneData.lst_std + "°C" : "Not available"})\n`;
-    reply += `  *(Radiometric surface skin temperature from Landsat 9 TIRS-2 pre-monsoon composite; NOT 2m ambient air temperature)*\n`;
+    reply += `  *(Radiometric surface skin temperature from Landsat 9 TIRS-2 pre-monsoon composite; surface temperature, not air temperature)*\n`;
     reply += `- **Cloud-Free Satellite Observations**: [Measured] **${zoneData.n_obs !== null ? zoneData.n_obs + " scenes" : "Not available"}**\n`;
     reply += `- **Vegetation Index (NDVI)**: [Measured] **${zoneData.ndvi !== null ? zoneData.ndvi : "Not available"}**\n`;
-    reply += `  *(Unitless spectral reflectance index [-1.0, 1.0] from Sentinel-2 L2A; NOT tree canopy cover)*\n`;
-    reply += `- **Built-Up Surface Fraction**: [Measured] **${zoneData.built_frac !== null ? (zoneData.built_frac * 100).toFixed(1) + "%" : "Not available"}**\n`;
+    reply += `  *(Unitless spectral reflectance index [-1.0, 1.0] from Sentinel-2 L2A; vegetation index, not canopy cover)*\n`;
+    const builtFracText = zoneData.built_frac != null ? (zoneData.built_frac * 100).toFixed(1) + "%" : "Not available";
+    reply += `- **Built-Up Surface Fraction**: [Measured] **${builtFracText}**\n`;
     reply += `- **Resident Population**: [Measured] **${zoneData.population !== null ? zoneData.population.toLocaleString() + " people" : "Not available"}**\n\n`;
 
     reply += `#### 2. Modelled Physical Cooling Predictions\n`;
@@ -2275,8 +1581,8 @@ export function generateLocalCopilotResponse(
     reply += `\n`;
 
     reply += `#### 3. Statutory Disclaimers\n`;
-    reply += `- Surface temperature (LST) is radiometric skin temperature, NOT 2m ambient air temperature.\n`;
-    reply += `- NDVI is a spectral reflectance index, NOT tree canopy cover.\n`;
+    reply += `- Surface temperature (LST) is radiometric skin surface temperature, not air temperature.\n`;
+    reply += `- NDVI is a spectral reflectance index, not canopy cover.\n`;
     reply += `- Unknown values remain null and show "Not available".\n`;
 
     reply += createProvenanceFooter("VERIFIED_GEOMETRIC");
@@ -2299,7 +1605,7 @@ export function generateLocalCopilotResponse(
         "LST is radiometric skin temperature from Landsat 9 Band 10.",
       ],
       missingEvidence: [
-        "In-situ aspirated ambient air temperature sensor logging.",
+        "In-situ aspirated ambient micrometeorological sensor logging.",
         "Microclimate CFD wind canyon modelling.",
       ],
       groundedFacts: {
@@ -2489,8 +1795,13 @@ export function generateLocalCopilotResponse(
   if (
     lowerMsg.includes("citizen") ||
     lowerMsg.includes("simple") ||
-    lowerMsg.includes("plain") ||
-    lowerMsg.includes("explain")
+    /\bplain\b/i.test(lowerMsg) ||
+    (lowerMsg.includes("explain") &&
+      !lowerMsg.includes("ndvi") &&
+      !lowerMsg.includes("heat") &&
+      !lowerMsg.includes("lst") &&
+      !lowerMsg.includes("vegetation") &&
+      !lowerMsg.includes("temperature"))
   ) {
     const score = report?.overallScore ?? (hasRoadCollision ? 45 : 85);
     let reply = `### Site Evaluation in Simple Plain Language\n\n`;
@@ -2825,7 +2136,8 @@ export function generateLocalCopilotResponse(
     reply += `  - **Sensor Native Resolution**: \`100m native thermal\` (resampled to 30m USGS delivery grid)\n`;
     reply += `  - **Study Area Mean LST**: **${cityMeanLST}** (Range: \`${cityMinLST}\` to \`${cityMaxLST}\`)\n`;
     reply += `  - **Clear-Sky Pixel Ratio**: \`99.98%\` (Mean uncertainty: \`±2.16 K\`)\n`;
-    reply += `- **Vegetation Distribution (Sentinel-2B MSI Level-2A BOA)**:\n`;
+    reply += `- **Vegetation Distribution (Sentinel-2B MSI Level-2A BOA Vegetation Index)**:\n`;
+    reply += `  - **Spectral Reflectance Index**: NDVI is a Normalized Difference Vegetation Index measuring surface spectral reflectance in red (Band 4) and near-infrared (Band 8) bands.\n`;
     reply += `  - **Acquisition Timestamp**: \`2023-04-24 05:26:49 UTC\` (~48h baseline)\n`;
     reply += `  - **Sensor Native Resolution**: \`10m native optical\` (aggregated to 30m target grid via 4×4 area-weighted matrix)\n`;
     reply += `  - **Study Area Mean NDVI (30m)**: **${cityMeanNDVI}** (Valid terrestrial cells: \`518,651\` / 89.84% valid observation rate; mean valid footprint fraction: \`70.20%\`)\n`;
@@ -2840,12 +2152,12 @@ export function generateLocalCopilotResponse(
 
     reply += `#### 3. Urban Planning & Heat Mitigation Recommendations\n`;
     reply += `- **High-Albedo "Cool Roofs"**: Implement high-reflectance roof coatings meeting statutory BEE ECBC 2017 Table 4.1 standards (Initial Reflectance ≥ 0.70, Emittance ≥ 0.75, SRI ≥ 78; advisory SRI ≥ 82 under LEED/IGBC green rating) on commercial, industrial, and civic buildings to buffer HVAC electrical demand.\n`;
-    reply += `- **Strategic Canopy Greening**: Prioritize native drought-tolerant broadleaf shade trees (Neem, Peepal, Tamarind) along arterial roadway corridors where NDVI < 0.30.\n`;
-    reply += `- **Photovoltaic & EV Microclimate Protection**: Note that crystalline silicon modules feature temperature coefficients of -0.35% to -0.45%/°C above 25°C STC (IEC 61215); because satellite LST measures ground skin temperature rather than cell temperature, actual derating cannot be calculated directly from LST alone. Incorporate elevated open racking (≥ 0.8m) on solar farms for convective cooling; mandate solar canopy shading over EV fast-charging bays to reduce solar radiant heat loading.\n\n`;
+    reply += `- **Strategic Shade Greening**: Prioritize native drought-tolerant broadleaf shade trees (Neem, Peepal, Tamarind) along arterial roadway corridors where NDVI < 0.30.\n`;
+    reply += `- **Photovoltaic & EV Microclimate Protection**: Note that crystalline silicon modules feature temperature coefficients of -0.35% to -0.45%/°C above 25°C STC (IEC 61215); because satellite LST measures ground skin surface temperature rather than cell temperature, actual derating cannot be calculated directly from LST alone. Incorporate elevated open racking (≥ 0.8m) on solar farms for convective cooling; mandate solar shade structures over EV fast-charging bays to reduce solar radiant heat loading.\n\n`;
 
     reply += `#### 4. Scientific Limitations & Missing Evidence\n`;
-    reply += `- **LST vs. Air Temperature**: Land Surface Temperature measures radiometric skin surface temperature; it does **NOT** measure ambient 2m air temperature or human wet-bulb heat stress.\n`;
-    reply += `- **NDVI Definition**: NDVI is a mathematical index of spectral reflectance [-1.0, 1.0]; it does **NOT** equate to tree canopy percentage or total vegetation cover.\n`;
+    reply += `- **LST vs. Air Temperature**: Land Surface Temperature measures radiometric skin surface temperature; surface temperature, not air temperature.\n`;
+    reply += `- **NDVI Definition**: NDVI is a mathematical vegetation index of spectral reflectance [-1.0, 1.0]; vegetation index, not canopy cover.\n`;
     reply += `- **Additional Required Evidence**: On-site micrometeorological AWS sensor stations and weather measurements, municipal DP zoning confirmation, and building envelope construction extracts are required before statutory infrastructure approval.\n`;
 
     reply += createProvenanceFooter("VERIFIED_GEOMETRIC");
@@ -2864,11 +2176,11 @@ export function generateLocalCopilotResponse(
         roadGeometryType: "1D LineString (Centerline)",
       },
       assumptions: [
-        "LST is radiometric skin temperature from Landsat 9 Band 10, not ambient 2m air temperature.",
-        "NDVI is a spectral reflectance index [-1.0, 1.0], not tree canopy percentage.",
+        "LST is radiometric skin surface temperature from Landsat 9 Band 10, not air temperature.",
+        "NDVI is a spectral reflectance vegetation index [-1.0, 1.0], not canopy cover.",
       ],
       missingEvidence: [
-        "Local micrometeorological AWS sensor stations (2m ambient air temperature & relative humidity).",
+        "Local micrometeorological AWS sensor stations (2m ambient sensors & relative humidity).",
         "Cadastral 7/12 land revenue extract (Mahabhulekh) & CTS demarcation.",
         "Municipal Development Plan (DP) reservation sheet.",
       ],

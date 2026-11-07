@@ -78,6 +78,16 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 | `NASA_POWER_API_URL` | NASA POWER solar irradiance (GHI) endpoint | `https://power.larc.nasa.gov/api/temporal/climatology/point` |
 | `GEO_USER_AGENT` | User-Agent header for OSM API compliance | Required descriptive contact string |
 
+### NuGen AI Integration
+UrjaSetu uses NuGen AI (`meta-llama/Llama-3.2-3B-Instruct`) for spatial decision intelligence. Configure credentials in `.env.local`:
+```bash
+NUGEN_API_KEY="nugen-your-api-key"
+NUGEN_BASE_URL="https://api.nugen.in/api/v3"
+NUGEN_MODEL="meta-llama/Llama-3.2-3B-Instruct"
+LLM_PROVIDER="nugen"
+```
+If credentials are absent, UrjaSetu automatically falls back to its deterministic local GIS engine.
+
 ---
 
 ## 5. Running Tests & Quality Verification

@@ -1,0 +1,54 @@
+{
+  "timestamp": "2026-11-07T09:33:22.753Z",
+  "endpointsTested": [],
+  "workingModelId": null,
+  "capabilities": {
+    "systemRole": {
+      "status": 200,
+      "prefixed": false,
+      "response": "SYSTEM_ACK\n\nHello! How can I assist you today?"
+    },
+    "nativeToolCalling": {
+      "status": 200,
+      "hasToolCalls": false,
+      "toolCalls": null,
+      "response": {
+        "content": "# Get Weather Function in Pune\nThe following Python function uses the OpenWeatherMap API to fetch the current and future weather conditions in Pune.\n\n### Installation\n\nTo use this function, you'll need to install the `requests` library. You can do this with pip:\n\n```bash\npip install requests\n```\n\n### Code\n\n```python\nimport requests\n\ndef get_weather(city='Pune', api_key='YOUR_OPENWEATHERMAP_API_KEY'):\n    \"\"\"\n    Fetches the current weather conditions and forecast for a given city.\n\n    Args:\n    city (str): The city for which to fetch the weather.\n    api_key (str): Your OpenWeatherMap API key.\n\n    Returns:\n    dict: A dictionary containing the current and future",
+        "role": "assistant",
+        "tool_calls": null
+      }
+    },
+    "jsonMode": {
+      "status": 200,
+      "parsed": {
+        "status": "ok",
+        "count": 42
+      },
+      "valid": true
+    },
+    "streaming": {
+      "status": 200,
+      "isSse": true
+    },
+    "errorHandling": {
+      "status401": 401,
+      "errorFormat": {
+        "detail": "Invalid or expired token"
+      }
+    }
+  },
+  "discoveredModels": [
+    "meta-llama/Llama-3.2-3B-Instruct",
+    "microsoft/Phi-3-mini-4k-instruct",
+    "microsoft/Phi-4-mini-instruct",
+    "Qwen/Qwen2.5-0.5B-Instruct",
+    "Qwen/Qwen2.5-1.5B-Instruct",
+    "Qwen/Qwen2.5-3B-Instruct",
+    "Qwen/Qwen2.5-7B-Instruct",
+    "Qwen/Qwen2-VL-2B-Instruct",
+    "Qwen/Qwen3-4B-Instruct-2507",
+    "deepseek-ai/DeepSeek-V4.1-Flash"
+  ],
+  "workingChatEndpoint": "https://api.nugen.in/api/v3/inference/chat/completions",
+  "workingModel": "meta-llama/Llama-3.2-3B-Instruct"
+}

@@ -123,7 +123,7 @@ export const UnifiedTopBar: React.FC<UnifiedTopBarProps> = ({
           type="button"
           onClick={onOpenCopilot}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-600/80 text-xs font-bold text-emerald-300 transition-all shadow-xs"
-          title="Ask Gemini AI Planning Advisor (⌘J)"
+          title="Ask NuGen AI Planning Advisor (⌘J)"
         >
           <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
           <span className="hidden md:inline">AI Advisor</span>

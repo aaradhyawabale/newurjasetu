@@ -13,7 +13,7 @@ import { TwoScenarioComparisonModal } from "@/components/priority/TwoScenarioCom
 import { ShadowSimulatorModal } from "@/components/solar/ShadowSimulatorModal";
 import { SolarRealityModal } from "@/components/solar/SolarRealityModal";
 import { ScenarioComparisonModal } from "@/components/scenarios/ScenarioComparisonModal";
-import { CopilotChatContext } from "@/server/ai/gemini-advisor";
+import { CopilotChatContext } from "@/server/ai/advisor";
 
 interface UserProfile {
   id: string;

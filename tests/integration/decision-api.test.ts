@@ -5,7 +5,7 @@ import { NextRequest } from "next/server";
 import { GET, POST } from "@/app/api/analyses/[id]/decision/route";
 import { AiPlanningInsights } from "@/server/ai/types";
 
-describe("Gemini Decision API Integration & Security", () => {
+describe("NuGen Decision API Integration & Security", () => {
   let user1Id: string;
   let user2Id: string;
   let user1Token: string;
@@ -60,7 +60,7 @@ describe("Gemini Decision API Integration & Security", () => {
     },
     assumptionsAndLimitations: ["Indicative decision support only."],
     meta: {
-      modelUsed: "gemini-2.5-flash",
+      modelUsed: "meta-llama/Llama-3.2-3B-Instruct",
       generatedAt: "2026-10-19T11:00:00.000Z",
       disclaimer: "Indicative decision support only.",
     },

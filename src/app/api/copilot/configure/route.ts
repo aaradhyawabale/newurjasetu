@@ -1,12 +1,12 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { requireAuthUser } from "@/server/auth/session";
 import { successResponse, errorResponse, handleRouteError } from "@/server/utils/response";
 import fs from "fs";
 import path from "path";
 
 /**
- * Endpoint to configure and persist the Google Gemini API Key
- * directly from the Copilot Drawer UI on the user's laptop.
+ * Endpoint to configure and persist the NuGen AI API Key
+ * strictly to git-ignored .env.local.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -14,51 +14,65 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json().catch(() => ({}));
     const apiKey = typeof body.apiKey === "string" ? body.apiKey.trim() : "";
-    const model = typeof body.model === "string" && body.model.trim() ? body.model.trim() : "gemini-2.5-flash";
+    const model = typeof body.model === "string" && body.model.trim() ? body.model.trim() : "meta-llama/Llama-3.2-3B-Instruct";
 
     if (!apiKey) {
-      return errorResponse("Gemini API key cannot be empty", "INVALID_KEY", 400);
+      return NextResponse.json(
+        { success: false, error: "NuGen API key cannot be empty", message: "NuGen API key cannot be empty" },
+        { status: 400 }
+      );
     }
 
     // Update in-memory runtime environment immediately
-    process.env.GEMINI_API_KEY = apiKey;
-    process.env.GEMINI_MODEL = model;
+    process.env.NUGEN_API_KEY = apiKey;
+    process.env.NUGEN_MODEL = model;
+    process.env.LLM_PROVIDER = "nugen";
 
-    // Persist to .env file so it survives dev server restarts
+    // Persist strictly to git-ignored .env.local file
     try {
-      const envPath = path.resolve(process.cwd(), ".env");
+      const envPath = path.resolve(process.cwd(), ".env.local");
       let envContent = "";
       if (fs.existsSync(envPath)) {
         envContent = fs.readFileSync(envPath, "utf-8");
       }
 
-      if (envContent.includes("GEMINI_API_KEY=")) {
+      if (envContent.includes("NUGEN_API_KEY=")) {
         envContent = envContent.replace(
-          /GEMINI_API_KEY=.*(\r?\n|$)/g,
-          `GEMINI_API_KEY="${apiKey}"$1`
+          /NUGEN_API_KEY=.*(\r?\n|$)/g,
+          `NUGEN_API_KEY="${apiKey}"$1`
         );
       } else {
-        envContent += `\n# Google Gemini AI Key (Configured via Copilot)\nGEMINI_API_KEY="${apiKey}"\n`;
+        envContent += `\n# NuGen AI Model Key (Configured via Copilot)\nNUGEN_API_KEY="${apiKey}"\n`;
       }
 
-      if (envContent.includes("GEMINI_MODEL=")) {
+      if (envContent.includes("NUGEN_MODEL=")) {
         envContent = envContent.replace(
-          /GEMINI_MODEL=.*(\r?\n|$)/g,
-          `GEMINI_MODEL="${model}"$1`
+          /NUGEN_MODEL=.*(\r?\n|$)/g,
+          `NUGEN_MODEL="${model}"$1`
         );
       } else {
-        envContent += `GEMINI_MODEL="${model}"\n`;
+        envContent += `NUGEN_MODEL="${model}"\n`;
+      }
+
+      if (!envContent.includes("LLM_PROVIDER=")) {
+        envContent += `LLM_PROVIDER="nugen"\n`;
       }
 
       fs.writeFileSync(envPath, envContent, "utf-8");
     } catch (fsErr) {
-      console.warn("[Copilot Configure] Could not persist to .env file:", fsErr);
+      console.warn("[Copilot Configure] Could not persist to .env.local file:", fsErr);
     }
 
+    const maskedKey = apiKey.length > 8 ? `${apiKey.substring(0, 4)}...${apiKey.substring(apiKey.length - 4)}` : "...";
     return successResponse({
-      configured: true,
-      model,
-      message: "Gemini API key configured and activated successfully.",
+      success: true,
+      data: {
+        configured: true,
+        savedTo: ".env.local",
+        configuredModel: model,
+        maskedKey,
+        message: "NuGen AI model credentials configured successfully.",
+      },
     });
   } catch (err) {
     return handleRouteError(err);

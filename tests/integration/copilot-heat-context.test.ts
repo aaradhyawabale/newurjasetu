@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generateLocalCopilotResponse } from '@/server/ai/gemini-advisor';
+import { generateLocalCopilotResponse } from '@/server/ai/advisor';
 
 describe('Copilot Heat & Vegetation Intelligence Integration', () => {
   it('answers urban heat and LST questions with verified satellite observations', () => {
@@ -47,7 +47,7 @@ describe('Copilot Heat & Vegetation Intelligence Integration', () => {
     );
 
     expect(response.reply).toContain('High-Albedo "Cool Roofs"');
-    expect(response.reply).toContain('Strategic Canopy Greening');
+    expect(response.reply).toContain('Strategic Shade Greening');
     expect(response.reply).toContain('Photovoltaic & EV Microclimate Protection');
     expect(response.reply).toContain('Additional Required Evidence');
     expect(response.reply).toContain('micrometeorological AWS sensor stations');

@@ -3,11 +3,11 @@ import { prisma } from "@/server/db/prisma";
 import { requireAuthUser } from "@/server/auth/session";
 import { successResponse, errorResponse, handleRouteError } from "@/server/utils/response";
 import {
-  generateGeminiPlanningInsights,
-  isGeminiConfigured,
-  getGeminiModel,
-  GeminiAdvisorError,
-} from "@/server/ai/gemini-advisor";
+  generatePlanningInsights,
+  isAIConfigured,
+  getAIModel,
+  AIAdvisorError,
+} from "@/server/ai/advisor";
 import { AnalysisReportResult } from "@/server/analysis-engine/engine";
 
 export async function GET(
@@ -16,7 +16,7 @@ export async function GET(
 ) {
   try {
     const user = await requireAuthUser(req);
-    const configured = isGeminiConfigured();
+    const configured = isAIConfigured();
 
     const analysis = await prisma.analysis.findFirst({
       where: {
@@ -41,7 +41,7 @@ export async function GET(
 
     return successResponse({
       configured,
-      model: getGeminiModel(),
+      model: getAIModel(),
       hasInsights: Boolean(aiInsights),
       aiInsights,
     });
@@ -87,16 +87,16 @@ export async function POST(
       });
     }
 
-    if (!isGeminiConfigured()) {
+    if (!isAIConfigured()) {
       return errorResponse(
-        "Gemini API key is not configured on the server. Please add GEMINI_API_KEY to your .env file.",
+        "NuGen API key is not configured on the server. Please add NUGEN_API_KEY to your .env.local file.",
         "KEY_NOT_CONFIGURED",
         503
       );
     }
 
-    // Call Gemini advisor
-    const aiInsights = await generateGeminiPlanningInsights(parsedResult);
+    // Call NuGen advisor
+    const aiInsights = await generatePlanningInsights(parsedResult);
 
     // Persist insights inside the stored analysis result
     parsedResult.aiInsights = aiInsights;
@@ -112,7 +112,7 @@ export async function POST(
       aiInsights,
     });
   } catch (err) {
-    if (err instanceof GeminiAdvisorError) {
+    if (err instanceof AIAdvisorError) {
       return errorResponse(err.message, err.code, err.statusCode);
     }
     return handleRouteError(err);

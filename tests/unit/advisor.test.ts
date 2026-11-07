@@ -6,9 +6,9 @@ import {
   AiPlanningInsights,
 } from "@/server/ai/types";
 import {
-  isGeminiConfigured,
-  getGeminiModel,
-  generateGeminiPlanningInsights,
+  isAIConfigured,
+  getAIModel,
+  generatePlanningInsights,
   generateCopilotResponse,
   generateLocalCopilotResponse,
   movePointGeodesic,
@@ -17,11 +17,11 @@ import {
   cleanStudyAreaName,
   CopilotAdjustment,
   CopilotChatContext,
-  GeminiAdvisorError,
-} from "@/server/ai/gemini-advisor";
+  AIAdvisorError,
+} from "@/server/ai/advisor";
 import { AnalysisReportResult } from "@/server/analysis-engine/engine";
 
-describe("Gemini AI Advisor — Schema Validation & Provenance", () => {
+describe("NuGen AI Advisor — Schema Validation & Provenance", () => {
   const validMockInsights: AiPlanningInsights = {
     executiveSummary:
       "Site exhibits strong arterial road connectivity with low terrain slope, making it suitable for civic development subject to drainage approvals.",
@@ -100,7 +100,7 @@ describe("Gemini AI Advisor — Schema Validation & Provenance", () => {
       "Indicative screening only; not a substitute for physical survey.",
     ],
     meta: {
-      modelUsed: "gemini-2.5-flash",
+      modelUsed: "meta-llama/Llama-3.2-3B-Instruct",
       generatedAt: "2026-10-19T10:00:00.000Z",
       disclaimer: "Indicative decision support only.",
     },
@@ -183,7 +183,7 @@ describe("Gemini AI Advisor — Schema Validation & Provenance", () => {
   });
 });
 
-describe("Gemini AI Advisor — Configuration & Environment Handling", () => {
+describe("NuGen AI Advisor — Configuration & Environment Handling", () => {
   const originalEnv = process.env;
 
   beforeEach(() => {
@@ -194,29 +194,29 @@ describe("Gemini AI Advisor — Configuration & Environment Handling", () => {
     process.env = originalEnv;
   });
 
-  it("detects when GEMINI_API_KEY is missing or empty", () => {
-    delete process.env.GEMINI_API_KEY;
-    expect(isGeminiConfigured()).toBe(false);
+  it("detects when NUGEN_API_KEY is missing or empty", () => {
+    delete process.env.NUGEN_API_KEY;
+    expect(isAIConfigured()).toBe(false);
 
-    process.env.GEMINI_API_KEY = "   ";
-    expect(isGeminiConfigured()).toBe(false);
+    process.env.NUGEN_API_KEY = "   ";
+    expect(isAIConfigured()).toBe(false);
   });
 
-  it("detects when GEMINI_API_KEY is configured", () => {
-    process.env.GEMINI_API_KEY = "test_key_12345";
-    expect(isGeminiConfigured()).toBe(true);
+  it("detects when NUGEN_API_KEY is configured", () => {
+    process.env.NUGEN_API_KEY = "test_key_12345";
+    expect(isAIConfigured()).toBe(true);
   });
 
-  it("respects GEMINI_MODEL or defaults to gemini-3.5-flash", () => {
-    delete process.env.GEMINI_MODEL;
-    expect(getGeminiModel()).toBe("gemini-3.5-flash");
+  it("respects NUGEN_MODEL or defaults to meta-llama/Llama-3.2-3B-Instruct", () => {
+    delete process.env.NUGEN_MODEL;
+    expect(getAIModel()).toBe("meta-llama/Llama-3.2-3B-Instruct");
 
-    process.env.GEMINI_MODEL = "gemini-1.5-pro";
-    expect(getGeminiModel()).toBe("gemini-1.5-pro");
+    process.env.NUGEN_MODEL = "Qwen/Qwen2.5-7B-Instruct";
+    expect(getAIModel()).toBe("Qwen/Qwen2.5-7B-Instruct");
   });
 });
 
-describe("Gemini AI Advisor — Error Handling & Deterministic Integrity", () => {
+describe("NuGen AI Advisor — Error Handling & Deterministic Integrity", () => {
   const originalEnv = process.env;
 
   const mockReport: AnalysisReportResult = {
@@ -289,30 +289,30 @@ describe("Gemini AI Advisor — Error Handling & Deterministic Integrity", () =>
   });
 
   it("throws KEY_NOT_CONFIGURED error without calling SDK when key is absent", async () => {
-    delete process.env.GEMINI_API_KEY;
+    delete process.env.NUGEN_API_KEY;
 
-    await expect(generateGeminiPlanningInsights(mockReport)).rejects.toThrow(
-      GeminiAdvisorError
+    await expect(generatePlanningInsights(mockReport)).rejects.toThrow(
+      AIAdvisorError
     );
 
     try {
-      await generateGeminiPlanningInsights(mockReport);
+      await generatePlanningInsights(mockReport);
     } catch (err) {
-      const gErr = err as GeminiAdvisorError;
+      const gErr = err as AIAdvisorError;
       expect(gErr.code).toBe("KEY_NOT_CONFIGURED");
       expect(gErr.statusCode).toBe(503);
     }
   });
 
   it("never mutates the input report's deterministic score or validation results", async () => {
-    delete process.env.GEMINI_API_KEY;
+    delete process.env.NUGEN_API_KEY;
 
     const originalScore = mockReport.overall.score;
     const originalBand = mockReport.overall.band;
     const originalCriteriaCount = mockReport.criteria.length;
 
     try {
-      await generateGeminiPlanningInsights(mockReport);
+      await generatePlanningInsights(mockReport);
     } catch {
       // Expected to fail because key is not configured
     }
@@ -323,7 +323,7 @@ describe("Gemini AI Advisor — Error Handling & Deterministic Integrity", () =>
   });
 });
 
-describe("Gemini Copilot — Grounded Planning Assistant", () => {
+describe("NuGen Copilot — Grounded Planning Assistant", () => {
   const originalEnv = { ...process.env };
 
   beforeEach(() => {
@@ -335,22 +335,22 @@ describe("Gemini Copilot — Grounded Planning Assistant", () => {
     vi.restoreAllMocks();
   });
 
-  it("throws KEY_NOT_CONFIGURED when GEMINI_API_KEY is missing", async () => {
-    delete process.env.GEMINI_API_KEY;
+  it("throws KEY_NOT_CONFIGURED when NUGEN_API_KEY is missing", async () => {
+    delete process.env.NUGEN_API_KEY;
 
     await expect(
       generateCopilotResponse("Is this hospital location suitable?", {
         studyArea: "Pune Central Study Area (PMC)",
         infrastructureType: "Hospital",
       })
-    ).rejects.toThrow(GeminiAdvisorError);
+    ).rejects.toThrow(AIAdvisorError);
 
     try {
       await generateCopilotResponse("Check road access", {
         studyArea: "Pune Central Study Area (PMC)",
       });
     } catch (err) {
-      const gErr = err as GeminiAdvisorError;
+      const gErr = err as AIAdvisorError;
       expect(gErr.code).toBe("KEY_NOT_CONFIGURED");
       expect(gErr.statusCode).toBe(503);
     }
@@ -423,7 +423,7 @@ describe("Gemini Copilot — Grounded Planning Assistant", () => {
 
     const result = generateLocalCopilotResponse("Check road collision", mockContext);
     expect(result.modelUsed).toBe("local-gis-rules-engine");
-    expect(result.groundedFacts.hasRoadCollision).toBe(true);
+    expect(result.groundedFacts?.hasRoadCollision).toBe(true);
     expect(result.reply).toContain("Encroachment Detected");
     expect(result.reply).toContain("Snap to Road & Open Land");
   });
@@ -608,11 +608,11 @@ describe("Gemini Copilot — Grounded Planning Assistant", () => {
       expect(result.reply).toContain("Orientation / Bearing");
     });
 
-    it("sanitizeErrorMessage redacts GEMINI_API_KEY and query parameters safely", () => {
-      process.env.GEMINI_API_KEY = "SECRET_GEMINI_KEY_999";
-      const err = new Error("Failed connecting to https://generativelanguage.googleapis.com/v1beta/models?key=SECRET_GEMINI_KEY_999");
+    it("sanitizeErrorMessage redacts NUGEN_API_KEY and query parameters safely", () => {
+      process.env.NUGEN_API_KEY = "nugen-secret-key-999";
+      const err = new Error("Failed connecting to https://api.nugen.in/api/v3/inference/chat/completions?key=nugen-secret-key-999 Bearer nugen-secret-key-999");
       const sanitized = sanitizeErrorMessage(err);
-      expect(sanitized).not.toContain("SECRET_GEMINI_KEY_999");
+      expect(sanitized).not.toContain("nugen-secret-key-999");
       expect(sanitized).toContain("[REDACTED");
     });
 

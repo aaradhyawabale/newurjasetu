@@ -60,8 +60,8 @@ describe("Copilot API Integration & Security", () => {
   });
 
   it("POST /api/copilot handles missing API key gracefully with 503", async () => {
-    const originalKey = process.env.GEMINI_API_KEY;
-    delete process.env.GEMINI_API_KEY;
+    const originalKey = process.env.NUGEN_API_KEY;
+    delete process.env.NUGEN_API_KEY;
 
     try {
       const req = new NextRequest("http://localhost:3000/api/copilot", {
@@ -84,14 +84,14 @@ describe("Copilot API Integration & Security", () => {
       expect(json.code).toBe("KEY_NOT_CONFIGURED");
     } finally {
       if (originalKey) {
-        process.env.GEMINI_API_KEY = originalKey;
+        process.env.NUGEN_API_KEY = originalKey;
       }
     }
   });
 
   it("POST /api/copilot returns 200 with local GIS rules engine when fallbackToLocal is true", async () => {
-    const originalKey = process.env.GEMINI_API_KEY;
-    delete process.env.GEMINI_API_KEY;
+    const originalKey = process.env.NUGEN_API_KEY;
+    delete process.env.NUGEN_API_KEY;
 
     try {
       const req = new NextRequest("http://localhost:3000/api/copilot", {
@@ -119,7 +119,7 @@ describe("Copilot API Integration & Security", () => {
       expect(json.reply).toContain("UrjaSetu");
     } finally {
       if (originalKey) {
-        process.env.GEMINI_API_KEY = originalKey;
+        process.env.NUGEN_API_KEY = originalKey;
       }
     }
   });
@@ -143,6 +143,6 @@ describe("Copilot API Integration & Security", () => {
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.status).toBeDefined();
-    expect(json.configuredModel).toContain("gemini");
+    expect(json.configuredModel).toBeDefined();
   });
 });

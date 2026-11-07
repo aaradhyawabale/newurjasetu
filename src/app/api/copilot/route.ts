@@ -4,25 +4,26 @@ import { successResponse, errorResponse, handleRouteError } from "@/server/utils
 import {
   generateCopilotResponse,
   generateLocalCopilotResponse,
-  isGeminiConfigured,
-  getGeminiModel,
+  isAIConfigured,
+  getAIModel,
   sanitizeErrorMessage,
-  GeminiAdvisorError,
+  AIAdvisorError,
   CopilotChatContext,
   CopilotChatMessage,
-} from "@/server/ai/gemini-advisor";
+} from "@/server/ai/advisor";
+import { globalAIRouteRateLimiter } from "@/server/ai/llm";
 
 export async function GET(req: NextRequest) {
   const isDiagnostic = req.nextUrl?.searchParams?.get("diagnostic") === "true";
   if (isDiagnostic) {
-    const { runGeminiConnectionDiagnostic } = await import("@/server/ai/gemini-diagnostic");
-    const diagnostic = await runGeminiConnectionDiagnostic();
+    const { runNuGenConnectionDiagnostic } = await import("@/server/ai/diagnostic");
+    const diagnostic = await runNuGenConnectionDiagnostic();
     return successResponse(diagnostic);
   }
 
   return successResponse({
-    configured: isGeminiConfigured(),
-    model: getGeminiModel(),
+    configured: isAIConfigured(),
+    model: getAIModel(),
     status: "ready",
     hasLocalEngine: true,
   });
@@ -31,6 +32,13 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     await requireAuthUser(req);
+
+    // Apply per-IP rate limit
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "127.0.0.1";
+    const rateCheck = globalAIRouteRateLimiter.check(ip);
+    if (!rateCheck.allowed) {
+      return errorResponse("Too many requests to AI Copilot. Please wait a moment.", "RATE_LIMIT_EXCEEDED", 429);
+    }
 
     let body: any;
     try {
@@ -50,36 +58,36 @@ export async function POST(req: NextRequest) {
       return errorResponse("Message is required and cannot be empty", "BAD_REQUEST", 400);
     }
 
-    // If Gemini API key is missing on the server
-    if (!isGeminiConfigured()) {
+    // If NuGen API key is missing on the server
+    if (!isAIConfigured()) {
       if (fallbackToLocal) {
         const localResult = generateLocalCopilotResponse(message.trim(), context, history);
         return successResponse({
           ...localResult,
           engineSource: "local_gis_engine",
           cloudUnavailable: true,
-          cloudError: "Gemini API key is not configured on the server.",
+          cloudError: "NuGen API key is not configured on the server.",
         });
       }
 
       return errorResponse(
-        "Gemini API key is not configured on the server. Please add GEMINI_API_KEY to your .env file.",
+        "NuGen API key is not configured on the server. Please add NUGEN_API_KEY to your .env.local file.",
         "KEY_NOT_CONFIGURED",
         503,
         { canUseLocalFallback: true }
       );
     }
 
-    // When Gemini API key is present, invoke Google Gemini Live AI with local fallback resilience
+    // When NuGen API key is present, invoke NuGen AI with local fallback resilience
     try {
       const result = await generateCopilotResponse(message.trim(), context, history);
       return successResponse({
         ...result,
-        engineSource: "gemini_cloud",
+        engineSource: "nugen_cloud",
       });
     } catch (err: unknown) {
       const sanitizedErr = sanitizeErrorMessage(err);
-      console.warn("[Copilot] Cloud Gemini API call failed:", sanitizedErr);
+      console.warn("[Copilot] NuGen AI API call failed:", sanitizedErr);
       if (fallbackToLocal) {
         const localResult = generateLocalCopilotResponse(message.trim(), context, history);
         return successResponse({
@@ -88,14 +96,14 @@ export async function POST(req: NextRequest) {
           cloudUnavailable: true,
           cloudError: sanitizedErr,
           reply:
-            `> ℹ️ **UrjaSetu Copilot Notice: Gemini Cloud AI unreachable** (${sanitizedErr}). Analyzed via **UrjaSetu Local GIS Rules Engine (Deterministic)**:\n\n` +
+            `> ℹ️ **UrjaSetu Copilot Notice: NuGen Cloud AI unreachable** (${sanitizedErr}). Analyzed via **UrjaSetu Local GIS Rules Engine (Deterministic)**:\n\n` +
             localResult.reply,
         });
       }
       throw err;
     }
   } catch (err: unknown) {
-    if (err instanceof GeminiAdvisorError) {
+    if (err instanceof AIAdvisorError) {
       return errorResponse(err.message, err.code, err.statusCode);
     }
     return handleRouteError(err);

@@ -6,10 +6,10 @@ import {
   executeGetZoneTool,
   generateLocalCopilotResponse,
   generateCopilotResponse,
-} from "@/server/ai/gemini-advisor";
+} from "@/server/ai/advisor";
 import { getPriorityCellsSync } from "@/server/priority/loader";
 
-describe("Gemini Function Calling Tools & Refusal Policy", () => {
+describe("NuGen Function Calling Tools & Refusal Policy", () => {
   describe("Tool Declarations Schema", () => {
     it("declares run_optimization with valid schema and required parameters", () => {
       expect(runOptimizationToolDeclaration.name).toBe("run_optimization");
@@ -173,77 +173,36 @@ describe("Gemini Function Calling Tools & Refusal Policy", () => {
     });
   });
 
-  describe("Gemini Function Calling Multi-Turn Handling", () => {
-    const originalApiKey = process.env.GEMINI_API_KEY;
+  describe("NuGen Function Calling Multi-Turn Handling", () => {
+    const originalApiKey = process.env.NUGEN_API_KEY;
 
     beforeEach(() => {
-      process.env.GEMINI_API_KEY = "test_mock_api_key_for_unit_tests";
+      process.env.NUGEN_API_KEY = "test_mock_api_key_for_unit_tests";
     });
 
     afterEach(() => {
-      process.env.GEMINI_API_KEY = originalApiKey;
+      process.env.NUGEN_API_KEY = originalApiKey;
       vi.restoreAllMocks();
     });
 
-    it("handles function calls from Gemini and executes real backend tools in multi-turn loop", async () => {
+    it("handles tool calling and executes real backend tools in multi-turn loop", async () => {
       const cells = getPriorityCellsSync();
       const validCellId = cells[0].id;
-
-      // Mock GoogleGenAI client behavior
-      const mockGenerateContent = vi.fn();
-
-      // First turn returns a functionCall for get_zone
-      mockGenerateContent.mockResolvedValueOnce({
-        functionCalls: [
-          {
-            name: "get_zone",
-            args: { id: validCellId },
-            id: "call_mock_123",
-          },
-        ],
-        candidates: [
-          {
-            content: {
-              role: "model",
-              parts: [
-                {
-                  functionCall: {
-                    name: "get_zone",
-                    args: { id: validCellId },
-                  },
-                },
-              ],
-            },
-          },
-        ],
-      });
-
-      // Second turn returns the grounded synthesis quoting the tool output
-      mockGenerateContent.mockResolvedValueOnce({
-        text: `### Grounded Priority Zone Analysis\nZone ${validCellId} has measured LST [Measured] 44.2°C and predicted cooling [Modelled] 1.85°C.`,
-      });
-
-      vi.doMock("@google/genai", () => {
-        return {
-          GoogleGenAI: class MockGoogleGenAI {
-            models = {
-              generateContent: mockGenerateContent,
-            };
-          },
-          Type: {
-            OBJECT: "OBJECT",
-            STRING: "STRING",
-            NUMBER: "NUMBER",
-          },
-        };
-      });
 
       // Verify that executeGetZoneTool returns authentic data
       const toolOut = executeGetZoneTool({ id: validCellId });
       expect(toolOut.found).toBe(true);
       if (toolOut.found) {
         expect(toolOut.id).toBe(validCellId);
+        expect(toolOut.ward).toBeDefined();
+        expect(toolOut.measurements.lst_mean_c).toBeGreaterThan(0);
       }
+
+      // Verify run_optimization tool execution
+      const optOut = executeRunOptimizationTool({ budget_ha: 15, target_ndvi: 0.5 });
+      expect(optOut.status).toBe("OK");
+      expect(optOut.selected_cells.length).toBeGreaterThan(0);
+      expect(optOut.governance.tags.cooling_mean).toBe("[Modelled]");
     });
   });
 });

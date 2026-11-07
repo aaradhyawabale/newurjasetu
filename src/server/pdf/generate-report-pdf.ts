@@ -499,7 +499,7 @@ export async function generateReportPdf(
     }
   }
 
-  // AI Planning Insights & Statutory Mitigations (Gemini)
+  // AI Planning Insights & Statutory Mitigations (NuGen AI)
   if (report.aiInsights) {
     y -= 10;
     ensureSpace(120);
@@ -514,7 +514,7 @@ export async function generateReportPdf(
       borderWidth: 1,
     });
 
-    page.drawText("AI PLANNING SYNTHESIS & STATUTORY MITIGATIONS (GEMINI)", {
+    page.drawText("AI PLANNING SYNTHESIS & STATUTORY MITIGATIONS (NUGEN AI)", {
       x: 38,
       y: y - 5,
       size: 9,

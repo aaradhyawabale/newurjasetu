@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { evaluateHeatInfrastructureContext } from '@/server/analysis-engine/heat-integration';
 import { getHeatDiagnostics, queryHeatPoint } from '@/server/heat-engine/loader';
-import { generateLocalCopilotResponse } from '@/server/ai/gemini-advisor';
+import { generateLocalCopilotResponse } from '@/server/ai/advisor';
 
 describe('Phase 4.1 Scientific Governance & Validation Audit', () => {
   it('does not calculate actual PV efficiency loss directly from satellite LST', () => {

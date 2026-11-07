@@ -1,37 +1,37 @@
 import { describe, it, expect } from 'vitest';
-import { runGeminiConnectionDiagnostic } from '@/server/ai/gemini-diagnostic';
+import { runNuGenConnectionDiagnostic } from '@/server/ai/diagnostic';
 
-describe('Gemini API Connection Diagnostics', () => {
+describe('NuGen API Connection Diagnostics', () => {
   it('detects when API key is missing and returns KEY_NOT_CONFIGURED', async () => {
-    const originalKey = process.env.GEMINI_API_KEY;
-    delete process.env.GEMINI_API_KEY;
+    const originalKey = process.env.NUGEN_API_KEY;
+    delete process.env.NUGEN_API_KEY;
 
     try {
-      const diag = await runGeminiConnectionDiagnostic('');
+      const diag = await runNuGenConnectionDiagnostic('');
       expect(diag.status).toBe('KEY_NOT_CONFIGURED');
       expect(diag.auth.keyPresent).toBe(false);
       expect(diag.notes.some((n) => n.includes('not configured'))).toBe(true);
     } finally {
       if (originalKey) {
-        process.env.GEMINI_API_KEY = originalKey;
+        process.env.NUGEN_API_KEY = originalKey;
       }
     }
   });
 
   it('masks API key in diagnostic output and never exposes full secret', async () => {
-    const fakeKey = 'AIzaSyFakeSecretKeyForTestingPurposes12345';
-    const diag = await runGeminiConnectionDiagnostic(fakeKey);
+    const fakeKey = 'nugen-dummy-diagnostic-test-key-0000';
+    const diag = await runNuGenConnectionDiagnostic(fakeKey);
 
     expect(diag.auth.keyPresent).toBe(true);
     expect(diag.auth.keyMasked).toBeDefined();
     expect(diag.auth.keyMasked).not.toBe(fakeKey);
     expect(diag.auth.keyMasked).toContain('...');
-    expect(diag.auth.keyMasked?.startsWith('AIzaSy')).toBe(true);
-    expect(diag.auth.keyMasked?.endsWith('2345')).toBe(true);
+    expect(diag.auth.keyMasked?.startsWith('nugen-')).toBe(true);
+    expect(diag.auth.keyMasked?.endsWith('1f76')).toBe(true);
   });
 
   it('returns valid structured diagnostic schema', async () => {
-    const diag = await runGeminiConnectionDiagnostic();
+    const diag = await runNuGenConnectionDiagnostic();
     expect(diag.timestamp).toBeDefined();
     expect(diag.configuredModel).toBeDefined();
     expect(typeof diag.dns).toBe('object');

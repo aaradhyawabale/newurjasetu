@@ -21,7 +21,7 @@ import { ValidationResult } from "@/server/analysis-engine/validation";
 import { AnalysisReportResult } from "@/server/analysis-engine/engine";
 import { exportPlacementsToGeoJson, downloadJsonFile } from "@/lib/geojson-export";
 import { calculateDistanceMeters } from "@/server/gis/geometry";
-import type { CopilotChatContext, CopilotAdjustment } from "@/server/ai/gemini-advisor";
+import type { CopilotChatContext, CopilotAdjustment } from "@/server/ai/advisor";
 import { Sparkles, Loader2, Route, Eye, X, MapPin, Plus, Download, History } from "lucide-react";
 import { NearbyBridgeCrossingCandidate } from "@/server/analysis-engine/bridge-planner";
 

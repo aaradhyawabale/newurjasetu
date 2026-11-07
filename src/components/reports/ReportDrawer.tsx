@@ -35,7 +35,7 @@ import { ScoreBar } from "../ui/ScoreBar";
 import { StatusBadge } from "../ui/StatusBadge";
 import { EvidenceChip } from "../ui/EvidenceChip";
 import { AnalysisReportResult } from "@/server/analysis-engine/engine";
-import { GeminiInsightsCard } from "./GeminiInsightsCard";
+import { AiInsightsCard } from "./AiInsightsCard";
 import { AiPlanningInsights } from "@/server/ai/types";
 import { NearbyBridgeCrossingCandidate } from "@/server/analysis-engine/bridge-planner";
 import { CriterionResult } from "@/server/analysis-engine/engine";
@@ -304,7 +304,7 @@ export const ReportDrawer: React.FC<ReportDrawerProps> = ({
                 <strong>DECISION SUPPORT NOTICE:</strong> This analysis is an indicative geospatial screening tool. It does not constitute an official government approval, environmental clearance, or structural engineering certification. All thresholds must be verified against local municipal development control regulations.
               </span>
             </div>
-            <GeminiInsightsCard report={report} onInsightsUpdated={onInsightsUpdated} />
+            <AiInsightsCard report={report} onInsightsUpdated={onInsightsUpdated} />
 
             {/* Verdict Summary Text */}
             <p className="text-xs text-stone-700 leading-relaxed bg-stone-50 p-3 rounded-panel border border-stone-200">

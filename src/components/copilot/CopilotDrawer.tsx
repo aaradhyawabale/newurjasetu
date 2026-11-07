@@ -29,11 +29,11 @@ import {
   CopilotChatContext,
   CopilotChatMessage,
   CopilotAdjustment,
-} from "@/server/ai/gemini-advisor";
+} from "@/server/ai/advisor";
 
 interface ExtendedChatMessage extends CopilotChatMessage {
   modelUsed?: string;
-  engineSource?: "gemini_cloud" | "local_gis_engine";
+  engineSource?: "nugen_cloud" | "local_gis_engine";
   cloudUnavailable?: boolean;
   cloudError?: string;
   statutoryStatus?: string;
@@ -64,9 +64,9 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Gemini configuration & connection diagnostic state
+  // NuGen configuration & connection diagnostic state
   const [isConfigured, setIsConfigured] = useState<boolean | null>(null);
-  const [configuredModel, setConfiguredModel] = useState<string>("gemini-3.5-flash");
+  const [configuredModel, setConfiguredModel] = useState<string>("meta-llama/Llama-3.2-3B-Instruct");
   const [connectionStatus, setConnectionStatus] = useState<string | null>(null);
   const [isCheckingConnection, setIsCheckingConnection] = useState(false);
   const [diagnosticResult, setDiagnosticResult] = useState<any | null>(null);
@@ -107,7 +107,7 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
     }
   };
 
-  // Check Gemini status when drawer opens
+  // Check NuGen status when drawer opens
   useEffect(() => {
     if (isOpen) {
       fetch("/api/copilot")
@@ -202,7 +202,7 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           apiKey: key,
-          model: configuredModel || "gemini-2.5-flash",
+          model: configuredModel || "meta-llama/Llama-3.2-3B-Instruct",
         }),
       });
 
@@ -212,7 +212,7 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
       }
 
       setIsConfigured(true);
-      setSaveKeySuccess("Gemini API Key activated and saved to your laptop (.env)!");
+      setSaveKeySuccess("NuGen API Key activated and saved to your laptop (.env.local)!");
       setApiKeyInput("");
       setTimeout(() => {
         setShowKeyConfig(false);
@@ -426,7 +426,7 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
                 onClick={checkConnection}
                 disabled={isCheckingConnection}
                 className="px-2 py-0.5 rounded text-[11px] font-mono bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-300 flex items-center gap-1 transition-colors"
-                title="Verify live DNS, HTTPS, and Gemini generation connectivity"
+                title="Verify live DNS, HTTPS, and NuGen generation connectivity"
               >
                 {isCheckingConnection ? (
                   <Loader2 className="w-2.5 h-2.5 animate-spin text-purple-600" />
@@ -466,13 +466,13 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
           {diagnosticResult && (
             <div className="p-2 bg-stone-100/90 rounded border border-stone-300 text-[11px] font-mono flex flex-col gap-1">
               <div className="flex items-center justify-between text-stone-700 font-bold">
-                <span>Gemini API Runtime Diagnostic:</span>
+                <span>NuGen API Runtime Diagnostic:</span>
                 <span className={diagnosticResult.status === "CONNECTED" ? "text-emerald-700" : "text-amber-700"}>
                   {diagnosticResult.status}
                 </span>
               </div>
               <div className="text-stone-600 text-[11px] space-y-0.5">
-                <div>• DNS: {diagnosticResult.dns?.resolved ? "Resolved (Google Cloud Anycast)" : "Failed"}</div>
+                <div>• DNS: {diagnosticResult.dns?.resolved ? "Resolved (api.nugen.in)" : "Failed"}</div>
                 <div>• HTTPS (Port 443): {diagnosticResult.https?.reachable ? `Reachable (HTTP ${diagnosticResult.https.statusCode})` : "Blocked / Unreachable"}</div>
                 <div>• Key Auth: {diagnosticResult.auth?.valid ? "Authorized" : diagnosticResult.auth?.error || "Pending"}</div>
                 <div>• Effective Model: {diagnosticResult.effectiveModel || configuredModel}</div>
@@ -489,27 +489,27 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
               <div className="flex items-center justify-between">
                 <span className="font-semibold text-purple-900 flex items-center gap-1">
                   <Key className="w-3 h-3 text-purple-700" />
-                  Google Gemini API Configuration
+                  NuGen AI API Configuration
                 </span>
                 <a
-                  href="https://aistudio.google.com/app/apikey"
+                  href="https://dashboard.nugen.in"
                   target="_blank"
                   rel="noreferrer"
                   className="text-[11px] text-purple-700 hover:underline flex items-center gap-0.5"
                 >
-                  <span>Get Free Key (Google AI Studio)</span>
+                  <span>Get Key (NuGen Intelligence)</span>
                   <ArrowRight className="w-2.5 h-2.5" />
                 </a>
               </div>
               <p className="text-[11px] text-purple-800 leading-normal">
-                Paste your Google Gemini API key to activate cloud conversational reasoning. (The key will be saved directly to your laptop&apos;s local <code>.env</code> file).
+                Paste your NuGen AI API key to activate cloud conversational reasoning. (The key will be saved directly to your laptop&apos;s local <code>.env.local</code> file).
               </p>
               <div className="flex gap-2">
                 <input
                   type="password"
                   value={apiKeyInput}
                   onChange={(e) => setApiKeyInput(e.target.value)}
-                  placeholder="Paste your key: AIzaSy..."
+                  placeholder="Paste your key: nugen-..."
                   className="flex-1 px-2.5 py-1 text-xs bg-white border border-purple-300 rounded focus:outline-none focus:ring-1 focus:ring-purple-600 font-mono"
                 />
                 <button
@@ -548,7 +548,7 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] bg-white border border-stone-200 text-stone-700">
               <Layers className="w-2.5 h-2.5 text-stone-500" />
               {infraType}
-              {context.placement && ` (${Math.round(context.placement.areaM2)} m²)`}
+              {context.placement?.areaM2 !== undefined && ` (${Math.round(context.placement.areaM2)} m²)`}
             </span>
             {roadCollision ? (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] bg-red-50 border border-red-200 text-red-700 font-medium">
@@ -589,7 +589,7 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
               <div className="flex items-center justify-between">
                 <span className="font-semibold text-stone-900">UrjaSetu Planning Assistant</span>
                 <span className="text-[11px] font-mono text-stone-400">
-                  {isConfigured ? "Gemini Live AI Ready" : "Local GIS Engine Ready"}
+                  {isConfigured ? "NuGen Live AI Ready" : "Local GIS Engine Ready"}
                 </span>
               </div>
               <p className="text-stone-700 leading-relaxed">
@@ -605,7 +605,7 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
                     onClick={() => setShowKeyConfig(true)}
                     className="underline text-amber-900 font-semibold hover:text-black ml-2 shrink-0"
                   >
-                    Enable Gemini Cloud AI
+                    Enable NuGen Cloud AI
                   </button>
                 </div>
               )}
@@ -661,14 +661,14 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
                 ) : (
                   <div>
                     {/* Engine Attribution Badge */}
-                    {msg.engineSource === "gemini_cloud" || (msg.modelUsed && msg.modelUsed.startsWith("gemini")) ? (
+                    {msg.engineSource === "nugen_cloud" || (msg.modelUsed && !msg.modelUsed.includes("local")) ? (
                       <div className="mb-2 pb-1.5 border-b border-purple-100 flex items-center justify-between text-[11px] font-mono text-purple-700">
                         <div className="flex items-center gap-1">
                           <Sparkles className="w-3 h-3 text-purple-600" />
-                          <span className="font-semibold">Google Gemini Live Cloud AI</span>
+                          <span className="font-semibold">NuGen AI Live Cloud</span>
                         </div>
                         <span className="bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.5 rounded text-[11px] font-mono font-medium">
-                          {msg.modelUsed || "gemini-3.5-flash"}
+                          {msg.modelUsed || "meta-llama/Llama-3.2-3B-Instruct"}
                         </span>
                       </div>
                     ) : (
@@ -688,7 +688,7 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
                       <div className="mb-2.5 p-2 rounded-lg bg-amber-50/90 border border-amber-200 text-amber-900 text-[11px] flex items-start gap-1.5 shadow-2xs">
                         <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
                         <div className="leading-tight">
-                          <span className="font-semibold">Gemini Cloud AI Unreachable: </span>
+                          <span className="font-semibold">NuGen Cloud AI Unreachable: </span>
                           <span className="font-mono text-[11px] text-amber-800">
                             {msg.cloudError || "Connection failed"}
                           </span>
@@ -814,13 +814,13 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
               <div className="flex-1">
                 <span className="font-semibold">Copilot Advisory: </span>
                 <span>{error}</span>
-                {error.includes("GEMINI_API_KEY") && (
+                {error.includes("NUGEN_API_KEY") && (
                   <button
                     type="button"
                     onClick={() => setShowKeyConfig(true)}
                     className="block mt-1 font-medium underline text-red-900"
                   >
-                    Click here to enter your Gemini API key
+                    Click here to enter your NuGen API key
                   </button>
                 )}
               </div>

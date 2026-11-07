@@ -20,12 +20,12 @@ import {
 import { AnalysisReportResult } from "@/server/analysis-engine/engine";
 import { AiPlanningInsights, ProvenanceCategory } from "@/server/ai/types";
 
-interface GeminiInsightsCardProps {
+interface AiInsightsCardProps {
   report: AnalysisReportResult;
   onInsightsUpdated?: (insights: AiPlanningInsights) => void;
 }
 
-export const GeminiInsightsCard: React.FC<GeminiInsightsCardProps> = ({
+export const AiInsightsCard: React.FC<AiInsightsCardProps> = ({
   report,
   onInsightsUpdated,
 }) => {
@@ -33,7 +33,7 @@ export const GeminiInsightsCard: React.FC<GeminiInsightsCardProps> = ({
     report.aiInsights || null
   );
   const [isConfigured, setIsConfigured] = useState<boolean | null>(null);
-  const [modelName, setModelName] = useState<string>("gemini-2.5-flash");
+  const [modelName, setModelName] = useState<string>("NuGen AI");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<"simple" | "technical">("simple");
@@ -108,7 +108,7 @@ export const GeminiInsightsCard: React.FC<GeminiInsightsCardProps> = ({
       setError(
         err instanceof Error
           ? err.message
-          : "An unexpected error occurred while communicating with Gemini."
+          : "An unexpected error occurred while communicating with NuGen AI."
       );
     } finally {
       setIsLoading(false);
@@ -152,14 +152,14 @@ export const GeminiInsightsCard: React.FC<GeminiInsightsCardProps> = ({
       <div className="p-4 rounded-panel bg-stone-50 border border-stone-200 flex flex-col gap-2">
         <div className="flex items-center gap-2 text-stone-700 font-semibold text-xs font-mono uppercase tracking-wider">
           <Sparkles className="w-4 h-4 text-purple-600" />
-          <span>Gemini AI Planning Advisor</span>
+          <span>NuGen AI Planning Advisor</span>
         </div>
         <p className="text-xs text-stone-600 leading-relaxed">
-          Google Gemini API key is not configured on this server. Add{" "}
+          NuGen AI API key is not configured on this server. Add{" "}
           <code className="px-1 py-0.5 rounded bg-stone-200 font-mono text-[11px] text-stone-800">
-            GEMINI_API_KEY
+            NUGEN_API_KEY
           </code>{" "}
-          to your local <code className="px-1 py-0.5 rounded bg-stone-200 font-mono text-[11px] text-stone-800">.env</code> file to enable evidence-grounded AI decision support and statutory mitigation checklists.
+          to your local <code className="px-1 py-0.5 rounded bg-stone-200 font-mono text-[11px] text-stone-800">.env.local</code> file to enable evidence-grounded AI decision support and statutory mitigation checklists.
         </p>
       </div>
     );
@@ -176,7 +176,7 @@ export const GeminiInsightsCard: React.FC<GeminiInsightsCardProps> = ({
             </div>
             <div className="flex flex-col">
               <span className="text-xs font-bold text-stone-900">
-                Gemini Urban Planning Advisor
+                NuGen Urban Planning Advisor
               </span>
               <span className="text-[11px] font-mono text-purple-700">
                 Model: {modelName} • Grounded Decision Synthesis
@@ -226,7 +226,7 @@ export const GeminiInsightsCard: React.FC<GeminiInsightsCardProps> = ({
         </div>
         <div className="flex flex-col gap-0.5">
           <span className="text-xs font-bold text-stone-900">
-            Synthesizing Spatial Evidence with Gemini...
+            Synthesizing Spatial Evidence with NuGen AI...
           </span>
           <span className="text-[11px] font-mono text-stone-500">
             Evaluating {report.criteria.length} criteria, terrain slope, buffer exclusions, and sensitivity profiles
@@ -284,7 +284,7 @@ export const GeminiInsightsCard: React.FC<GeminiInsightsCardProps> = ({
           <div className="flex flex-col">
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-stone-900">
-                Gemini Urban Planning Copilot
+                NuGen Urban Planning Copilot
               </span>
               <span className="px-1.5 py-0.2 rounded text-[11px] font-mono bg-purple-50 text-purple-700 border border-purple-200">
                 {insights.meta.modelUsed}
@@ -304,7 +304,7 @@ export const GeminiInsightsCard: React.FC<GeminiInsightsCardProps> = ({
           </span>
           <button
             type="button"
-            title="Regenerate Gemini assessment"
+            title="Regenerate NuGen assessment"
             onClick={() => handleGenerate(true)}
             disabled={isLoading}
             className="p-1.5 rounded hover:bg-stone-100 text-stone-500 hover:text-stone-800 transition-colors"

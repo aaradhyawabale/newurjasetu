@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { generateLocalCopilotResponse } from '@/server/ai/gemini-advisor';
+import { generateLocalCopilotResponse } from '@/server/ai/advisor';
 
-describe('Gemini Copilot — Urban Intervention Context & Fallback (Phase 5)', () => {
+describe('Copilot — Urban Intervention Context & Fallback (Phase 5)', () => {
   it('handles general urban intervention queries with 5 categories and evidence standards', async () => {
     const res = await generateLocalCopilotResponse(
       'What urban intervention planning categories are available for Pune?',
