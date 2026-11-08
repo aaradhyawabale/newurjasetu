@@ -398,8 +398,8 @@ export const LandingPage: React.FC = () => {
                 <span className="text-xs font-semibold text-sky-900">Machine Learning Estimates</span>
               </div>
               <p className="text-xs text-slate-700 leading-relaxed">
-                Cooling outcomes, heat burden indices, and solar thermal penalties derived from a 12-member
-                ensemble model. Always displayed with P10–P90 uncertainty ranges.
+                Cooling outcomes, heat burden indices, and solar thermal penalties derived from a 30-member
+                spatial-block bootstrap ensemble model. Always displayed with P10–P90 uncertainty ranges.
               </p>
             </div>
 

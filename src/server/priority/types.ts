@@ -192,12 +192,26 @@ export interface PriorityModelCard {
   };
   sources: ModelCardSource[];
   provenance_classification: Record<keyof Omit<PriorityCell, 'id' | 'centroid'> | 'id' | 'centroid', ProvenanceCategory>;
+  assumptions?: string[];
   limitations: string[];
   ensemble_members?: number;
   held_out_scene?: {
     date: string;
     r2?: number | null;
     rmse?: number | null;
+  };
+  gate?: {
+    criterion: string;
+    threshold: number;
+    value: number;
+    status: 'PASSED' | 'PASSED_WITH_EXCLUSIONS' | 'FAILED';
+    domain_description: string;
+    excluded_share: number;
+    suppressed_share: number;
+    threshold_origin: string;
+    computed_at: string;
+    model_version: string;
+    [key: string]: any;
   };
   direction_check?: {
     passed: boolean;

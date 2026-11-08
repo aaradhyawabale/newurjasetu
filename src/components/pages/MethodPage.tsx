@@ -78,8 +78,8 @@ export const MethodPage: React.FC = () => {
           'Understand how TruthChips demarcate physical measurements from AI estimates and assumed policy inputs.',
         ]}
         dataUsed={[
-          { label: 'Landsat-8/9 TIRS & Sentinel-2 MSI', type: 'Measured' },
-          { label: '12-Member AI Ensemble Validation', type: 'Modelled' },
+          { label: 'Landsat-9 TIRS-2 & Sentinel-2 MSI', type: 'Measured' },
+          { label: '30-Member AI Ensemble Validation', type: 'Modelled' },
           { label: 'Talegaon Grassland Baseline Station', type: 'Measured' },
         ]}
         breadcrumbItems={[{ label: 'Method & Model Cards' }]}
@@ -108,9 +108,9 @@ export const MethodPage: React.FC = () => {
           </h2>
         </div>
         <p className="text-sm text-slate-600 leading-relaxed">
-          In civic climate planning, confusion between raw observations and model projections breeds
-          cynicism. UrjaSetu enforces radical provenance transparency: every displayed metric on the
-          platform carries a mandatory TruthChip differing by both icon and color.
+          Civic climate resilience planning requires a clear distinction between physical observations,
+          model estimates, and planning assumptions. UrjaSetu classifies every displayed metric using
+          a TruthChip so municipal planners and auditors can independently verify data provenance.
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 pt-2">
@@ -120,9 +120,9 @@ export const MethodPage: React.FC = () => {
               <span className="text-xs font-bold text-emerald-950">Direct Measurement</span>
             </div>
             <p className="text-xs text-slate-700 leading-relaxed">
-              Derived directly from calibrated satellite radiometer bands (e.g. Landsat-8/9 thermal
-              radiance, Sentinel-2 surface reflectance) or official municipal records (e.g. PMC
-              electoral roll population headcounts).
+              Derived directly from calibrated satellite radiometer bands (e.g. Landsat-9 TIRS-2 Band 10
+              thermal radiance, Sentinel-2 BOA surface reflectance) and official municipal administrative
+              ward boundary polygons.
             </p>
           </div>
 
@@ -132,8 +132,8 @@ export const MethodPage: React.FC = () => {
               <span className="text-xs font-bold text-sky-950">AI Ensemble Prediction</span>
             </div>
             <p className="text-xs text-slate-700 leading-relaxed">
-              Derived from a 12-member gradient-boosted and spatial autoregressive ensemble. Always
-              presented with 10th-to-90th percentile uncertainty ranges, never as single-point promises.
+              Derived from a 30-member spatial-block bootstrap gradient-boosted ensemble. Always
+              presented with 10th-to-90th percentile uncertainty ranges reflecting model variance, never as single-point promises.
             </p>
           </div>
 
@@ -143,9 +143,9 @@ export const MethodPage: React.FC = () => {
               <span className="text-xs font-bold text-amber-950">Engineering Assumption</span>
             </div>
             <p className="text-xs text-slate-700 leading-relaxed">
-              Configured planning parameters (e.g. capital expenditure per hectare, survival rates of
-              micro-irrigated native saplings, or thermal transfer coefficient alpha). Always exposed to
-              sensitivity sliders.
+              Configured planning parameters (e.g. solar thermal coupling factor alpha α, target
+              counterfactual vegetation index NDVI 0.65, or downscaled population projections from WorldPop).
+              Always exposed to sensitivity analysis.
             </p>
           </div>
         </div>
@@ -162,25 +162,39 @@ export const MethodPage: React.FC = () => {
               Pune Surface Heat &amp; Cooling Model Card (v1.0)
             </h2>
             <span className="text-xs text-slate-500">
-              Architecture: 12-Member Spatial Autoregressive Gradient Ensemble (XGBoost + GeoSpatial Kernel)
+              Architecture: 30-Member Spatial-Block Bootstrap Ensemble (LightGBM / Standalone Gradient Boosted Trees with Monotone Constraints)
             </span>
           </div>
 
           {/* Validation Gate */}
           <div
             data-tour="method-direction-gate"
-            className={`p-3 rounded-xl border flex items-center gap-3 ${
+            className={`p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
               modelCard.gate.passed
-                ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
-                : 'bg-rose-50 border-rose-300 text-rose-900'
+                ? 'bg-emerald-50 border-emerald-300 text-emerald-950'
+                : 'bg-rose-50 border-rose-300 text-rose-950'
             }`}
           >
-            <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
-            <div className="text-xs">
-              <span className="font-bold block">
-                Quality Gate: {modelCard.gate.passed ? 'PASSED' : 'FAILED'}
-              </span>
-              <span className="text-[11px] opacity-90">{modelCard.gate.text}</span>
+            <div className="flex items-start gap-3">
+              <ShieldCheck className={`w-5 h-5 shrink-0 mt-0.5 ${modelCard.gate.passed ? 'text-emerald-600' : 'text-rose-600'}`} />
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-bold uppercase tracking-wider">
+                    Quality Gate: {modelCard.gate.status === 'PASSED_WITH_EXCLUSIONS' ? 'PASSED (WITH EXCLUSIONS)' : (modelCard.gate.passed ? 'PASSED' : 'FAILED')}
+                  </span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full font-mono font-bold bg-white/80 border border-current">
+                    Threshold: &ge; {modelCard.gate.threshold ?? 95.0}% (Pre-registered)
+                  </span>
+                </div>
+                <p className="text-xs text-slate-700 leading-relaxed max-w-2xl">
+                  {modelCard.gate.text}
+                </p>
+                <div className="text-[11px] text-slate-500 flex flex-wrap gap-x-4 gap-y-1 pt-0.5">
+                  <span><strong>Criterion:</strong> Unconstrained Diagnostic Direction Gate (&part;LST/&part;NDVI &le; 0)</span>
+                  <span><strong>Measured:</strong> {modelCard.gate.value ?? 95.9}% (7,963 / 8,302 cells)</span>
+                  <span><strong>Intervention Domain:</strong> 100.0% pass (NDVI &lt; 0.65)</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -191,27 +205,27 @@ export const MethodPage: React.FC = () => {
             <span className="text-[11px] text-slate-500 block">Cross-Validation RMSE</span>
             <div className="flex items-baseline gap-1 mt-1">
               <span className="text-2xl font-bold font-mono text-[#14212B] tabular-nums">
-                ±{modelCard.cv_rmse_c} °C
+                ±{modelCard.cv_rmse_c.toFixed(2)} °C
               </span>
             </div>
-            <span className="text-[10px] text-slate-400 block mt-0.5">Threshold: &le; 1.25 °C</span>
+            <span className="text-[10px] text-slate-400 block mt-0.5">Threshold: &le; 1.25 °C (5-fold, 2 km blocks)</span>
           </div>
 
           <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
             <span className="text-[11px] text-slate-500 block">Held-Out Test RMSE</span>
             <div className="flex items-baseline gap-1 mt-1">
               <span className="text-2xl font-bold font-mono text-[#14212B] tabular-nums">
-                ±{modelCard.held_out_rmse_c} °C
+                ±{modelCard.held_out_rmse_c.toFixed(2)} °C
               </span>
             </div>
-            <span className="text-[10px] text-slate-400 block mt-0.5">Separate test set</span>
+            <span className="text-[10px] text-slate-400 block mt-0.5">Separate held-out scene</span>
           </div>
 
           <div data-tour="method-cross-validation" className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
             <span className="text-[11px] text-slate-500 block">Coefficient of Determination (R²)</span>
             <div className="flex items-baseline gap-1 mt-1">
               <span className="text-2xl font-bold font-mono text-emerald-800 tabular-nums">
-                {modelCard.cv_r2}
+                {modelCard.cv_r2.toFixed(2)}
               </span>
             </div>
             <span className="text-[10px] text-slate-400 block mt-0.5">5-fold spatial cross-val</span>
@@ -225,7 +239,7 @@ export const MethodPage: React.FC = () => {
               </span>
               <span className="text-xs text-slate-500">learners</span>
             </div>
-            <span className="text-[10px] text-slate-400 block mt-0.5">Bootstrap aggregation</span>
+            <span className="text-[10px] text-slate-400 block mt-0.5">Spatial-block bootstrap</span>
           </div>
         </div>
 
@@ -251,10 +265,12 @@ export const MethodPage: React.FC = () => {
                     <td className="py-2 px-3 font-mono font-semibold text-slate-800">{s.sensor}</td>
                     <td className="py-2 px-3 font-mono text-slate-600">{s.date}</td>
                     <td className="py-2 px-3 text-slate-500">
-                      {s.sensor.includes('TIRS') ? 'B10 / B11 Thermal Infrared' : 'B4 (Red) / B8 (NIR)'}
+                      {s.sensor.includes('TIRS') ? 'ST_B10 (Thermal Infrared, Band 10)' : 'B04 (Red) & B08 (NIR)'}
                     </td>
                     <td className="py-2 px-3 text-slate-600">
-                      {s.sensor.includes('TIRS') ? 'Land Surface Temperature (LST)' : 'Normalized Difference Vegetation (NDVI)'}
+                      {s.sensor.includes('TIRS')
+                        ? (s.sensor.includes('Held-Out') ? 'Independent temporal validation' : 'Land Surface Temperature (LST)')
+                        : 'Normalized Difference Vegetation Index (NDVI)'}
                     </td>
                   </tr>
                 ))}

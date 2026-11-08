@@ -547,15 +547,15 @@ export const ZoneEvidenceDrawer: React.FC<ZoneEvidenceDrawerProps> = ({
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-stone-400">Held-Out Scene R²:</span>
+              <span className="text-stone-400">Held-Out Scene Date:</span>
               <span className="text-teal-400 font-bold">
-                {(modelCard as any)?.held_out_scene?.r2 ? (modelCard as any).held_out_scene.r2.toFixed(2) : "0.68"} (2025-05-18)
+                {(modelCard as any)?.dates?.held_out_scene_date ? new Date((modelCard as any).dates.held_out_scene_date).toISOString().split('T')[0] : "2024-04-24"}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-stone-400">Direction Check:</span>
-              <span className="text-emerald-400 font-bold">
-                {(modelCard as any)?.direction_check?.passed ? "PASSED (dLST/dNDVI <= 0)" : "VERIFIED"}
+              <span className="text-stone-400">Quality Gate:</span>
+              <span className={`font-bold ${(modelCard as any)?.gate?.status === 'FAILED' ? "text-rose-400" : "text-emerald-400"}`}>
+                {(modelCard as any)?.gate?.status || ((modelCard as any)?.direction_check?.passed ? "PASSED_WITH_EXCLUSIONS" : "FAILED")}
               </span>
             </div>
           </div>

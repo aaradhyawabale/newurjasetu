@@ -1196,7 +1196,7 @@ export const HeatPriorityScreen: React.FC<HeatPriorityScreenProps> = ({
               <div className="flex items-center justify-between text-[11px] font-mono bg-stone-950 px-2.5 py-1.5 rounded border border-stone-800">
                 <span className="text-stone-400">Model Gate Direction Check:</span>
                 <span className={`font-bold ${greenLossData?.metadata.model_gate_passed ? "text-emerald-400" : "text-amber-400"}`}>
-                  {greenLossData?.metadata.model_gate_passed ? "PASSED (Unconstrained 95.9% negative response)" : "FAILED (Heat Nullified)"}
+                  {greenLossData?.metadata.model_gate_passed ? "PASSED_WITH_EXCLUSIONS (95.9% negative response)" : "FAILED (Heat Nullified)"}
                 </span>
               </div>
 

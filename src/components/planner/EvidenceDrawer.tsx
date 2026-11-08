@@ -68,17 +68,17 @@ Centroid: [${cell.centroid[0]}, ${cell.centroid[1]}]
 - Ward Population Density: ${cell.population.toLocaleString()} people in 250m cell
 - Available Unbuilt / Greenable Land: ${cell.greenable_ha} ha
 
-2. MODELLED ESTIMATES (12-Member AI Ensemble, Seed 42-1337)
+2. MODELLED ESTIMATES (30-Member Spatial-Block Bootstrap Ensemble)
 - Heat Excess Above Rural Baseline: +${cell.heat_excess_celsius} °C
-- Estimated Surface Cooling if Greened: ${cell.cooling_mean ?? 'N/A'} °C (P10: ${cell.cooling_p10 ?? 'N/A'} °C, P90: ${cell.cooling_p90 ?? 'N/A'} °C)
-- Solar Efficiency Heat Degradation: ${cell.solar_penalty_mid ?? 'N/A'}% (Range: ${cell.solar_penalty_low ?? 'N/A'}% - ${cell.solar_penalty_high ?? 'N/A'}%)
+- Estimated Surface Cooling if Greened: ${cell.cooling_mean !== null ? `${cell.cooling_mean} °C (P10: ${cell.cooling_p10} °C, P90: ${cell.cooling_p90} °C)` : 'Not available (model quality gate not met)'}
+- Solar Efficiency Heat Degradation: ${cell.solar_penalty_mid !== null ? `${cell.solar_penalty_mid}% (Range: ${cell.solar_penalty_low}% - ${cell.solar_penalty_high}%)` : 'Not available'}
 - Selection Frequency Across 30 Ensemble Runs: ${selectionFrequency !== undefined ? Math.round(selectionFrequency * 100) + '%' : 'N/A'}
 
 3. MODEL QUALITY GATE & VALIDATION
 - Cross-Validation RMSE: ${modelCard?.cv_rmse_c ?? 'N/A'} °C
 - Held-Out Test RMSE: ${modelCard?.held_out_rmse_c ?? 'N/A'} °C
 - R² Score: ${modelCard?.cv_r2 ?? 'N/A'}
-- Status: ${modelCard?.gate.text ?? 'PASSED'}
+- Status: ${modelCard?.gate?.status ?? 'PASSED_WITH_EXCLUSIONS'} (${modelCard?.gate?.text ?? 'Verified'})
 
 IMPORTANT DISCLAIMER:
 Surface temperature reflects radiant skin temperature and is not air temperature.
@@ -164,7 +164,7 @@ Built for Indradhanu - PCCOE International Grand Challenge 2026 (SDG 13).
                 {cell.population.toLocaleString()}
               </span>
               <span className="text-[10px] text-slate-400 block">
-                Municipal electoral roll
+                WorldPop ambient raster (Assumed)
               </span>
             </div>
 

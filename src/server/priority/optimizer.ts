@@ -10,8 +10,11 @@ export interface OptimizeOptions {
   /** Target budget in hectares (must be positive) */
   budget_ha: number;
 
-  /** Optimization objective: direct thermal cooling or population-weighted thermal relief */
-  objective?: 'cooling' | 'population_weighted';
+  /** Optimization objective: direct thermal cooling, population-weighted thermal relief, or hazard-based ranking */
+  objective?: 'cooling' | 'population_weighted' | 'hazard_based';
+
+  /** If true, fall back to hazard-based ranking when cooling fields are null */
+  fallback_to_hazard?: boolean;
 
   /** Optional filter by PMC administrative ward */
   ward?: string;
@@ -136,10 +139,11 @@ export function optimizeInterventionBudget(
     };
   }
 
-  // Case check: Are cooling fields null?
-  // If all or primary candidate cells have null cooling_mean, optimization cannot proceed
+  // Case check: Are cooling fields null? (e.g. model quality gate failed)
   const cellsWithValidCooling = candidates.filter(c => c.cooling_mean !== null);
-  if (cellsWithValidCooling.length === 0) {
+  const isHazardFallback = options.objective === 'hazard_based' || (cellsWithValidCooling.length === 0 && options.fallback_to_hazard === true);
+
+  if (cellsWithValidCooling.length === 0 && !isHazardFallback) {
     return {
       status: 'UNAVAILABLE',
       budget_ha: budgetHa,
@@ -153,12 +157,14 @@ export function optimizeInterventionBudget(
     };
   }
 
-  // Get binary ensemble buffer for 30 Monte Carlo runs
+  // Get binary ensemble buffer for 30 Monte Carlo runs (only used if cooling is available)
   let ensembleBuffer: Float32Array | null = null;
-  try {
-    ensembleBuffer = customEnsembleBuffer || getEnsembleEffectsSync();
-  } catch {
-    ensembleBuffer = null;
+  if (!isHazardFallback) {
+    try {
+      ensembleBuffer = customEnsembleBuffer || getEnsembleEffectsSync();
+    } catch {
+      ensembleBuffer = null;
+    }
   }
 
   // Map each candidate cell to its index in the full cell list (for ensemble slicing)
@@ -187,20 +193,28 @@ export function optimizeInterventionBudget(
     for (let i = 0; i < N; i++) {
       order[i] = i;
       const gHa = candGreenable[i];
-      let coolingMember = candidates[i].cooling_mean;
-
-      if (ensembleBuffer && candFullIdx[i] >= 0) {
-        const val = ensembleBuffer[candFullIdx[i] * ENSEMBLE_MEMBERS_PER_CELL + m];
-        if (!Number.isNaN(val)) {
-          coolingMember = val;
-        }
-      }
-
-      if (coolingMember === null || coolingMember <= 0 || gHa <= 0) {
-        scores[i] = -1;
+      if (isHazardFallback) {
+        // Hazard-based ranking: people x heat excess per hectare
+        const lstVal = candidates[i].lst_mean ?? 37.0;
+        const heatExcess = Math.max(0.1, (candidates[i] as any).heat_excess_celsius ?? (lstVal - 32.1));
+        const hazard = ((candidates[i].population || 1) * heatExcess) / 1000.0;
+        scores[i] = gHa > 0 ? Number((hazard / gHa).toFixed(4)) : -1;
       } else {
-        const benefit = coolingMember * candPopMult[i];
-        scores[i] = Number((benefit / gHa).toFixed(4));
+        let coolingMember = candidates[i].cooling_mean;
+
+        if (ensembleBuffer && candFullIdx[i] >= 0) {
+          const val = ensembleBuffer[candFullIdx[i] * ENSEMBLE_MEMBERS_PER_CELL + m];
+          if (!Number.isNaN(val)) {
+            coolingMember = val;
+          }
+        }
+
+        if (coolingMember === null || coolingMember <= 0 || gHa <= 0) {
+          scores[i] = -1;
+        } else {
+          const benefit = coolingMember * candPopMult[i];
+          scores[i] = Number((benefit / gHa).toFixed(4));
+        }
       }
     }
 
@@ -225,12 +239,17 @@ export function optimizeInterventionBudget(
     memberSelectionCounts.set(candidates[i].id, memberCounts[i]);
   }
 
-  // --- Step 2: Deterministic Baseline Greedy Selection using cooling_mean ---
+  // --- Step 2: Deterministic Baseline Greedy Selection ---
   for (let i = 0; i < N; i++) {
     order[i] = i;
     const c = candidates[i];
     const gHa = candGreenable[i];
-    if (c.cooling_mean === null || c.cooling_mean <= 0 || gHa <= 0) {
+    if (isHazardFallback) {
+      const lstVal = c.lst_mean ?? 37.0;
+      const heatExcess = Math.max(0.1, (c as any).heat_excess_celsius ?? (lstVal - 32.1));
+      const hazard = ((c.population || 1) * heatExcess) / 1000.0;
+      scores[i] = gHa > 0 ? Number((hazard / gHa).toFixed(4)) : -1;
+    } else if (c.cooling_mean === null || c.cooling_mean <= 0 || gHa <= 0) {
       scores[i] = -1;
     } else {
       const benefit = c.cooling_mean * candPopMult[i];
@@ -259,9 +278,9 @@ export function optimizeInterventionBudget(
         ward: cell.ward,
         centroid: cell.centroid,
         greenable_ha: gHa,
-        cooling_mean: cell.cooling_mean,
-        cooling_p10: cell.cooling_p10,
-        cooling_p90: cell.cooling_p90,
+        cooling_mean: isHazardFallback ? null : cell.cooling_mean,
+        cooling_p10: isHazardFallback ? null : cell.cooling_p10,
+        cooling_p90: isHazardFallback ? null : cell.cooling_p90,
         population: cell.population,
         benefit_per_ha: scores[idx],
         selection_frequency: selectionFreq,
@@ -285,8 +304,16 @@ export function optimizeInterventionBudget(
     ensemble_runs: totalRuns,
     total_cells_evaluated: candidates.length,
     selection_frequencies: selectionFrequencies,
+    message: isHazardFallback
+      ? 'Hazard-based ranking, no cooling estimate: Model quality gate not met or cooling estimates unavailable; prioritised by population heat exposure per hectare.'
+      : undefined,
     governance: {
-      disclaimers: governanceDisclaimers,
+      disclaimers: isHazardFallback
+        ? [
+            ...governanceDisclaimers,
+            'Hazard-based ranking, no cooling estimate: Quality gate not met; cooling estimates suppressed.'
+          ]
+        : governanceDisclaimers,
       provenance: provenanceMap
     }
   };

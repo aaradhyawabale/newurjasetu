@@ -94,6 +94,16 @@ export interface ModelCard {
   gate: {
     passed: boolean;
     text: string;
+    status: 'PASSED' | 'PASSED_WITH_EXCLUSIONS' | 'FAILED';
+    criterion: string;
+    threshold: number;
+    value: number;
+    domain_description?: string;
+    excluded_share?: number;
+    suppressed_share?: number;
+    threshold_origin?: string;
+    computed_at?: string;
+    model_version?: string;
   };
   scenes: ModelScene[];
   assumptions: string[];

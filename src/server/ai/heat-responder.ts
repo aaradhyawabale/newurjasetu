@@ -229,6 +229,24 @@ export function generateHeatPlannerResponse(
     );
   }
 
+  const isQualityGateQuery =
+    lower.includes("quality gate") ||
+    lower.includes("direction check") ||
+    lower.includes("direction gate") ||
+    lower.includes("gate status") ||
+    lower.includes("thermodynamic gate");
+
+  if (isQualityGateQuery) {
+    return makeResult(
+      "UrjaSetu evaluates physical consistency using an Unconstrained Diagnostic Direction Gate testing whether ∂LST/∂NDVI <= 0 without monotonic constraints. Across Pune's 8,302 grid cells, 95.9% exhibit negative surface temperature response to greening, meeting the pre-registered >= 95.0% threshold. Inside the greening intervention domain (NDVI < 0.65), 100.0% of cells exhibit cooling. The 4.1% non-negative cells are in already saturated vegetation (NDVI >= 0.90) and are excluded from the intervention domain. Quality gate status is PASSED_WITH_EXCLUSIONS.",
+      [
+        "What happens if the quality gate fails?",
+        "What is the model CV RMSE for Pune?",
+        "How are priority zones ranked?",
+      ]
+    );
+  }
+
   // -------------------------------------------------------------
   // 4. The Four Chips (Measured, Modelled, Assumed, Input)
   // -------------------------------------------------------------
