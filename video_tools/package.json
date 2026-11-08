@@ -1,0 +1,15 @@
+{
+  "name": "video_tools",
+  "version": "1.0.0",
+  "private": true,
+  "description": "UrjaSetu 4K Screen Recorder Tools",
+  "main": "recorder.js",
+  "scripts": {
+    "test": "node test.js"
+  },
+  "dependencies": {
+    "playwright": "^1.49.0",
+    "ffmpeg-static": "^5.2.0",
+    "ffprobe-static": "^3.1.0"
+  }
+}
