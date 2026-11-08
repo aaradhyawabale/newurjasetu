@@ -30,6 +30,7 @@ import {
   CopilotChatMessage,
   CopilotAdjustment,
 } from "@/server/ai/advisor";
+import { isDemoMode } from "@/api/client";
 
 interface ExtendedChatMessage extends CopilotChatMessage {
   modelUsed?: string;
@@ -587,15 +588,15 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
             </div>
             <div className="flex flex-col gap-1.5 flex-1">
               <div className="flex items-center justify-between">
-                <span className="font-semibold text-stone-900">UrjaSetu Planning Assistant</span>
+                <span className="font-semibold text-stone-900">UrjaSetu Climate Copilot</span>
                 <span className="text-[11px] font-mono text-stone-400">
-                  {isConfigured ? "NuGen Live AI Ready" : "Local GIS Engine Ready"}
+                  {isConfigured ? "NuGen Live AI Ready" : "Local Engine Ready"}
                 </span>
               </div>
               <p className="text-stone-700 leading-relaxed">
-                Welcome! I am your AI Siting Copilot, directly grounded in UrjaSetu&apos;s GIS engine for{" "}
-                <strong>{city}</strong>. I can answer spatial queries regarding road network overlaps, preliminary
-                access road alignments, and statutory building guidelines under the <strong>Maharashtra UDCPR 2020</strong>.
+                {typeof window !== "undefined" && isDemoMode()
+                  ? "Hello! I am your Climate Copilot (running with demo data). Ask me about surface temperatures, heat burden, cooling interventions, or how to allocate your greening budget."
+                  : "Hello! I am your Climate Copilot. Ask me about Pune's surface temperatures, heat burden, cooling interventions, or how to allocate your greening budget."}
               </p>
               {!isConfigured && (
                 <div className="mt-1 p-2 bg-amber-50 rounded border border-amber-200 text-amber-800 text-[11px] flex items-center justify-between">
@@ -683,19 +684,11 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = ({
                       </div>
                     )}
 
-                    {/* Cloud AI Unreachable Connection Notice (Displayed only once per conversation) */}
+                    {/* Fallback Notice (Displayed only once per conversation) */}
                     {msg.cloudUnavailable && idx === messages.findIndex((m) => m.cloudUnavailable) && (
-                      <div className="mb-2.5 p-2 rounded-lg bg-amber-50/90 border border-amber-200 text-amber-900 text-[11px] flex items-start gap-1.5 shadow-2xs">
-                        <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
-                        <div className="leading-tight">
-                          <span className="font-semibold">NuGen Cloud AI Unreachable: </span>
-                          <span className="font-mono text-[11px] text-amber-800">
-                            {msg.cloudError || "Connection failed"}
-                          </span>
-                          <p className="mt-0.5 text-[11px] text-stone-600">
-                            Answers synthesized autonomously via UrjaSetu&apos;s local deterministic GIS rules engine.
-                          </p>
-                        </div>
+                      <div className="mb-2.5 p-2 rounded-lg bg-stone-50 border border-stone-200 text-stone-700 text-[11px] flex items-center gap-1.5 shadow-2xs">
+                        <Info className="w-3.5 h-3.5 text-stone-500 shrink-0" />
+                        <span>The AI service could not be reached, so this answer comes from the built-in assistant.</span>
                       </div>
                     )}
 

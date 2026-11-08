@@ -228,7 +228,11 @@ export class NuGenProvider implements LLMProvider {
           lastError = err;
         } else {
           globalLLMCircuitBreaker.recordFailure();
-          lastError = new LLMError(redactSecret(err?.message || 'NuGen network failure', apiKey), 'NETWORK_ERROR', 500);
+          const causeInfo = err?.cause?.code || (err?.cause && typeof err.cause === 'object' ? (err.cause.message || JSON.stringify(err.cause)) : err?.cause);
+          const detailedMsg = causeInfo
+            ? `${err?.message || 'NuGen network failure'} (${causeInfo})`
+            : (err?.message || 'NuGen network failure');
+          lastError = new LLMError(redactSecret(detailedMsg, apiKey), 'NETWORK_ERROR', 500);
         }
 
         // Only retry retryable network/server errors

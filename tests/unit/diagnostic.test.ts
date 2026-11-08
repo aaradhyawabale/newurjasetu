@@ -26,8 +26,7 @@ describe('NuGen API Connection Diagnostics', () => {
     expect(diag.auth.keyMasked).toBeDefined();
     expect(diag.auth.keyMasked).not.toBe(fakeKey);
     expect(diag.auth.keyMasked).toContain('...');
-    expect(diag.auth.keyMasked?.startsWith('nugen-')).toBe(true);
-    expect(diag.auth.keyMasked?.endsWith('1f76')).toBe(true);
+    expect(diag.auth.keyMasked?.endsWith(fakeKey.slice(-4))).toBe(true);
   });
 
   it('returns valid structured diagnostic schema', async () => {

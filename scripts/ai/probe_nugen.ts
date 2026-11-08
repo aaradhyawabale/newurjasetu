@@ -75,7 +75,8 @@ async function testFetch(url: string, options: RequestInit): Promise<{ status: n
     return { status: res.status, headers: res.headers, body, rawText, latencyMs };
   } catch (err: any) {
     const latencyMs = Date.now() - start;
-    return { status: 0, headers: new Headers(), body: null, rawText: String(err?.message || err), latencyMs };
+    const causeInfo = err?.cause ? (typeof err.cause === 'object' ? JSON.stringify(err.cause) : String(err.cause)) : 'none';
+    return { status: 0, headers: new Headers(), body: null, rawText: `${String(err?.message || err)} (cause: ${causeInfo})`, latencyMs };
   }
 }
 

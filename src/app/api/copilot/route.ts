@@ -64,9 +64,10 @@ export async function POST(req: NextRequest) {
         const localResult = generateLocalCopilotResponse(message.trim(), context, history);
         return successResponse({
           ...localResult,
-          engineSource: "local_gis_engine",
+          engineSource: localResult.engineSource || "local_gis_engine",
           cloudUnavailable: true,
           cloudError: "NuGen API key is not configured on the server.",
+          notice: "The AI service could not be reached, so this answer comes from the built-in assistant.",
         });
       }
 
@@ -92,12 +93,11 @@ export async function POST(req: NextRequest) {
         const localResult = generateLocalCopilotResponse(message.trim(), context, history);
         return successResponse({
           ...localResult,
-          engineSource: "local_gis_engine",
+          engineSource: localResult.engineSource || "local_gis_engine",
           cloudUnavailable: true,
           cloudError: sanitizedErr,
-          reply:
-            `> ℹ️ **UrjaSetu Copilot Notice: NuGen Cloud AI unreachable** (${sanitizedErr}). Analyzed via **UrjaSetu Local GIS Rules Engine (Deterministic)**:\n\n` +
-            localResult.reply,
+          notice: "The AI service could not be reached, so this answer comes from the built-in assistant.",
+          reply: localResult.reply,
         });
       }
       throw err;

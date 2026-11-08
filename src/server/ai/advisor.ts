@@ -39,6 +39,7 @@ import {
 import { nuGenProvider, NuGenProvider, redactSecret, stripHtml } from "./llm/nugen-provider";
 import { LLMToolDefinition } from "./llm/types";
 import { validateWording, validateNumericGrounding, enforceModelledLabels } from "./guardrails";
+import { generateHeatPlannerResponse } from "./heat-responder";
 
 export type AIAdvisorErrorCode =
   | "KEY_NOT_CONFIGURED"
@@ -391,6 +392,24 @@ Produce a structured JSON response matching the required schema with:
 export interface CopilotChatContext {
   studyArea?: string;
   infrastructureType?: string;
+  currentRoute?: string;
+  route?: string;
+  currentPlan?: {
+    allocatedHa?: number;
+    selectedCount?: number;
+    totalPopulation?: number;
+    meanCooling?: number;
+    budgetHa?: number;
+    [key: string]: any;
+  };
+  selectedZone?: {
+    id?: string;
+    ward?: string;
+    lst?: number;
+    ndvi?: number;
+    heatExcess?: number;
+    [key: string]: any;
+  };
   placement?: {
     id?: string;
     type?: string;
@@ -521,8 +540,8 @@ export function extractSpatialAdjustmentFromIntent(
 ): CopilotAdjustment | null {
   const lowerMsg = message.toLowerCase().trim();
 
-  const currentLat = placement?.lat ?? 20.3506;
-  const currentLng = placement?.lng ?? 74.3626;
+  const currentLat = placement?.lat ?? 18.5204;
+  const currentLng = placement?.lng ?? 73.8567;
   const currentLength = placement?.lengthM ?? 100;
   const currentWidth = placement?.widthM ?? 50;
   const currentBearing = placement?.bearingDeg ?? 0;
@@ -987,8 +1006,115 @@ export function executeGetZoneTool(args: ToolGetZoneArgs): ToolGetZoneResult {
 }
 
 // -------------------------------------------------------------
-// LIVE COPILOT GENERATION WITH NUGEN AI
+// LIVE COPILOT GENERATION WITH NUGEN AI & FIVE CORE TOOLS
 // -------------------------------------------------------------
+
+export interface ToolCompareScenariosArgs {
+  budget_a_ha: number;
+  budget_b_ha: number;
+  target_ndvi?: number;
+}
+
+export function executeCompareScenariosTool(args: ToolCompareScenariosArgs) {
+  const target_ndvi = args.target_ndvi ?? 0.65;
+  const optA = executeRunOptimizationTool({ budget_ha: args.budget_a_ha, target_ndvi });
+  const optB = executeRunOptimizationTool({ budget_ha: args.budget_b_ha, target_ndvi });
+
+  return {
+    scenario_a: {
+      budget_ha: args.budget_a_ha,
+      allocated_ha: optA.allocated_ha,
+      cells_count: optA.selected_cells_count,
+      cooling_mean: optA.cooling_mean,
+      population_benefited: optA.population_benefited,
+    },
+    scenario_b: {
+      budget_ha: args.budget_b_ha,
+      allocated_ha: optB.allocated_ha,
+      cells_count: optB.selected_cells_count,
+      cooling_mean: optB.cooling_mean,
+      population_benefited: optB.population_benefited,
+    },
+    delta: {
+      budget_ha_diff: Number((args.budget_b_ha - args.budget_a_ha).toFixed(1)),
+      allocated_ha_diff: Number((optB.allocated_ha - optA.allocated_ha).toFixed(1)),
+      cells_diff: (optB.selected_cells_count || 0) - (optA.selected_cells_count || 0),
+      population_diff: (optB.population_benefited || 0) - (optA.population_benefited || 0),
+      cooling_diff: Number(((optB.cooling_mean || 0) - (optA.cooling_mean || 0)).toFixed(2)),
+    },
+    diminishing_returns_note:
+      "Expanding the hectare budget incorporates lower-ranked parcels, expanding total coverage while marginal cooling per additional hectare diminishes.",
+  };
+}
+
+export function executeGetModelCardTool() {
+  return {
+    model_name: "UrjaSetu Urban Cooling & Heat Burden Priority Engine",
+    version: "1.0.0",
+    framework: "30-member spatial-block bootstrap LightGBM ensemble",
+    metrics: {
+      spatial_cv_rmse_c: 0.91,
+      held_out_scene_rmse_c: 0.96,
+      mae_c: 0.61,
+      r2: 0.70,
+      spatial_blocks: 136,
+      ensemble_members: 30,
+      unconstrained_direction_gate_passed: true,
+      negative_response_pct: 95.9,
+    },
+    parameters: {
+      baseline_surface_temp_c: 28.5,
+      alpha_coupling_default: 0.5,
+      gamma_solar_empirical_pct_per_c: -0.533,
+    },
+    data_sources: {
+      thermal: "USGS Landsat 9 TIRS-2 Band 10 (2023-04-22 05:27 UTC, radiometric skin temperature)",
+      vegetation: "Copernicus Sentinel-2B MSI Level-2A BOA (2023-04-24 05:32 UTC, spectral NDVI)",
+      wards: "Pune Municipal Corporation administrative boundaries",
+      demographics: "WorldPop 2022 projections [Assumed]",
+    },
+  };
+}
+
+export function executeGetStatusTool() {
+  return {
+    ai_service: {
+      configured: isAIConfigured(),
+      provider: "NuGen AI",
+      model: getAIModel(),
+    },
+    data_mode: "Real Pune satellite and municipal register data",
+    green_loss: {
+      status: "Active multi-temporal vegetative loss tracking",
+      coverage_wards: "All 15 PMC administrative ward clusters",
+    },
+    governance_rules: "Scientific grounding enforced; no carbon/kWh claims; surface temperature only.",
+  };
+}
+
+export function buildCopilotContextPack(context?: CopilotChatContext): string {
+  const modelCard = executeGetModelCardTool();
+  let pack = `[URJASETU_SYSTEM_CONTEXT]\n`;
+  pack += `City: Pune, Maharashtra (PMC)\n`;
+  pack += `Active Tool: ${context?.currentRoute || "Heat Planner (Priority Interventions)"}\n`;
+
+  if (context?.currentPlan) {
+    pack += `Current Plan State: Allocated ${context.currentPlan.allocatedHa?.toFixed(1) ?? "10.0"} ha across ${context.currentPlan.selectedCount ?? 2} cells, benefiting ${context.currentPlan.totalPopulation?.toLocaleString() ?? "N/A"} residents [Assumed], mean modelled surface cooling: ${context.currentPlan.meanCooling ?? "N/A"}°C.\n`;
+  }
+
+  if (context?.selectedZone) {
+    pack += `Selected Zone: ${context.selectedZone.id} in ${context.selectedZone.ward || "Pune"} (LST Mean: ${context.selectedZone.lst ?? "N/A"}°C [Measured], NDVI: ${context.selectedZone.ndvi ?? "N/A"} [Measured], Heat Excess: ${context.selectedZone.heatExcess ?? "N/A"}°C).\n`;
+  }
+
+  pack += `Model Card Summary: Spatial-CV RMSE = ${modelCard.metrics.spatial_cv_rmse_c}°C, R² = ${modelCard.metrics.r2}, 30-member spatial-block bootstrap ensemble, direction check 95.9% passed.\n`;
+  pack += `Status: Real Pune satellite data active (Landsat 9 2023-04-22, Sentinel-2B 2023-04-24). Green Loss validation active.\n`;
+  pack += `Glossary:\n`;
+  pack += `- Heat Burden = Population × (Surface Temperature - Baseline). Population is Assumed, Surface Temperature is Measured.\n`;
+  pack += `- Robustness = Selection frequency across 30 bootstrap ensemble runs.\n`;
+  pack += `- The Four Chips: Measured (satellites/registers), Modelled (AI predictions with [p10, p90] interval), Assumed (scenario/population parameter), Input (user budget/target).\n`;
+  pack += `- Surface Temperature: Radiometric skin temperature from Landsat 9 TIRS-2, NOT 2m air temperature.\n`;
+  return pack;
+}
 
 export async function generateCopilotResponse(
   message: string,
@@ -1005,28 +1131,27 @@ export async function generateCopilotResponse(
   }
 
   const city = cleanStudyAreaName(context?.studyArea);
-  const infraType = context?.infrastructureType || "Civic Infrastructure";
   const modelName = getAIModel();
 
-  const systemPrompt = `You are UrjaSetu's AI Urban Planning Copilot and Heat Resilience Assistant for Pune (PMC), PCMC, and Nashik, Maharashtra.
-You are powered by NuGen AI.
+  const systemPrompt = `You are UrjaSetu's AI Climate Copilot for Pune, Maharashtra, powered by NuGen AI.
+You help municipal planners and citizens understand urban surface temperatures, heat burden, cooling interventions, and greening budget allocations.
 
-SCIENTIFIC GOVERNANCE & PLANNING PRINCIPLES:
-1. Always ground your analysis strictly in verified GIS data and tool outputs.
-2. NEVER fabricate numbers, non-existent roads, cadastral survey numbers, or municipal approvals.
-3. Distinguish clearly between geometric clearance and statutory legal permissions (UDCPR 2020).
-4. SURFACE TEMPERATURE ONLY:
-   - Always refer to satellite measurements as "surface temperature", NEVER ambient "air temperature" (except when explaining that satellites do not measure air temperature).
-   - Refer to thermal impacts as "associated with", NEVER "caused by".
-   - NDVI is a vegetation index [-1.0, 1.0], NEVER tree "canopy" or canopy cover percentage.
-5. NO UNSUPPORTED CLAIMS:
-   - Do NOT claim carbon offset, CO2 savings, or kWh figures for Pune cooling.
-   - Do NOT claim PMC or any authority formally adopted the tool.
-   - Label every estimate explicitly as [Modelled].
-6. TOOLS AVAILABLE:
-   - run_optimization(budget_ha, target_ndvi): Runs greedy knapsack cooling allocation across 250m cells.
-   - get_zone(id): Fetches verified cell measurements and modelled cooling statistics.
-   When the user asks for priority optimization or specific zone numbers, invoke these tools.`;
+RESPONSE STYLE GUIDELINES:
+1. Answer the user's actual question directly in the very first sentence.
+2. Write in short, clear, professional natural language.
+3. Absolutely NO emojis anywhere in your response.
+4. Do NOT use boilerplate repetitive markdown headings (like "### Verified Satellite Observations" or "#### 1. Measured Satellite").
+5. Use bullet points only when presenting a list of 3 or more distinct items; otherwise write clean paragraphs.
+6. Keep answers concise (under 180 words unless the user asks for a detailed breakdown).
+
+SCIENTIFIC GOVERNANCE & WORDING RULES:
+1. Always use "surface temperature", NEVER "air temperature" (except when explaining that satellites do not measure air temperature).
+2. Always say thermal impacts are "associated with", NEVER "caused by".
+3. NDVI is a "vegetation index" [-1.0, 1.0], NEVER "canopy" or "tree canopy cover".
+4. Cooling estimates are modelled ranges, not guaranteed promises.
+5. NEVER fabricate or invent numbers. Use ONLY numbers present in the context pack or tool results.
+6. Refuse politely if asked to calculate carbon credits, CO2 offsets, or kWh electricity savings (state that these are not modelled and remain Not available).
+7. Label figures with provenance tags when presenting data: [Measured], [Modelled], [Assumed], [Input].`;
 
   // Pre-check for spatial adjustment
   const spatialAdj = extractSpatialAdjustmentFromIntent(message, context?.placement);
@@ -1041,7 +1166,7 @@ SCIENTIFIC GOVERNANCE & PLANNING PRINCIPLES:
           budget_ha: { type: "number", description: "Target land budget in hectares" },
           target_ndvi: { type: "number", description: "Target vegetation index, e.g. 0.65" },
         },
-        required: ["budget_ha", "target_ndvi"],
+        required: ["budget_ha"],
       },
     },
     {
@@ -1055,17 +1180,87 @@ SCIENTIFIC GOVERNANCE & PLANNING PRINCIPLES:
         required: ["id"],
       },
     },
+    {
+      name: "compare_scenarios",
+      description: "Compares two different greening hectare budgets and reports differences in allocated area, number of zones, benefited population, and expected cooling.",
+      parameters: {
+        type: "object" as const,
+        properties: {
+          budget_a_ha: { type: "number", description: "First budget in hectares" },
+          budget_b_ha: { type: "number", description: "Second budget in hectares" },
+        },
+        required: ["budget_a_ha", "budget_b_ha"],
+      },
+    },
+    {
+      name: "get_model_card",
+      description: "Retrieves the scientific model card metrics, including Spatial-CV RMSE, R2, ensemble size, and data sources.",
+      parameters: {
+        type: "object" as const,
+        properties: {},
+      },
+    },
+    {
+      name: "get_status",
+      description: "Retrieves current application data status, including real vs demo data status and Green Loss tracking status.",
+      parameters: {
+        type: "object" as const,
+        properties: {},
+      },
+    },
   ];
 
+  const contextPack = buildCopilotContextPack(context);
+  const memoryTurns = (history || []).slice(-6).map((h) => ({
+    role: h.role,
+    content: h.content,
+  }));
+
   const conversationMessages = [
-    { role: "system" as const, content: systemPrompt },
-    ...(history || []).map((h) => ({ role: h.role, content: h.content })),
+    { role: "system" as const, content: `${systemPrompt}\n\n${contextPack}` },
+    ...memoryTurns,
     { role: "user" as const, content: message },
   ];
 
   let toolCallsExecuted: Array<{ tool: string; args: any; result: any }> = [];
-  let verifiedSourcesForGrounding: string[] = [message];
+  let verifiedSourcesForGrounding: string[] = [message, contextPack];
   if (context) verifiedSourcesForGrounding.push(JSON.stringify(context));
+
+  // Proactive intent detection to ground LLM in tool results
+  const lowerMsg = message.toLowerCase();
+  let proactiveToolResult: { tool: string; args: any; result: any } | null = null;
+
+  const budgetMatch = message.match(/(?:budget|allocate|spend)?\s*(\d+(?:\.\d+)?)\s*(?:ha|hectare|hectares)\b/i);
+  const zoneMatch = message.match(/\b(cell_250m_\d{4,5})\b/i);
+  const compareMatch = lowerMsg.includes("compare") && message.match(/(\d+(?:\.\d+)?)\s*(?:ha)?\s*(?:vs|and|versus)\s*(\d+(?:\.\d+)?)\s*(?:ha)?/i);
+
+  if (compareMatch) {
+    const bA = parseFloat(compareMatch[1]);
+    const bB = parseFloat(compareMatch[2]);
+    const res = executeCompareScenariosTool({ budget_a_ha: bA, budget_b_ha: bB });
+    proactiveToolResult = { tool: "compare_scenarios", args: { budget_a_ha: bA, budget_b_ha: bB }, result: res };
+  } else if (budgetMatch && (lowerMsg.includes("run") || lowerMsg.includes("optimize") || lowerMsg.includes("budget") || lowerMsg.includes("allocate") || lowerMsg.includes("plan"))) {
+    const b = parseFloat(budgetMatch[1]);
+    const res = executeRunOptimizationTool({ budget_ha: b, target_ndvi: 0.65 });
+    proactiveToolResult = { tool: "run_optimization", args: { budget_ha: b, target_ndvi: 0.65 }, result: res };
+  } else if (zoneMatch) {
+    const zId = zoneMatch[1].toLowerCase();
+    const res = executeGetZoneTool({ id: zId });
+    proactiveToolResult = { tool: "get_zone", args: { id: zId }, result: res };
+  } else if (lowerMsg.includes("model card") || lowerMsg.includes("cv rmse") || lowerMsg.includes("rmse")) {
+    const res = executeGetModelCardTool();
+    proactiveToolResult = { tool: "get_model_card", args: {}, result: res };
+  } else if (lowerMsg.includes("data status") || lowerMsg.includes("real vs demo")) {
+    const res = executeGetStatusTool();
+    proactiveToolResult = { tool: "get_status", args: {}, result: res };
+  }
+
+  if (proactiveToolResult) {
+    toolCallsExecuted.push(proactiveToolResult);
+    verifiedSourcesForGrounding.push(JSON.stringify(proactiveToolResult.result));
+    conversationMessages[conversationMessages.length - 1].content +=
+      `\n\n[VERIFIED_TOOL_RESULT for ${proactiveToolResult.tool}]:\n${JSON.stringify(proactiveToolResult.result, null, 2)}\n(Use these exact figures to answer naturally in plain English).`;
+  }
 
   // Turn 1: Initial call to NuGen
   const firstTurn = await nuGenProvider.complete(conversationMessages, {
@@ -1077,7 +1272,7 @@ SCIENTIFIC GOVERNANCE & PLANNING PRINCIPLES:
 
   let rawReply = firstTurn.text;
 
-  // Check if a tool call was requested
+  // Check if a tool call was requested by LLM
   if (firstTurn.toolCalls && firstTurn.toolCalls.length > 0) {
     for (const call of firstTurn.toolCalls) {
       let output: any;
@@ -1085,6 +1280,12 @@ SCIENTIFIC GOVERNANCE & PLANNING PRINCIPLES:
         output = executeRunOptimizationTool(call.arguments as any);
       } else if (call.name === "get_zone") {
         output = executeGetZoneTool(call.arguments as any);
+      } else if (call.name === "compare_scenarios") {
+        output = executeCompareScenariosTool(call.arguments as any);
+      } else if (call.name === "get_model_card") {
+        output = executeGetModelCardTool();
+      } else if (call.name === "get_status") {
+        output = executeGetStatusTool();
       } else {
         output = { error: `Unrecognized tool ${call.name}`, found: false };
       }
@@ -1108,7 +1309,7 @@ SCIENTIFIC GOVERNANCE & PLANNING PRINCIPLES:
           toolCallsExecuted.map((t) => ({ tool: t.tool, result: t.result })),
           null,
           2
-        )}\n\nSynthesize the answer using ONLY these verified results. Label all estimates as [Modelled]. Observe strict wording guards.`,
+        )}\n\nSynthesize the answer using ONLY these verified results. Label all estimates as [Modelled]. Observe strict wording guards. Answer in plain natural English without emojis.`,
       },
     ];
 
@@ -1124,7 +1325,6 @@ SCIENTIFIC GOVERNANCE & PLANNING PRINCIPLES:
   // Wording guard check
   let wordingCheck = validateWording(rawReply);
   if (!wordingCheck.valid) {
-    // Regenerate once with strict correction
     const fixTurn = await nuGenProvider.complete(
       [
         ...conversationMessages,
@@ -1141,8 +1341,7 @@ SCIENTIFIC GOVERNANCE & PLANNING PRINCIPLES:
     rawReply = fixTurn.text;
     wordingCheck = validateWording(rawReply);
     if (!wordingCheck.valid) {
-      // Fallback to deterministic clean response
-      return generateLocalCopilotResponse(message, context, history);
+      return generateHeatPlannerResponse(message, context, history);
     }
   }
 
@@ -1150,7 +1349,6 @@ SCIENTIFIC GOVERNANCE & PLANNING PRINCIPLES:
   if (toolCallsExecuted.length > 0) {
     const groundingCheck = validateNumericGrounding(rawReply, verifiedSourcesForGrounding);
     if (!groundingCheck.grounded) {
-      // Regenerate once with strict grounding constraint
       const fixGrounding = await nuGenProvider.complete(
         [
           ...conversationMessages,
@@ -1167,24 +1365,7 @@ SCIENTIFIC GOVERNANCE & PLANNING PRINCIPLES:
       rawReply = fixGrounding.text;
       const secondCheck = validateNumericGrounding(rawReply, verifiedSourcesForGrounding);
       if (!secondCheck.grounded) {
-        // Fallback to deterministic tool-templated answer
-        const tool0 = toolCallsExecuted[0];
-        if (tool0.tool === "run_optimization") {
-          return {
-            reply: `### Counterfactual Cooling Optimization Results [NuGen AI Verified]\n\n` +
-              `- **Target Budget**: [Assumed] **${tool0.result.budget_ha} ha**\n` +
-              `- **Allocated Area**: [Modelled] **${tool0.result.allocated_ha.toFixed(1)} ha** across **${tool0.result.cells_selected_count} priority zones**\n` +
-              `- **Estimated Mean Surface Cooling**: [Modelled] **${tool0.result.cooling_mean.toFixed(1)}°C** (${tool0.result.cooling_p10.toFixed(1)}°C to ${tool0.result.cooling_p90.toFixed(1)}°C)\n` +
-              `- **People Benefiting**: [Measured] **${tool0.result.population_benefited.toLocaleString()} residents**\n\n` +
-              `*Estimates derived from 30-member spatial-block bootstrap ensemble. Model CV RMSE: ±0.91°C.*`,
-            suggestedQuestions: ["How does changing budget affect cooling?", "View top priority cell details"],
-            referencedInterventions: [],
-            referencedWards: [city],
-            referencedMetrics: { allocated_ha: tool0.result.allocated_ha, cooling_c: tool0.result.cooling_mean },
-            toolCalls: toolCallsExecuted,
-            engineSource: "nugen_cloud",
-          };
-        }
+        return generateHeatPlannerResponse(message, context, history);
       }
     }
   }
@@ -1218,6 +1399,47 @@ export function generateLocalCopilotResponse(
   context?: CopilotChatContext,
   history?: CopilotChatMessage[]
 ): CopilotResponseResult {
+  const lowerMsg = message.toLowerCase().trim();
+
+  // 1. Greetings & capabilities go directly to Heat Planner responder
+  const isGreeting =
+    /^(hi|hello|hey|greetings|good\s*(morning|afternoon|evening)|yo)\b/i.test(lowerMsg) ||
+    lowerMsg === "help" ||
+    lowerMsg.includes("who are you") ||
+    lowerMsg.includes("what can you do") ||
+    lowerMsg.includes("how can you help");
+
+  if (isGreeting && lowerMsg.length < 50) {
+    return generateHeatPlannerResponse(message, context, history);
+  }
+
+  // 2. Direct Heat Planner concepts go directly to Heat Planner responder
+  const isDirectHeatPlanner =
+    lowerMsg.includes("heat burden") ||
+    lowerMsg.includes("burden formula") ||
+    lowerMsg.includes("four chips") ||
+    lowerMsg.includes("data used chip") ||
+    lowerMsg.includes("provenance") ||
+    lowerMsg.includes("surface vs air") ||
+    lowerMsg.includes("alpha") ||
+    lowerMsg.includes("gamma") ||
+    lowerMsg.includes("current plan") ||
+    lowerMsg.includes("plan summary") ||
+    lowerMsg.includes("scenario summary") ||
+    lowerMsg.includes("compare budgets") ||
+    lowerMsg.includes("trade-off") ||
+    lowerMsg.includes("diminishing") ||
+    lowerMsg.includes("data status") ||
+    lowerMsg.includes("real vs demo") ||
+    lowerMsg.includes("green loss") ||
+    lowerMsg.includes("chocolate cake") ||
+    lowerMsg.includes("recipe") ||
+    lowerMsg.includes("cricket");
+
+  if (isDirectHeatPlanner) {
+    return generateHeatPlannerResponse(message, context, history);
+  }
+
   const city = cleanStudyAreaName(context?.studyArea);
   const infraType = context?.infrastructureType || "Civic Infrastructure";
   const placement = context?.placement;
@@ -1247,8 +1469,8 @@ export function generateLocalCopilotResponse(
     placement?.areaM2 ||
       (placement?.lengthM && placement?.widthM ? placement.lengthM * placement.widthM : 2000)
   );
-  const centroidLat = placement?.lat !== undefined ? placement.lat.toFixed(4) : "20.3506";
-  const centroidLon = placement?.lng !== undefined ? placement.lng.toFixed(4) : "74.3626";
+  const centroidLat = placement?.lat !== undefined ? placement.lat.toFixed(4) : "18.5204";
+  const centroidLon = placement?.lng !== undefined ? placement.lng.toFixed(4) : "73.8567";
   const lengthM = placement?.lengthM || 100;
   const widthM = placement?.widthM || 50;
   const nearestRoadDistM = roadAccess?.distanceM !== undefined ? Math.round(roadAccess.distanceM) : undefined;
@@ -1263,26 +1485,26 @@ export function generateLocalCopilotResponse(
 
   const createProvenanceFooter = (status: CopilotResponseResult["statutoryStatus"]) => {
     let footer = `\n\n---\n`;
-    footer += `#### 📋 Analysis Provenance & Evidence Classification\n`;
+    footer += `#### Analysis Provenance & Evidence Classification\n`;
     footer += `- **Engine**: \`UrjaSetu Local GIS Rules Engine (Deterministic Analysis)\`\n`;
     footer += `- **Statutory Status**: \`${status}\`\n`;
-    footer += `- **Deterministic GIS Metrics**:\n`;
-    footer += `  - Centroid Coordinates: \`(${centroidLat}° N, ${centroidLon}° E)\`\n`;
-    footer += `  - Footprint Geometry: \`${lengthM}m × ${widthM}m\` (~${areaM2.toLocaleString()} m²)\n`;
-    if (nearestRoadDistM !== undefined) {
-      footer += `  - Nearest Mapped Road Feature: ~${nearestRoadDistM}m to \`${nearestRoadName}\` (${nearestRoadClass}; measured to 1D centerline)\n`;
+    if (placement?.lat !== undefined) {
+      footer += `- **Deterministic GIS Metrics**:\n`;
+      footer += `  - Centroid Coordinates: \`(${centroidLat}° N, ${centroidLon}° E)\`\n`;
+      footer += `  - Footprint Geometry: \`${lengthM}m × ${widthM}m\` (~${areaM2.toLocaleString()} m²)\n`;
+      if (nearestRoadDistM !== undefined) {
+        footer += `  - Nearest Mapped Road Feature: ~${nearestRoadDistM}m to \`${nearestRoadName}\` (${nearestRoadClass}; measured to 1D centerline)\n`;
+      }
     }
     footer += `- **Unverified Assumptions**:\n`;
     footer += `  - OpenStreetMap records 1D road centerlines, not 2D statutory right-of-way (ROW) boundary polygons or physical curb edges.\n`;
     footer += `  - Actual carriageway width, statutory building lines, and curb setbacks remain unverified without ground survey.\n`;
     footer += `- **Missing Evidence**:\n`;
-    footer += `  - Official Cadastral 7/12 Extract (Mahabhulekh) & CTS demarcation.\n`;
+    footer += `  - Official Cadastral Extract & CTS demarcation.\n`;
     footer += `  - Municipal Development Plan (DP) reservation sheet & zoning certificate.\n`;
-    footer += `  - Statutory building line clearance under Maharashtra UDCPR 2020.`;
+    footer += `  - Statutory building line clearance.`;
     return footer;
   };
-
-  const lowerMsg = message.toLowerCase();
 
   // Intent 0: Infrastructure Spatial Adjustment Commands
   const spatialAdj = extractSpatialAdjustmentFromIntent(message, placement);
@@ -1368,7 +1590,7 @@ export function generateLocalCopilotResponse(
      lowerMsg.includes("fabricate"));
 
   if (isRefusalQuery) {
-    let reply = `### ⛔ Scientific Data Governance: Refusal to Invent Unmeasured Values\n\n`;
+    let reply = `### Scientific Data Governance: Refusal to Invent Unmeasured Values\n\n`;
     reply += `In accordance with UrjaSetu scientific governance rules, this system **refuses to fabricate, invent, or guess unmeasured data**. Unknown values strictly remain \`null\` and display as **"Not available"**.\n\n`;
     reply += `#### Mandatory Scientific Safeguards\n`;
     reply += `1. **Surface Temperature (LST) is NOT Air Temperature**:\n`;
@@ -1378,7 +1600,7 @@ export function generateLocalCopilotResponse(
     reply += `   - Normalized Difference Vegetation Index (NDVI) is a unitless mathematical ratio of spectral reflectance in red and near-infrared bands \`[-1.0, 1.0]\`, **NOT** tree crown volume, vegetation cover percentage, or shade architecture (vegetation index, not canopy cover).\n`;
     reply += `   - Crown cover assessment requires terrestrial LiDAR, drone photogrammetry, or high-resolution hemispherical crown segmentation.\n\n`;
     reply += `3. **No Arbitrary Weighted Composite Scores**:\n`;
-    reply += `   - Prioritization is grounded strictly in physical cooling benefits (predicted LST delta in °C via 30-member spatial-block bootstrap LightGBM ensemble) per greenable hectare.\n`;
+    reply += `   - UrjaSetu does not use arbitrary weighted composite scores or subjective weight matrices. Prioritization is grounded strictly in physical cooling benefits (predicted LST delta in °C via 30-member spatial-block bootstrap LightGBM ensemble) per greenable hectare.\n`;
     reply += `   - Subjective weight matrices (e.g. 40% heat + 30% green + 30% pop) are disallowed as unscientific.\n\n`;
     reply += `4. **Strict Provenance Tagging**:\n`;
     reply += `   - Every valid displayed number is strictly tagged as **[Measured]** (satellite/ground), **[Modelled]** (machine learning prediction), or **[Assumed]** (scenario parameter).\n`;
@@ -1449,7 +1671,7 @@ export function generateLocalCopilotResponse(
 
     const optResult = executeRunOptimizationTool({ budget_ha, target_ndvi });
 
-    let reply = `### 🌳 Counterfactual Heat Priority Optimization Results\n\n`;
+    let reply = `### Counterfactual Heat Priority Optimization Results\n\n`;
     reply += `*Greedy benefit-per-hectare selection under hectare budget with 30-member Monte Carlo spatial bootstrap ensemble.*\n\n`;
     reply += `#### Scenario Inputs & Portfolio Summary\n`;
     reply += `- **Target Budget**: [Assumed] **${optResult.budget_ha} ha**\n`;
@@ -1459,7 +1681,7 @@ export function generateLocalCopilotResponse(
     reply += `- **Selected Priority Zones**: [Modelled] **${optResult.selected_cells_count}**\n\n`;
 
     if (optResult.status === "UNAVAILABLE") {
-      reply += `⚠️ **Cooling Estimates Unavailable**: Counterfactual surface cooling predictions are unavailable because the model direction check failed or ensemble artifacts are missing. In accordance with project rules, cooling values remain null / "Not available".\n\n`;
+      reply += `**Cooling Estimates Unavailable**: Counterfactual surface cooling predictions are unavailable because the model direction check failed or ensemble artifacts are missing. In accordance with project rules, cooling values remain null / "Not available".\n\n`;
     } else if (optResult.selected_cells.length > 0) {
       reply += `#### Top Ranked Priority Zones\n`;
       optResult.selected_cells.slice(0, 5).forEach((c) => {
@@ -1527,8 +1749,8 @@ export function generateLocalCopilotResponse(
     const zoneData = executeGetZoneTool({ id: requestedId });
 
     if (!zoneData.found) {
-      let reply = `### 🔍 Priority Zone Lookup: \`${requestedId}\`\n\n`;
-      reply += `⚠️ **Zone Not Found**: \`${requestedId}\` does not exist in the priority cells database.\n\n`;
+      let reply = `### Priority Zone Lookup: \`${requestedId}\`\n\n`;
+      reply += `**Zone Not Found**: \`${requestedId}\` does not exist in the priority cells database.\n\n`;
       reply += `**Scientific Data Governance Rule**: UrjaSetu strictly refuses to fabricate or guess unobserved zone metrics. Unknown values remain \`null\` and display as **"Not available"**.\n`;
       reply += createProvenanceFooter("INSUFFICIENT_EVIDENCE");
 
@@ -1557,7 +1779,7 @@ export function generateLocalCopilotResponse(
       };
     }
 
-    let reply = `### 📍 Priority Zone Intelligence: \`${zoneData.id}\`\n\n`;
+    let reply = `### Priority Zone Intelligence: \`${zoneData.id}\`\n\n`;
     reply += `**Administrative Ward**: ${zoneData.ward}\n`;
     reply += `**Centroid Coordinates**: [Measured] \`(${zoneData.centroid[1].toFixed(4)}° N, ${zoneData.centroid[0].toFixed(4)}° E)\`\n\n`;
 
@@ -1631,7 +1853,7 @@ export function generateLocalCopilotResponse(
   ) {
     let reply = `### Road Alignment & Centerline Clearance Assessment\n\n`;
     if (hasRoadCollision && roadCollision) {
-      reply += `⚠️ **Critical Encroachment Detected**: The proposed **${infraType}** footprint directly intersects the mapped right-of-way or centerline of **${roadCollision.label}**.\n\n`;
+      reply += `**Critical Encroachment Detected**: The proposed **${infraType}** footprint directly intersects the mapped right-of-way or centerline of **${roadCollision.label}**.\n\n`;
       reply += `- **Collision Details**: ${roadCollision.description}\n`;
       reply += `- **Statutory Standard**: Under Indian Roads Congress (IRC) guidelines and Maharashtra UDCPR 2020 (Rule 15.1), no permanent structural footprint may encroach upon public road rights-of-way or carriageways.\n`;
       reply += `- **Recommended Action**: Click the **"Snap to Road & Open Land"** tool in the control panel to automatically retract and align the footprint tangent to the curb with mandatory statutory setback (${infraType === "Park" ? "1.0m" : "3.0m"}), or drag the polygon clear of the road corridor.`;
@@ -1690,7 +1912,7 @@ export function generateLocalCopilotResponse(
     let reply = `### Road Ingress, Egress & Access Road Alignment\n\n`;
     if (roadAccess?.requiresNewAccessRoad) {
       const dist = Math.round(roadAccess.distanceM || 0);
-      reply += `⚠️ **Preliminary Access Road Required**: The site is currently offset from the public street network by **${dist}m** to **${roadAccess.nearestRoadName || "nearest road corridor"}** (measured to the 1D centerline).\n\n`;
+      reply += `**Preliminary Access Road Required**: The site is currently offset from the public street network by **${dist}m** to **${roadAccess.nearestRoadName || "nearest road corridor"}** (measured to the 1D centerline).\n\n`;
       reply += `**Preliminary Access Alignment Overview**:\n`;
       reply += `- **Required Span**: ${dist}m conceptual connection corridor to ${roadAccess.nearestRoadName || "the public highway"}.\n`;
       reply += `- **Minimum Statutory Width (UDCPR 2020)**: Minimum 9.0m to 12.0m carriageway for public institutional facilities, schools, and hospitals to support two-way traffic and emergency tender turning radii.\n`;
@@ -1791,18 +2013,14 @@ export function generateLocalCopilotResponse(
     };
   }
 
-  // Intent 4: Citizen plain-language explanation
-  if (
-    lowerMsg.includes("citizen") ||
-    lowerMsg.includes("simple") ||
-    /\bplain\b/i.test(lowerMsg) ||
-    (lowerMsg.includes("explain") &&
-      !lowerMsg.includes("ndvi") &&
-      !lowerMsg.includes("heat") &&
-      !lowerMsg.includes("lst") &&
-      !lowerMsg.includes("vegetation") &&
-      !lowerMsg.includes("temperature"))
-  ) {
+  // Intent 4: Citizen plain-language explanation (only when explicit placement context exists)
+  const isCitizenExplain =
+    Boolean(context?.placement) &&
+    (lowerMsg.includes("citizen") ||
+     lowerMsg.includes("simple") ||
+     /\bplain\b/i.test(lowerMsg));
+
+  if (isCitizenExplain) {
     const score = report?.overallScore ?? (hasRoadCollision ? 45 : 85);
     let reply = `### Site Evaluation in Simple Plain Language\n\n`;
     reply += `**Bottom-Line Verdict**: This location is currently rated **${score}/100** for a **${infraType}** in **${city}**.\n\n`;
@@ -1820,13 +2038,13 @@ export function generateLocalCopilotResponse(
 
     reply += `**Points of Caution (Cons / Watch Outs)**:\n`;
     if (hasRoadCollision) {
-      reply += `- ⚠️ **Road Encroachment**: The building sits partly inside a street, which will cause traffic problems and cannot be approved legally.\n`;
+      reply += `- **Road Encroachment**: The building sits partly inside a street, which will cause traffic problems and cannot be approved legally.\n`;
     }
     if (roadAccess?.requiresNewAccessRoad) {
-      reply += `- ⚠️ **Needs New Road**: Visitors cannot drive directly to the plot today; a ${Math.round(roadAccess.distanceM || 0)}m access road must be built.\n`;
+      reply += `- **Needs New Road**: Visitors cannot drive directly to the plot today; a ${Math.round(roadAccess.distanceM || 0)}m access road must be built.\n`;
     }
     if (buildingCollisions.length > 0) {
-      reply += `- ⚠️ **Existing Buildings**: Intersects ${buildingCollisions.length} existing structures that would need clearance.\n`;
+      reply += `- **Existing Buildings**: Intersects ${buildingCollisions.length} existing structures that would need clearance.\n`;
     }
     reply += `- Official revenue land titles (7/12 extract) still need to be verified with the local Talathi office.`;
 
@@ -1907,7 +2125,7 @@ export function generateLocalCopilotResponse(
       lowerMsg.includes("rejection") ||
       lowerMsg.includes("how were these");
 
-    let reply = `### 🏛️ Evidence-Based Urban Intervention Planning: ${city}\n\n`;
+    let reply = `### Evidence-Based Urban Intervention Planning: ${city}\n\n`;
 
     if (isDiscoveryOrRegistryQuery && !lowerMsg.includes("dossier")) {
       reply += `#### 1. Dynamic Spatial Discovery Engine (Phase 6)\n`;
@@ -2129,7 +2347,7 @@ export function generateLocalCopilotResponse(
     const cityMaxLST = cityHeat?.landsat9?.calibratedLSTCelsius?.max ? `${cityHeat.landsat9.calibratedLSTCelsius.max.toFixed(1)}°C` : "61.4°C";
     const cityMeanNDVI = cityHeat?.sentinel2b?.ndvi30mDistribution?.mean ? cityHeat.sentinel2b.ndvi30mDistribution.mean.toFixed(3) : "0.514";
 
-    let reply = `### 🛰️ Satellite Urban Heat & Vegetation Intelligence: ${city}\n\n`;
+    let reply = `### Satellite Urban Heat & Vegetation Intelligence: ${city}\n\n`;
     reply += `#### 1. Verified Satellite Observations\n`;
     reply += `- **Thermal Regime (Landsat 9 TIRS-2 Band 10)**:\n`;
     reply += `  - **Acquisition Timestamp**: \`2023-04-22 05:27:39 UTC\`\n`;
@@ -2242,23 +2460,25 @@ export function generateLocalCopilotResponse(
     };
   }
 
-  // Intent 6: Site Setup, Layout & Siting Appropriateness
+  // Intent 6: Site Setup, Layout & Siting Appropriateness (only when placement or explicit infrastructureType is provided)
+  const isSiteSitingContext = Boolean(context?.placement || (context?.infrastructureType && context.infrastructureType !== "Civic Infrastructure"));
   if (
-    lowerMsg.includes("setup") ||
-    lowerMsg.includes("properly") ||
-    lowerMsg.includes("siting") ||
-    lowerMsg.includes("location") ||
-    lowerMsg.includes("placed") ||
-    lowerMsg.includes("suitable") ||
-    lowerMsg.includes("feasib") ||
-    lowerMsg.includes("good") ||
-    lowerMsg.includes("viable") ||
-    lowerMsg.includes("review") ||
-    lowerMsg.includes("assess") ||
-    lowerMsg.includes("evaluate") ||
-    lowerMsg.includes("position") ||
-    lowerMsg.includes("layout") ||
-    lowerMsg.includes("capacity")
+    isSiteSitingContext &&
+    (lowerMsg.includes("setup") ||
+     lowerMsg.includes("properly") ||
+     lowerMsg.includes("siting") ||
+     lowerMsg.includes("location") ||
+     lowerMsg.includes("placed") ||
+     lowerMsg.includes("suitable") ||
+     lowerMsg.includes("feasib") ||
+     lowerMsg.includes("good") ||
+     lowerMsg.includes("viable") ||
+     lowerMsg.includes("review") ||
+     lowerMsg.includes("assess") ||
+     lowerMsg.includes("evaluate") ||
+     lowerMsg.includes("position") ||
+     lowerMsg.includes("layout") ||
+     lowerMsg.includes("capacity"))
   ) {
     const acres = (areaM2 / 4046.86).toFixed(2);
     const score = report?.overallScore ?? (hasRoadCollision ? 45 : 85);
@@ -2269,7 +2489,7 @@ export function generateLocalCopilotResponse(
     let reply = `### Technical Siting & Feasibility Assessment: ${infraType}\n\n`;
     reply += `**Location Coordinates**: \`(${centroidLat}° N, ${centroidLon}° E)\` in **${city}**\n`;
     reply += `**Footprint Area**: **${areaM2.toLocaleString()} m²** (~**${acres} acres**)\n`;
-    reply += `**Composite Planning Score**: **${score}/100** (${score >= 75 ? "✅ Viable for Development" : "⚠️ Requires Engineering / Setback Mitigation"})\n\n`;
+    reply += `**Composite Planning Score**: **${score}/100** (${score >= 75 ? "Viable for Development" : "Requires Engineering / Setback Mitigation"})\n\n`;
 
     if (isSolar) {
       const estimatedMWp = ((areaM2 / 4046.86) * 0.25).toFixed(2);
@@ -2283,40 +2503,40 @@ export function generateLocalCopilotResponse(
 
       reply += `#### 2. Spatial Encroachments & Setbacks\n`;
       if (hasRoadCollision) {
-        reply += `- ⚠️ **Road Collision**: The solar farm perimeter encroaches on mapped road corridors. Must retract edges to comply with mandatory statutory boundary setback under UDCPR.\n`;
+        reply += `- **Road Collision**: The solar farm perimeter encroaches on mapped road corridors. Must retract edges to comply with mandatory statutory boundary setback under UDCPR.\n`;
       } else {
-        reply += `- ✅ **Carriageway Buffer**: Clear of mapped OpenStreetMap 1D road centerlines (statutory ROW unverified).\n`;
+        reply += `- **Carriageway Buffer**: Clear of mapped OpenStreetMap 1D road centerlines (statutory ROW unverified).\n`;
       }
       if (buildingCollisions.length > 0) {
-        reply += `- ⚠️ **Existing Structures**: Intersects ${buildingCollisions.length} existing mapped structures. Site acquisition or footprint redrawing is required.\n`;
+        reply += `- **Existing Structures**: Intersects ${buildingCollisions.length} existing mapped structures. Site acquisition or footprint redrawing is required.\n`;
       } else {
-        reply += `- ✅ **Open Land Clearance**: Sited on contiguous open parcel without built structure encumbrances.\n`;
+        reply += `- **Open Land Clearance**: Sited on contiguous open parcel without built structure encumbrances.\n`;
       }
 
       reply += `\n#### 3. Logistical & Grid Connectivity Requirements\n`;
       if (roadAccess?.requiresNewAccessRoad) {
-        reply += `- ⚠️ **O&M Access Road**: Currently landlocked; requires a **${Math.round(roadAccess.distanceM || 0)}m** all-weather access road to **${roadAccess.nearestRoadName || "public road"}** for heavy transformer/inverter delivery and bi-weekly panel washing water tankers.\n`;
+        reply += `- **O&M Access Road**: Currently landlocked; requires a **${Math.round(roadAccess.distanceM || 0)}m** all-weather access road to **${roadAccess.nearestRoadName || "public road"}** for heavy transformer/inverter delivery and bi-weekly panel washing water tankers.\n`;
       } else {
-        reply += `- ✅ **Logistics Ingress**: Direct access to **${roadAccess?.nearestRoadName || "public road"}** (~${nearestRoadDistM ?? 0}m distance to centerline).\n`;
+        reply += `- **Logistics Ingress**: Direct access to **${roadAccess?.nearestRoadName || "public road"}** (~${nearestRoadDistM ?? 0}m distance to centerline).\n`;
       }
-      reply += `- ⚡ **Substation Evacuation**: Requires 11kV/33kV power evacuation corridor to nearest MSEDCL/MSETCL feeder.\n\n`;
+      reply += `- **Substation Evacuation**: Requires 11kV/33kV power evacuation corridor to nearest MSEDCL/MSETCL feeder.\n\n`;
 
-      reply += `> 💡 **Next Steps**: Use the **"Shadow-of-the-Future"** simulation panel to test hourly shadow ray-tracing, and **"Solar Reality"** to calculate monsoon de-rating and soil degradation coefficients.`;
+      reply += `> **Next Steps**: Use the **"Shadow-of-the-Future"** simulation panel to test hourly shadow ray-tracing, and **"Solar Reality"** to calculate monsoon de-rating and soil degradation coefficients.`;
     } else if (isEV) {
       reply += `#### 1. EV Charging Station Capacity & Infrastructure\n`;
       reply += `- **Bay Sizing**: Footprint accommodates up to ${Math.max(4, Math.floor(areaM2 / 65))} EV charging bays with designated ingress/egress lanes.\n`;
       reply += `- **Power Demands**: Recommends dedicated 500 kVA - 1 MVA compact substation for DC Fast Chargers (120 kW+ CCS2).\n`;
-      reply += `- **Road Frontage**: ${roadAccess?.requiresNewAccessRoad ? `⚠️ Requires ${Math.round(roadAccess.distanceM || 0)}m road connector.` : `✅ Connected directly to ${roadAccess?.nearestRoadName || "primary road"} (~${nearestRoadDistM ?? 0}m to centerline).`}\n`;
+      reply += `- **Road Frontage**: ${roadAccess?.requiresNewAccessRoad ? `Requires ${Math.round(roadAccess.distanceM || 0)}m road connector.` : `Connected directly to ${roadAccess?.nearestRoadName || "primary road"} (~${nearestRoadDistM ?? 0}m to centerline).`}\n`;
       reply += `- **Traffic Safety**: Must integrate dedicated turning radii to avoid vehicular queue spillage onto arterial carriageways.\n`;
     } else if (isHospital) {
       reply += `#### 1. Healthcare Facility Siting Criteria\n`;
       reply += `- **Frontage Road Width**: UDCPR 2020 Rule 15.1 mandates minimum 15.0m abutting road width for emergency ambulance movement.\n`;
-      reply += `- **Emergency Accessibility**: ${roadAccess?.requiresNewAccessRoad ? `⚠️ Needs ${Math.round(roadAccess.distanceM || 0)}m access road.` : `✅ Direct street connectivity verified (~${nearestRoadDistM ?? 0}m to centerline).`}\n`;
+      reply += `- **Emergency Accessibility**: ${roadAccess?.requiresNewAccessRoad ? `Needs ${Math.round(roadAccess.distanceM || 0)}m access road.` : `Direct street connectivity verified (~${nearestRoadDistM ?? 0}m to centerline).`}\n`;
       reply += `- **Environmental Buffering**: Acoustic barrier and DG set isolation required from adjacent residential zoning.\n`;
     } else {
       reply += `#### 1. Land & Geometric Feasibility\n`;
-      reply += `- **Encroachment Status**: ${hasRoadCollision ? "⚠️ Intersects public rights-of-way." : "✅ Clear of mapped 1D road centerlines (statutory ROW unverified)."}\n`;
-      reply += `- **Access Road Status**: ${roadAccess?.requiresNewAccessRoad ? `⚠️ Landlocked; ${Math.round(roadAccess.distanceM || 0)}m preliminary access road required.` : `✅ Connected to ${roadAccess?.nearestRoadName || "road corridor"} (~${nearestRoadDistM ?? 0}m to centerline).`}\n`;
+      reply += `- **Encroachment Status**: ${hasRoadCollision ? "Intersects public rights-of-way." : "Clear of mapped 1D road centerlines (statutory ROW unverified)."}\n`;
+      reply += `- **Access Road Status**: ${roadAccess?.requiresNewAccessRoad ? `Landlocked; ${Math.round(roadAccess.distanceM || 0)}m preliminary access road required.` : `Connected to ${roadAccess?.nearestRoadName || "road corridor"} (~${nearestRoadDistM ?? 0}m to centerline).`}\n`;
       reply += `- **Statutory Framework**: ${statutoryFramework}.\n`;
     }
 
@@ -2352,49 +2572,6 @@ export function generateLocalCopilotResponse(
     };
   }
 
-  // Dynamic Fallback Synthesis
-  const score = report?.overallScore ?? (hasRoadCollision ? 45 : 85);
-
-  let reply = `### UrjaSetu Urban Planning Synthesis: ${infraType}\n\n`;
-  reply += `**Study Area**: ${city} | **Coordinates**: \`(${centroidLat}° N, ${centroidLon}° E)\`\n`;
-  reply += `**Site Dimensions**: **${areaM2.toLocaleString()} m²** (~${(areaM2 / 4046.86).toFixed(2)} acres)\n`;
-  reply += `**Multi-Criteria Suitability Score**: **${score}/100** (${score >= 70 ? "Viable" : "Action Required"})\n\n`;
-
-  reply += `**Key Spatial Observations Regarding Your Query**:\n`;
-  reply += `1. **Road Clearance**: ${hasRoadCollision ? "⚠️ Encroaches on mapped road centerline. Use 'Snap to Road & Open Land' to adjust." : `ℹ️ Clear of mapped 1D road centerlines (~${nearestRoadDistM ?? 0}m); statutory right-of-way unverified.`}\n`;
-  reply += `2. **Access Road Status**: ${roadAccess?.requiresNewAccessRoad ? `⚠️ Offset from street network; requires ${Math.round(roadAccess.distanceM || 0)}m access road to ${roadAccess.nearestRoadName || "public road"}.` : `✅ Direct frontage connected to ${roadAccess?.nearestRoadName || "mapped road"} (~${nearestRoadDistM ?? 0}m to centerline).`}\n`;
-  reply += `3. **Statutory Planning Basis**: Subject to ${statutoryFramework} (requires municipal DP and cadastre verification).\n\n`;
-
-  reply += `💡 *Tip: You can ask specific questions about solar yield, 3D shading ray-tracing, access roads, UDCPR statutory setbacks, or click "Snap to Road & Open Land" to automatically correct boundaries.*`;
-
-  reply += createProvenanceFooter(defaultStatus);
-
-  return {
-    reply,
-    modelUsed: "local-gis-rules-engine",
-    engineSource: "local_gis_engine",
-    statutoryStatus: defaultStatus,
-    deterministicMetrics: {
-      coordinates: `(${centroidLat}° N, ${centroidLon}° E)`,
-      dimensionsMeters: `${lengthM}m × ${widthM}m`,
-      areaM2,
-      nearestRoadDistanceM: nearestRoadDistM,
-      nearestRoadName,
-      roadGeometryType: "1D LineString (Centerline)",
-    },
-    assumptions: [
-      "OpenStreetMap features are 1D centerlines; actual carriageway width and statutory ROW are unverified.",
-    ],
-    missingEvidence: [
-      "Cadastral 7/12 land revenue extract (Mahabhulekh) & CTS demarcation.",
-      "Municipal Development Plan (DP) reservation sheet.",
-    ],
-    groundedFacts: {
-      city,
-      infrastructureType: infraType,
-      hasRoadCollision,
-      roadAccessStatus,
-      statutoryFramework,
-    },
-  };
+  // If no placement-specific intent matched, delegate to the dedicated Heat Planner responder
+  return generateHeatPlannerResponse(message, context, history);
 }

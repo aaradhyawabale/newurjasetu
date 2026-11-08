@@ -26,10 +26,6 @@ const BANNED_PATTERNS: Array<{ pattern: RegExp; message: string }> = [
     message: "Banned phrase 'caused by' used; must use 'associated with'.",
   },
   {
-    pattern: /\b(?:kwh|mwh|gwh|carbon offset|co2 savings|carbon credits)\b/i,
-    message: "Unsupported carbon or kWh cooling savings claimed.",
-  },
-  {
     pattern: /\badopted by PMC\b/i,
     message: "Unverified authority adoption claim.",
   },
@@ -52,27 +48,48 @@ export function validateWording(text: string): WordingValidationResult {
     }
   }
 
+  // Carbon / energy savings check: only permitted when explicitly stating what is NOT modelled
+  const energyMatches = clean.match(/\b(?:kwh|mwh|gwh|carbon offset|co2 savings|carbon credits)\b/gi);
+  if (energyMatches) {
+    const sentences = clean.split(/[.!?\n]+/);
+    for (const sentence of sentences) {
+      if (/\b(?:kwh|mwh|gwh|carbon offset|co2 savings|carbon credits)\b/i.test(sentence)) {
+        const isNegated = /(?:does\s*not|do\s*not|cannot|will\s*not|refuse[s]?|never|not\s*(?:model|simulate|calculate|claim|estimate))/i.test(sentence);
+        if (!isNegated) {
+          violations.push("Unsupported carbon or kWh cooling savings claimed.");
+          break;
+        }
+      }
+    }
+  }
+
   // Canopy check: only permitted when explicitly clarifying that NDVI is NOT tree canopy
   const canopyMatches = clean.match(/\bcanopy\b/gi);
   if (canopyMatches) {
-    const withoutNegated = clean.replace(
-      /(?:not|never|does\s*not\s*equate\s*to|neither)\s*(?:an?|3D)?\s*(?:tree|crown)?\s*canopy(?:\s*(?:volume|cover|percentage|percent))?(?:(?:\s*,\s*|\s+or\s+)(?:canopy\s*)?(?:volume|cover|percentage|percent|architecture))*/gi,
-      "[NEGATED_CANOPY]"
-    );
-    if (/\bcanopy\b/i.test(withoutNegated)) {
-      violations.push("Banned word 'canopy' used affirmatively; must use 'vegetation index' or 'shade cover'.");
+    const sentences = clean.split(/[.!?\n]+/);
+    for (const sentence of sentences) {
+      if (/\bcanopy\b/i.test(sentence)) {
+        const isNegated = /(?:not|never|neither|does\s*not\s*equate)/i.test(sentence);
+        if (!isNegated) {
+          violations.push("Banned word 'canopy' used affirmatively; must use 'vegetation index' or 'shade cover'.");
+          break;
+        }
+      }
     }
   }
 
   // Air temperature check: only permitted when explicitly clarifying what it is not
   const airTempMatches = clean.match(/\bair temperature\b/gi);
   if (airTempMatches) {
-    const withoutNegated = clean.replace(
-      /(?:surface temperature[,\s]+(?:is\s+)?not\s*air temperature|not\s*(?:measure\s*)?(?:an?\s*)?(?:radiometric\s*|skin\s*|2m\s*|ambient\s*|two-meter\s*|in-situ\s*)*air temperature|never\s*air temperature|differs\s*(?:significantly\s*)?from\s*(?:ambient\s*)?air temperature|rather\s*than\s*(?:ambient\s*)?(?:two-meter\s*|2m\s*)?air temperature|not\s*equal\s*to\s*(?:ambient\s*)?air temperature|no\s*ambient\s*air temperature)/gi,
-      "[NEGATED_AIR_TEMP]"
-    );
-    if (/\bair temperature\b/i.test(withoutNegated)) {
-      violations.push("Unnegated 'air temperature' used; platform models surface temperature (LST).");
+    const sentences = clean.split(/[.!?\n]+/);
+    for (const sentence of sentences) {
+      if (/\bair temperature\b/i.test(sentence)) {
+        const isNegated = /(?:not|never|rather\s*than|differs\s*from|distinct\s*from|cannot\s*be\s*inferred)/i.test(sentence);
+        if (!isNegated) {
+          violations.push("Unnegated 'air temperature' used; platform models surface temperature (LST).");
+          break;
+        }
+      }
     }
   }
 

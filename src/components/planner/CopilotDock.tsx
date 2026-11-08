@@ -7,7 +7,7 @@
 
 import React, { useState } from 'react';
 import { Bot, MessageSquare, Send, ChevronDown, ChevronUp, Sparkles, X } from 'lucide-react';
-import { askCopilot } from '@/api/client';
+import { askCopilot, isDemoMode } from '@/api/client';
 import { Cell, OptimizeResult } from '@/api/contract';
 
 export interface CopilotDockProps {
@@ -19,12 +19,13 @@ export const CopilotDock: React.FC<CopilotDockProps> = ({ currentResult, selecte
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [messages, setMessages] = useState<Array<{ sender: 'user' | 'assistant'; text: string }>>([
-    {
-      sender: 'assistant',
-      text: 'Hello. I am the UrjaSetu Climate Copilot. Ask me how this optimization allocates greening, what evidence underpins the rankings, or query selected zone heat data. (Demo mode: responses cite verified plan figures).',
-    },
-  ]);
+  const [messages, setMessages] = useState<Array<{ sender: 'user' | 'assistant'; text: string }>>(() => {
+    const isDemo = typeof window !== 'undefined' ? isDemoMode() : false;
+    const greeting = isDemo
+      ? "Hello! I am your Climate Copilot (running with demo data). Ask me about surface temperatures, heat burden, cooling interventions, or how to allocate your greening budget."
+      : "Hello! I am your Climate Copilot. Ask me about Pune's surface temperatures, heat burden, cooling interventions, or how to allocate your greening budget.";
+    return [{ sender: 'assistant', text: greeting }];
+  });
 
   const handleSend = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
