@@ -26,3 +26,6 @@ ndata/
 data/external/
 __pycache__/
 *.pyc
+# Generated training pipeline test outputs
+data/train_model_test_output/
+data/train_model_fail_test/

@@ -1,0 +1,38 @@
+[
+  {
+    "id": "cell_synth_loss_1",
+    "centroid": [
+      73.8123,
+      18.5042
+    ],
+    "ward": "Kothrud",
+    "ndvi": 0.28,
+    "built_frac": 0.65,
+    "population": 1800,
+    "burden": 14.5
+  },
+  {
+    "id": "cell_synth_stable_2",
+    "centroid": [
+      73.8567,
+      18.5204
+    ],
+    "ward": "Kasba Vishrambaugwada",
+    "ndvi": 0.12,
+    "built_frac": 0.9,
+    "population": 3200,
+    "burden": 22.1
+  },
+  {
+    "id": "cell_synth_unmeasured_3",
+    "centroid": [
+      73.8901,
+      18.5301
+    ],
+    "ward": "Hadapsar - Mundhwa",
+    "ndvi": null,
+    "built_frac": 0.4,
+    "population": 1200,
+    "burden": null
+  }
+]
