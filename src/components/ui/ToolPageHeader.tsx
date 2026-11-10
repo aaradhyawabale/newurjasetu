@@ -8,7 +8,7 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronUp, Info, HelpCircle, Compass } from 'lucide-react';
 import { TruthChip } from './TruthChip';
-import { AppLink, useAppLocation } from '../../lib/nav';
+import { AppLink, useAppLocation } from '@/lib/nav';
 import { useTour } from '@/walkthrough/engine/TourProvider';
 
 export interface BreadcrumbItem {

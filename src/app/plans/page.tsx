@@ -9,11 +9,11 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { ToolPageHeader } from '../../components/ui/ToolPageHeader';
-import { TruthChip } from '../../components/ui/TruthChip';
-import { Button } from '../../components/ui/Button';
-import { Skeleton, ErrorState } from '../../components/ui/FeedbackStates';
-import { usePlan } from '../../context/PlanContext';
+import { ToolPageHeader } from '@/components/ui/ToolPageHeader';
+import { TruthChip } from '@/components/ui/TruthChip';
+import { Button } from '@/components/ui/Button';
+import { Skeleton, ErrorState } from '@/components/ui/FeedbackStates';
+import { usePlan } from '@/context/PlanContext';
 import {
   FileText,
   Plus,
