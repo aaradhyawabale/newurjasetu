@@ -18,12 +18,14 @@ const nextConfig = {
   async rewrites() {
     if (process.env.BACKEND_URL) {
       const backendUrl = process.env.BACKEND_URL.replace(/\/$/, "");
-      return [
-        {
-          source: "/api/:path*",
-          destination: `${backendUrl}/api/:path*`,
-        },
-      ];
+      return {
+        beforeFiles: [
+          {
+            source: "/api/:path*",
+            destination: `${backendUrl}/api/:path*`,
+          },
+        ],
+      };
     }
     return [];
   },
