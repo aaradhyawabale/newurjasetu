@@ -29,3 +29,5 @@ __pycache__/
 # Generated training pipeline test outputs
 data/train_model_test_output/
 data/train_model_fail_test/
+videos/
+video_tools/

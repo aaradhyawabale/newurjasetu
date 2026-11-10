@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",
-    "start": "next start",
+    "start": "next start -H 0.0.0.0 -p ${PORT:-3000}",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
@@ -13,6 +13,9 @@
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
     "db:seed": "vite-node --config vitest.config.ts prisma/seed.ts"
+  },
+  "engines": {
+    "node": ">=20.0.0"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
