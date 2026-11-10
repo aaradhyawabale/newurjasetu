@@ -15,7 +15,7 @@
     "db:seed": "vite-node --config vitest.config.ts prisma/seed.ts"
   },
   "engines": {
-    "node": "20.x"
+    "node": "26.x"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
