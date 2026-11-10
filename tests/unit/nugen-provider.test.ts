@@ -141,8 +141,8 @@ describe("NuGenProvider & Resiliency Unit Tests", () => {
         provider.complete([{ role: "user", content: "test" }])
       ).rejects.toThrow(LLMRateLimitError);
 
-      // Max retries is 2 -> 1 initial + 2 retries = 3 calls
-      expect(fetchSpy).toHaveBeenCalledTimes(3);
+      // Max retries is 1 -> 1 initial + 1 retry = 2 calls
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
     });
 
     it("throws LLMServerError on 500 internal server error", async () => {

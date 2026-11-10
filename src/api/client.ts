@@ -472,12 +472,12 @@ export async function askCopilot(
   const cell = context?.selectedCell;
 
   if (cell) {
-    return `Zone ${cell.id} (${cell.ward}): Measured radiometric surface temperature is ${cell.lst_mean}°C with a heat excess of +${cell.heat_excess_celsius}°C above the rural baseline. Greening the ${cell.greenable_ha} ha available unbuilt ground is modelled to achieve an expected cooling effect of ${cell.cooling_mean !== null ? `+${cell.cooling_mean}°C` : 'Not available'} (model variance P10: ${cell.cooling_p10 ?? 'N/A'}°C to P90: ${cell.cooling_p90 ?? 'N/A'}°C; Spatial-CV RMSE ±0.91°C). Note: Surface temperature is skin radiometric temperature, not 2m air temperature.`;
+    return `The AI service is temporarily unavailable. Here is the static scenario summary: Zone ${cell.id} (${cell.ward}): Measured radiometric surface temperature is ${cell.lst_mean}°C with a heat excess of +${cell.heat_excess_celsius}°C above the rural baseline. Greening the ${cell.greenable_ha} ha available unbuilt ground is modelled to achieve an expected cooling effect of ${cell.cooling_mean !== null ? `+${cell.cooling_mean}°C` : 'Not available'} (model variance P10: ${cell.cooling_p10 ?? 'N/A'}°C to P90: ${cell.cooling_p90 ?? 'N/A'}°C; Spatial-CV RMSE ±0.91°C).`;
   }
 
   if (totals) {
-    return `Current optimization scenario: Allocates ${totals.area_ha} ha across ${totals.zones} parcels, directly shielding an estimated ${totals.people_covered.toLocaleString()} residents [Assumed]. Expected surface cooling relief is ${totals.cooling_mid}°C (P10: ${totals.cooling_low}°C to P90: ${totals.cooling_high}°C), with a 30-member Monte Carlo robustness score of ${totals.robustness}%.`;
+    return `The AI service is temporarily unavailable. Here is the static scenario summary: Current optimization scenario: Allocates ${totals.area_ha} ha across ${totals.zones} parcels, directly shielding an estimated ${totals.people_covered.toLocaleString()} residents [Assumed]. Expected surface cooling relief is ${totals.cooling_mid}°C (P10: ${totals.cooling_low}°C to P90: ${totals.cooling_high}°C), with a 30-member Monte Carlo robustness score of ${totals.robustness}%.`;
   }
 
-  return `UrjaSetu pairs satellite radiometric land surface temperature (Landsat 9) and vegetation indices (Sentinel-2) with a 30-member spatial-block bootstrap ensemble to prioritize cooling and greening interventions under municipal budget constraints. Select a zone on the map or adjust the budget slider to analyze specific outcomes.`;
+  return `The AI service is temporarily unavailable. Here is the static scenario summary: UrjaSetu pairs satellite radiometric land surface temperature (Landsat 9) and vegetation indices (Sentinel-2) with a 30-member spatial-block bootstrap ensemble to prioritize cooling and greening interventions under municipal budget constraints. Select a zone on the map or adjust the budget slider to analyze specific outcomes.`;
 }

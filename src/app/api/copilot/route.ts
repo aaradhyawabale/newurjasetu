@@ -1,9 +1,9 @@
 import { NextRequest } from "next/server";
-import { requireAuthUser } from "@/server/auth/session";
+import { getSessionUser } from "@/server/auth/session";
 import { successResponse, errorResponse, handleRouteError } from "@/server/utils/response";
 import {
   generateCopilotResponse,
-  generateLocalCopilotResponse,
+  buildStaticScenarioSummary,
   isAIConfigured,
   getAIModel,
   sanitizeErrorMessage,
@@ -11,6 +11,8 @@ import {
   CopilotChatContext,
   CopilotChatMessage,
 } from "@/server/ai/advisor";
+import { nuGenProvider } from "@/server/ai/llm/nugen-provider";
+import { LLMAuthError, LLMTimeoutError } from "@/server/ai/llm/types";
 import { globalAIRouteRateLimiter } from "@/server/ai/llm";
 
 export async function GET(req: NextRequest) {
@@ -31,7 +33,8 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    await requireAuthUser(req);
+    // Optional planner authentication: guests and planners can both query Copilot
+    await getSessionUser(req).catch(() => null);
 
     // Apply per-IP rate limit
     const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "127.0.0.1";
@@ -47,7 +50,7 @@ export async function POST(req: NextRequest) {
       return errorResponse("Invalid JSON payload", "BAD_REQUEST", 400);
     }
 
-    const { message, context, history, fallbackToLocal } = body as {
+    const { message, context, history } = body as {
       message?: string;
       context?: CopilotChatContext;
       history?: CopilotChatMessage[];
@@ -60,26 +63,17 @@ export async function POST(req: NextRequest) {
 
     // If NuGen API key is missing on the server
     if (!isAIConfigured()) {
-      if (fallbackToLocal) {
-        const localResult = generateLocalCopilotResponse(message.trim(), context, history);
-        return successResponse({
-          ...localResult,
-          engineSource: localResult.engineSource || "local_gis_engine",
-          cloudUnavailable: true,
-          cloudError: "NuGen API key is not configured on the server.",
-          notice: "The AI service could not be reached, so this answer comes from the built-in assistant.",
-        });
-      }
-
-      return errorResponse(
-        "NuGen API key is not configured on the server. Please add NUGEN_API_KEY to your .env.local file.",
-        "KEY_NOT_CONFIGURED",
-        503,
-        { canUseLocalFallback: true }
-      );
+      const staticSummary = buildStaticScenarioSummary(context);
+      console.error("[Copilot Error] NUGEN_API_KEY environment variable is not configured or empty.");
+      return successResponse({
+        reply: `The AI service is temporarily unavailable. Here is the static scenario summary: ${staticSummary}`,
+        degraded: true,
+        error: "LLM_UNAUTHORIZED",
+        engineSource: "static_fallback",
+      });
     }
 
-    // When NuGen API key is present, invoke NuGen AI with local fallback resilience
+    // Default route is ALWAYS NuGen AI
     try {
       const result = await generateCopilotResponse(message.trim(), context, history);
       return successResponse({
@@ -88,19 +82,43 @@ export async function POST(req: NextRequest) {
       });
     } catch (err: unknown) {
       const sanitizedErr = sanitizeErrorMessage(err);
-      console.warn("[Copilot] NuGen AI API call failed:", sanitizedErr);
-      if (fallbackToLocal) {
-        const localResult = generateLocalCopilotResponse(message.trim(), context, history);
-        return successResponse({
-          ...localResult,
-          engineSource: localResult.engineSource || "local_gis_engine",
-          cloudUnavailable: true,
-          cloudError: sanitizedErr,
-          notice: "The AI service could not be reached, so this answer comes from the built-in assistant.",
-          reply: localResult.reply,
-        });
+      const endpoint = `${nuGenProvider.getBaseUrl()}/inference/chat/completions`;
+      const model = nuGenProvider.getModel();
+
+      let statusCode = 500;
+      let errorType: "LLM_UNAUTHORIZED" | "LLM_TIMEOUT" | "LLM_ERROR" = "LLM_ERROR";
+
+      if (
+        err instanceof LLMAuthError ||
+        (err as any)?.statusCode === 401 ||
+        (err as any)?.statusCode === 403 ||
+        (err as any)?.code === "KEY_NOT_CONFIGURED" ||
+        (err as any)?.code === "AUTH_ERROR"
+      ) {
+        statusCode = 401;
+        errorType = "LLM_UNAUTHORIZED";
+      } else if (
+        err instanceof LLMTimeoutError ||
+        (err as any)?.statusCode === 504 ||
+        (err as any)?.code === "TIMEOUT"
+      ) {
+        statusCode = 504;
+        errorType = "LLM_TIMEOUT";
       }
-      throw err;
+
+      console.error(
+        `[Copilot LLM Failure] Status: ${statusCode}, Endpoint: ${endpoint}, Model: ${model}, Response: ${sanitizedErr}`
+      );
+
+      const staticSummary = buildStaticScenarioSummary(context);
+      return successResponse({
+        reply: `The AI service is temporarily unavailable. Here is the static scenario summary: ${staticSummary}`,
+        degraded: true,
+        error: errorType,
+        engineSource: "static_fallback",
+        cloudUnavailable: true,
+        cloudError: sanitizedErr,
+      });
     }
   } catch (err: unknown) {
     if (err instanceof AIAdvisorError) {

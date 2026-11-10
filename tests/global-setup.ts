@@ -40,18 +40,20 @@ export default async function globalSetup() {
     }
   }
 
-  // Initialize isolated fresh test schema using Prisma CLI db push
-  try {
-    execSync(`npx prisma db push --schema=prisma/schema.prisma --skip-generate --accept-data-loss`, {
-      env: {
-        ...process.env,
-        DATABASE_URL: testDbUrl,
-      },
-      stdio: "pipe",
-    });
-  } catch (err: any) {
-    const errorOutput = err.stderr ? err.stderr.toString() : err.message;
-    throw new Error(`[FATAL] Failed to initialize isolated test database schema: ${errorOutput}`);
+  // Initialize isolated fresh test schema using Prisma CLI db push (if configured for postgres)
+  if (!testDbUrl.startsWith("file:")) {
+    try {
+      execSync(`npx prisma db push --schema=prisma/schema.prisma --skip-generate --accept-data-loss`, {
+        env: {
+          ...process.env,
+          DATABASE_URL: testDbUrl,
+        },
+        stdio: "pipe",
+      });
+    } catch (err: any) {
+      const errorOutput = err.stderr ? err.stderr.toString() : err.message;
+      throw new Error(`[FATAL] Failed to initialize isolated test database schema: ${errorOutput}`);
+    }
   }
 
   return async () => {

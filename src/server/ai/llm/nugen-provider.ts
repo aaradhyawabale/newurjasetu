@@ -29,9 +29,43 @@ import { globalLLMCircuitBreaker } from './circuit-breaker';
 
 const DEFAULT_BASE_URL = 'https://api.nugen.in/api/v3';
 const DEFAULT_MODEL = 'meta-llama/Llama-3.2-3B-Instruct';
-const DEFAULT_TIMEOUT_MS = 20000;
-const MAX_RETRIES = 2;
+const DEFAULT_TIMEOUT_MS = 30000;
+const MAX_RETRIES = 1;
 const MAX_MESSAGE_CHARS = 16000;
+
+let hasLoggedNuGenDiagnostics = false;
+
+export function resetNuGenDiagnosticLogging(): void {
+  hasLoggedNuGenDiagnostics = false;
+}
+
+export function cleanNuGenApiKey(raw?: string): string | undefined {
+  if (!raw) return undefined;
+  const trimmed = raw.trim();
+  const unquoted = trimmed.replace(/^["']|["']$/g, '').trim();
+  return unquoted.length > 0 ? unquoted : undefined;
+}
+
+export function logNuGenKeyDiagnostics(rawKey: string | undefined): void {
+  if (hasLoggedNuGenDiagnostics) return;
+  hasLoggedNuGenDiagnostics = true;
+
+  if (!rawKey) {
+    console.log('[NuGen Auth Diagnostic] NUGEN_API_KEY is not set or empty.');
+    return;
+  }
+
+  const hasLeadingWhitespace = /^\s/.test(rawKey);
+  const hasTrailingWhitespace = /\s$/.test(rawKey);
+  const trimmed = rawKey.trim();
+  const hasSurroundingQuotes = /^["'].*["']$/.test(trimmed);
+  const clean = cleanNuGenApiKey(rawKey);
+
+  console.log(
+    `[NuGen Auth Diagnostic] NUGEN_API_KEY detected: present=true, length=${clean?.length ?? 0}, ` +
+    `hasWhitespace=${hasLeadingWhitespace || hasTrailingWhitespace}, hasSurroundingQuotes=${hasSurroundingQuotes}`
+  );
+}
 
 /**
  * Strips HTML tags from untrusted model strings.
@@ -49,7 +83,7 @@ export function redactSecret(text: string, secret?: string): string {
   let cleaned = text;
   cleaned = cleaned.replace(/Bearer\s+[^\s]+/gi, 'Bearer [REDACTED]');
   cleaned = cleaned.replace(/nugen-[a-zA-Z0-9_\-]+/gi, '[REDACTED_API_KEY]');
-  const keyToRedact = secret || process.env.NUGEN_API_KEY;
+  const keyToRedact = secret || cleanNuGenApiKey(process.env.NUGEN_API_KEY);
   if (keyToRedact && keyToRedact.length > 5) {
     cleaned = cleaned.split(keyToRedact).join('[REDACTED_API_KEY]');
   }
@@ -59,11 +93,13 @@ export function redactSecret(text: string, secret?: string): string {
 export class NuGenProvider implements LLMProvider {
   public readonly name = 'nugen';
 
-  private getApiKey(): string | undefined {
-    return process.env.NUGEN_API_KEY?.trim();
+  public getApiKey(): string | undefined {
+    const raw = process.env.NUGEN_API_KEY;
+    logNuGenKeyDiagnostics(raw);
+    return cleanNuGenApiKey(raw);
   }
 
-  private getBaseUrl(): string {
+  public getBaseUrl(): string {
     const raw = process.env.NUGEN_BASE_URL?.trim() || DEFAULT_BASE_URL;
     return raw.replace(/\/+$/, '');
   }
@@ -83,7 +119,7 @@ export class NuGenProvider implements LLMProvider {
   public async complete(messages: LLMMessage[], options: LLMOptions = {}): Promise<LLMResponse> {
     const apiKey = this.getApiKey();
     if (!apiKey) {
-      throw new LLMAuthError('NUGEN_API_KEY is missing from environment. Configure it in .env.local.');
+      throw new LLMAuthError('NUGEN_API_KEY environment variable is missing or empty. Please configure NUGEN_API_KEY in Render environment variables.');
     }
 
     if (!globalLLMCircuitBreaker.canExecute()) {
@@ -161,11 +197,17 @@ export class NuGenProvider implements LLMProvider {
 
         if (response.status === 401 || response.status === 403) {
           globalLLMCircuitBreaker.recordFailure();
-          throw new LLMAuthError('NuGen authentication failed. Check your NUGEN_API_KEY in .env.local.');
+          const rawErr = await response.text().catch(() => '');
+          console.error(
+            `[NuGen Auth Failure] Status: ${response.status}, Endpoint: ${endpoint}, Model: ${model}, Response: ${redactSecret(rawErr, apiKey)}`
+          );
+          throw new LLMAuthError(`NuGen authentication failed (HTTP ${response.status}). Verify NUGEN_API_KEY in Render environment variables.`);
         }
 
         if (response.status === 429) {
           globalLLMCircuitBreaker.recordFailure();
+          const rawErr = await response.text().catch(() => '');
+          console.error(`[NuGen Rate Limit] Status: 429, Endpoint: ${endpoint}, Model: ${model}, Response: ${redactSecret(rawErr, apiKey)}`);
           if (attempt < MAX_RETRIES) {
             const backoffMs = Math.pow(2, attempt) * 1000;
             await new Promise((r) => setTimeout(r, backoffMs));
@@ -177,6 +219,8 @@ export class NuGenProvider implements LLMProvider {
 
         if (response.status >= 500) {
           globalLLMCircuitBreaker.recordFailure();
+          const rawErr = await response.text().catch(() => '');
+          console.error(`[NuGen Server Error] Status: ${response.status}, Endpoint: ${endpoint}, Model: ${model}, Response: ${redactSecret(rawErr, apiKey)}`);
           if (attempt < MAX_RETRIES) {
             const backoffMs = Math.pow(2, attempt) * 1000;
             await new Promise((r) => setTimeout(r, backoffMs));
@@ -188,6 +232,7 @@ export class NuGenProvider implements LLMProvider {
 
         if (!response.ok) {
           const rawErr = await response.text().catch(() => '');
+          console.error(`[NuGen Bad Request] Status: ${response.status}, Endpoint: ${endpoint}, Model: ${model}, Response: ${redactSecret(rawErr, apiKey)}`);
           throw new LLMError(
             `NuGen request failed with status ${response.status}: ${redactSecret(rawErr, apiKey)}`,
             'BAD_REQUEST',
@@ -223,6 +268,7 @@ export class NuGenProvider implements LLMProvider {
         clearTimeout(timer);
         if (err?.name === 'AbortError') {
           globalLLMCircuitBreaker.recordFailure();
+          console.error(`[NuGen Timeout] Endpoint: ${endpoint}, Model: ${model}, Timeout: ${timeoutMs}ms`);
           lastError = new LLMTimeoutError(`NuGen request timed out after ${timeoutMs}ms`);
         } else if (err instanceof LLMError) {
           lastError = err;
@@ -232,11 +278,16 @@ export class NuGenProvider implements LLMProvider {
           const detailedMsg = causeInfo
             ? `${err?.message || 'NuGen network failure'} (${causeInfo})`
             : (err?.message || 'NuGen network failure');
+          console.error(`[NuGen Network Failure] Endpoint: ${endpoint}, Model: ${model}, Error: ${redactSecret(detailedMsg, apiKey)}`);
           lastError = new LLMError(redactSecret(detailedMsg, apiKey), 'NETWORK_ERROR', 500);
         }
 
-        // Only retry retryable network/server errors
-        if (lastError instanceof LLMServerError && attempt < MAX_RETRIES) {
+        // Retry only on 5xx server errors or timeouts (NEVER on 401/403 auth errors)
+        const isRetryable =
+          (lastError instanceof LLMServerError || lastError instanceof LLMTimeoutError) &&
+          attempt < MAX_RETRIES;
+
+        if (isRetryable) {
           const backoffMs = Math.pow(2, attempt) * 1000;
           await new Promise((r) => setTimeout(r, backoffMs));
           attempt++;
